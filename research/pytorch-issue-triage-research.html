@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="PyTorch 社区 GitHub Issue 分流机制、自动化安全边界、公开效果数据与存量瓶颈研究">
+<title>PyTorch 社区 Issue 分流：机制、效果与生命周期缺口</title>
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #f4f6f8;
+    --card: #fff;
+    --ink: #17202a;
+    --sub: #43505d;
+    --muted: #6d7884;
+    --line: #dce2e8;
+    --blue: #1769aa;
+    --blue-dark: #104c7d;
+    --blue-soft: #e8f2fb;
+    --teal: #087f73;
+    --teal-soft: #e6f5f1;
+    --amber: #a65b00;
+    --amber-soft: #fff3df;
+    --red: #a63737;
+    --red-soft: #fceaea;
+    --shadow: 0 8px 24px rgba(27, 43, 58, .06);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.68 Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--blue-dark); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { color: var(--teal); }
+  .wrap { width: min(1160px, calc(100% - 40px)); margin: 0 auto; }
+  header { padding: 46px 0 30px; border-bottom: 1px solid var(--line); background: var(--card); }
+  .eyebrow { margin: 0 0 12px; color: var(--blue-dark); font-size: 11px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
+  h1 { max-width: 900px; margin: 0 0 15px; font-size: clamp(30px, 5vw, 48px); line-height: 1.12; letter-spacing: -.035em; }
+  .lede { max-width: 900px; margin: 0; color: var(--sub); font-size: 17px; }
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 19px; }
+  .chip { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--sub); background: var(--paper); font-size: 11px; }
+  nav { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--card) 93%, transparent); backdrop-filter: blur(10px); }
+  nav .wrap { display: flex; gap: 8px; overflow-x: auto; padding-top: 9px; padding-bottom: 9px; }
+  nav a { white-space: nowrap; padding: 5px 9px; border-radius: 7px; color: var(--sub); font-size: 12px; text-decoration: none; }
+  nav a:hover { background: var(--blue-soft); color: var(--blue-dark); }
+  main { padding-bottom: 45px; }
+  section { padding-top: 34px; scroll-margin-top: 55px; }
+  h2 { margin: 0 0 13px; font-size: 25px; line-height: 1.25; letter-spacing: -.02em; }
+  h3 { margin: 0 0 8px; font-size: 16px; }
+  p { margin: 0 0 13px; color: var(--sub); }
+  .section-intro { max-width: 900px; }
+  .grid { display: grid; gap: 13px; }
+  .metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 18px 0; }
+  .card { border: 1px solid var(--line); border-radius: 13px; background: var(--card); box-shadow: var(--shadow); }
+  .metric { min-height: 124px; padding: 15px 16px; }
+  .metric .value { color: var(--blue-dark); font-size: clamp(24px, 3vw, 34px); font-weight: 750; line-height: 1.15; letter-spacing: -.04em; }
+  .metric.warn .value { color: var(--amber); }
+  .metric .label { margin-top: 7px; color: var(--ink); font-size: 12px; font-weight: 700; }
+  .metric .hint { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+  .callout { margin: 14px 0; border-left: 4px solid var(--blue); border-radius: 0 10px 10px 0; padding: 13px 16px; background: var(--blue-soft); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.warn { border-color: var(--amber); background: var(--amber-soft); }
+  .callout.danger { border-color: var(--red); background: var(--red-soft); }
+  .callout.good { border-color: var(--teal); background: var(--teal-soft); }
+  .callout strong { color: var(--ink); }
+  .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .panel { padding: 18px; }
+  .panel p:last-child { margin-bottom: 0; }
+  .tag { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; background: var(--paper); color: var(--sub); font-size: 11px; font-weight: 650; white-space: nowrap; }
+  .tag.ai { border-color: #a8cce9; background: var(--blue-soft); color: var(--blue-dark); }
+  .tag.human { border-color: #e8c889; background: var(--amber-soft); color: var(--amber); }
+  .tag.rule { border-color: #a9d8ce; background: var(--teal-soft); color: #08675f; }
+  .tag.fact { border-color: #a9d8ce; background: var(--teal-soft); color: #08675f; }
+  .tag.data { border-color: #a8cce9; background: var(--blue-soft); color: var(--blue-dark); }
+  .tag.infer { border-color: #e8c889; background: var(--amber-soft); color: var(--amber); }
+  .tag.unknown { border-color: #cfd6dc; background: #eef1f4; color: #5d6873; }
+  .flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin: 17px 0; counter-reset: steps; }
+  .step { position: relative; min-height: 158px; border: 1px solid var(--line); border-radius: 12px; padding: 15px; background: var(--card); }
+  .step:before { counter-increment: steps; content: "0" counter(steps); display: block; margin-bottom: 10px; color: var(--blue); font: 700 12px/1.2 ui-monospace, Consolas, monospace; }
+  .step:not(:last-child):after { content: "›"; position: absolute; right: -10px; top: 42%; z-index: 2; color: var(--blue); font-size: 23px; font-weight: 700; }
+  .step h3 { font-size: 13px; }
+  .step p { margin: 0; font-size: 12px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); }
+  table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 13px; }
+  th { padding: 11px 13px; background: var(--blue-soft); color: var(--blue-dark); text-align: left; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+  td { padding: 11px 13px; border-top: 1px solid var(--line); color: var(--sub); vertical-align: top; }
+  td:first-child { color: var(--ink); font-weight: 650; }
+  tbody tr:hover { background: #f8fbfd; }
+  code { border-radius: 4px; padding: 1px 5px; background: var(--blue-soft); color: var(--blue-dark); font: 12px ui-monospace, Consolas, monospace; white-space: nowrap; }
+  .bars { display: grid; gap: 13px; margin: 15px 0 18px; }
+  .barrow { display: grid; grid-template-columns: 190px 1fr 95px; align-items: center; gap: 12px; }
+  .barlabel { color: var(--sub); font-size: 12px; }
+  .track { height: 10px; border-radius: 20px; background: #e8edf1; overflow: hidden; }
+  .fill { height: 100%; border-radius: inherit; background: var(--blue); }
+  .fill.teal { background: var(--teal); }
+  .fill.amber { background: #d28a20; }
+  .fill.gray { background: #8b96a1; }
+  .barvalue { text-align: right; color: var(--ink); font: 700 12px ui-monospace, Consolas, monospace; }
+  .small { color: var(--muted); font-size: 12px; }
+  .path-source { width: fit-content; margin: 18px auto 24px; border: 2px solid var(--blue); border-radius: 12px; padding: 12px 22px; background: var(--blue-soft); color: var(--blue-dark); text-align: center; font-weight: 750; }
+  .path-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; }
+  .path-card { position: relative; min-height: 174px; padding: 15px; border: 1px solid var(--line); border-top: 4px solid var(--blue); border-radius: 11px; background: var(--card); box-shadow: var(--shadow); }
+  .path-card.review { border-top-color: var(--amber); }
+  .path-card.closed { border-top-color: #687785; }
+  .path-card.pending { border-top-color: #b78122; }
+  .path-card.unmarked { border-top-color: #aab3bc; }
+  .path-card h3 { min-height: 38px; font-size: 13px; }
+  .path-stat { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin: 8px 0 6px; }
+  .path-count { font: 750 23px/1 ui-monospace, Consolas, monospace; color: var(--ink); }
+  .path-share { color: var(--blue-dark); font: 750 17px/1 ui-monospace, Consolas, monospace; }
+  .path-card p { margin: 8px 0 0; font-size: 11px; line-height: 1.5; }
+  .path-track { height: 6px; margin-top: 8px; overflow: hidden; border-radius: 8px; background: #e8edf1; }
+  .path-track span { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+  .path-card.review .path-track span { background: #d28a20; }
+  .path-card.closed .path-track span { background: #687785; }
+  .path-card.pending .path-track span { background: #b78122; }
+  .path-card.unmarked .path-track span { background: #aab3bc; }
+  .logic-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 15px; }
+  .logic-card { border: 1px solid var(--line); border-radius: 10px; padding: 13px 14px; background: var(--card); }
+  .logic-card h3 { font-size: 13px; }
+  .logic-card p { margin: 0; font-size: 11.5px; }
+  .logic-card.close { border-left: 4px solid #687785; }
+  .logic-card.review { border-left: 4px solid var(--amber); }
+  .logic-card.route { border-left: 4px solid var(--blue); }
+  .logic-card.wait { border-left: 4px solid var(--teal); }
+  .logic-card.extra { border-left: 4px solid #8c70ad; }
+  .path-legend { display: flex; gap: 8px; flex-wrap: wrap; margin: 11px 0; }
+  .path-legend span { color: var(--muted); font-size: 11px; }
+  .impact-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 16px 0; }
+  .stacked-chart { display: flex; height: 54px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+  .stacked-chart span { display: flex; align-items: center; justify-content: center; min-width: 0; color: #fff; font-size: 12px; font-weight: 750; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .seg-botfixed { background: var(--blue); }
+  .seg-botscreened { background: var(--teal); }
+  .seg-otherclosed { background: #81909d; }
+  .seg-open { background: #d49a37; }
+  .chart-legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 12px 0 16px; }
+  .chart-legend.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .legend-item { display: flex; gap: 8px; align-items: flex-start; color: var(--sub); font-size: 12px; }
+  .swatch { flex: 0 0 10px; width: 10px; height: 10px; margin-top: 5px; border-radius: 3px; }
+  .share-row { display: grid; grid-template-columns: 185px 1fr 72px; gap: 10px; align-items: center; margin: 11px 0; }
+  .share-row .name { color: var(--sub); font-size: 12px; }
+  .share-row .number { color: var(--ink); font: 700 12px ui-monospace, Consolas, monospace; text-align: right; }
+  .share-track { height: 9px; overflow: hidden; border-radius: 10px; background: #e8edf1; }
+  .share-track span { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+  .share-track.teal span { background: var(--teal); }
+  .share-track.amber span { background: #d28a20; }
+  .share-track.gray span { background: #8b96a1; }
+  .cohort-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+  .cohort { padding: 13px 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--card); }
+  .cohort .k { color: var(--blue-dark); font-size: 11px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+  .cohort .v { margin: 4px 0 3px; font-size: 20px; font-weight: 750; color: var(--ink); }
+  .cohort p { margin: 0; font-size: 11.5px; }
+  .source-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 22px; padding-left: 22px; }
+  .source-list li { padding-left: 2px; color: var(--sub); font-size: 12px; }
+  .source-list a { font-weight: 650; }
+  .verdict { padding: 20px; border: 1px solid #a9d8ce; border-radius: 14px; background: var(--teal-soft); }
+  .verdict h3 { color: #08675f; font-size: 18px; }
+  footer { margin-top: 38px; padding: 21px 0 30px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  @media (max-width: 900px) {
+    .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .path-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .logic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .impact-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cohort-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .chart-legend.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .step:nth-child(3):after { display: none; }
+  }
+  @media (max-width: 640px) {
+    .wrap { width: min(100% - 28px, 1160px); }
+    header { padding-top: 32px; }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .path-grid, .logic-grid, .cohort-grid { grid-template-columns: 1fr; }
+    .impact-stats, .chart-legend, .chart-legend.four { grid-template-columns: 1fr; }
+    .share-row { grid-template-columns: 125px 1fr 65px; gap: 7px; }
+    .stacked-chart { height: 42px; }
+    .stacked-chart span { font-size: 10px; }
+    .stacked-chart span:nth-child(2) { font-size: 0; }
+    .path-card { min-height: 0; }
+    .cols, .three, .source-list { grid-template-columns: 1fr; }
+    .flow { grid-template-columns: 1fr; }
+    .step { min-height: 0; }
+    .step:not(:last-child):after { content: "⌄"; top: auto; right: 50%; bottom: -17px; }
+    .barrow { grid-template-columns: 125px 1fr 70px; gap: 7px; }
+    h2 { font-size: 22px; }
+  }
+  @media print {
+    body { background: white; font-size: 12px; }
+    nav { position: static; }
+    .card, .table-wrap { box-shadow: none; break-inside: avoid; }
+    section { break-inside: avoid; }
+    a { color: #164f7a; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <p class="eyebrow">Community Operations · GitHub Issue Triage</p>
+    <h1>PyTorch 社区 Issue 分流<br>机制、效果与生命周期缺口</h1>
+    <p class="lede">PyTorch 正把新 issue 的首轮分类交给受限的 AI agent，再由确定性代码执行标签与固定动作。公开数据足以显示新 issue 的分流覆盖已经很高；但它既不能证明问题解决更快，也遮不住更大的存量瓶颈：14,239 个 open issue 中 81.8% 创建超过一年，11,640 个已 <code>triaged</code> 却仍停在模块级处置之前。</p>
+    <div class="meta">
+      <span class="chip">研究对象：pytorch/pytorch</span>
+      <span class="chip">数据快照：2026-11-11 08:28 UTC</span>
+      <span class="chip">代码版本：main@918d19c</span>
+      <span class="chip">核心口径：分流 ≠ 闭环；覆盖 ≠ 减负</span>
+    </div>
+  </div>
+</header>
+<nav>
+  <div class="wrap">
+    <a href="#summary">核心结论</a><a href="#architecture">自动化链路</a><a href="#decisions">决策与硬约束</a>
+    <a href="#lifecycle">社区流程</a><a href="#stock">存量与瓶颈</a><a href="#paths">当前状态构成</a>
+    <a href="#screening">AI 减负</a><a href="#results">效果快照</a><a href="#risks">局限与风险</a><a href="#sources">来源与数据</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <section id="summary">
+    <h2>核心结论</h2>
+    <p class="section-intro">现行方案不是“模型直接操作 GitHub”，而是 <strong>Agent 读 issue 并提交计划，独立 Apply job 校验后写入</strong>。它解决的是新 issue 首轮归类和路由的规模化问题；模块级维护、证据核验、优先级判断和最终处置仍是人类工作。更关键的是：首轮分流已经不是当前最大的积压点。</p>
+    <div class="grid metrics">
+      <div class="card metric"><div class="value">2,163</div><div class="label">成熟窗口 Cohort A</div><div class="hint">2026-08-01 至 11-04 创建，含 open / closed</div></div>
+      <div class="card metric"><div class="value">88.3%</div><div class="label">Bot 参与覆盖</div><div class="hint">1,911 / 2,163 带 bot-triaged，表示有过动作</div></div>
+      <div class="card metric warn"><div class="value">37.6%</div><div class="label">Bot 标记且已关闭</div><div class="hint">814 / 2,163；其中 82.4% 以 completed 收尾（多为修复），不是筛除</div></div>
+      <div class="card metric warn"><div class="value">6.6%</div><div class="label">分流筛除的候选上限</div><div class="hint">bot 标记且 closed 中的 143 条 duplicate / not planned；仍非因果减负率</div></div>
+      <div class="card metric warn"><div class="value">11,640</div><div class="label">已 triaged、未进入 fully triaged</div><div class="hint">占 14,239 个 open issue 的 81.7%；9,810 条超过一年</div></div>
+    </div>
+    <div class="callout good">
+      <p><strong>判断：</strong>方案的流程成熟度和安全隔离较强，新 issue 的分流覆盖已有可观的公开信号；但“效果”证据仍停留在标签覆盖与人工纠错。更准确的结论是：<strong>AI 已把“入口分诊”规模化，但还没有把“存量闭环”做成</strong>。在模块级队列没有同步扩容或自动化的前提下，首分流更快不会自动转化为 issue 更快解决。</p>
+    </div>
+
+    <div class="cohort-grid">
+      <div class="cohort">
+        <div class="k">Cohort A · 成熟窗口</div>
+        <div class="v">2,163</div>
+        <p>2026-08-01 至 11-04 创建的 issue，含当前 open / closed；用于状态构成与关闭原因分解。最新一批至少有 7 天成熟期。</p>
+      </div>
+      <div class="cohort">
+        <div class="k">Cohort B · 近期 open</div>
+        <div class="v">1,367</div>
+        <p>创建时间 ≥ 2026-08-01、当前仍 open；用于观察运营覆盖率。含最近几小时的新 issue，不适合直接算最终结果率。</p>
+      </div>
+      <div class="cohort">
+        <div class="k">Stock · 全量存量</div>
+        <div class="v">14,239</div>
+        <p>当前全部 open issue（不含 PR），不限创建时间；用于判断 backlog、老化和模块级瓶颈。</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p><strong>证据读法：</strong><span class="tag fact">代码事实</span> 直接来自 main 分支的 workflow、脚本和 skill；<span class="tag data">数据观测</span> 来自 GitHub Search API 的标签 / 状态计数；<span class="tag infer">推断</span> 只在明确标注处出现；<span class="tag unknown">未知</span> 表示公开数据不足以判断。本文不把标签覆盖当作准确率，也不把关闭数当作 AI 贡献。</p>
+    </div>
+
+    <div class="grid cols">
+      <div class="card panel">
+        <h3>模型负责什么</h3>
+        <p>理解问题语义、识别可能受影响模块、检索相似 issue、提出 oncall / module 标签和有限决策，并附上简短理由。模型输出是待执行的计划，不是 GitHub 写权限。</p>
+      </div>
+      <div class="card panel">
+        <h3>代码负责什么</h3>
+        <p>校验结构、标签白名单、禁止标签、固定评论模板、重复路由、关闭门槛、issue 范围及最终写入。禁用标签会转人工 review；未知标签会被丢弃，若没有有效标签也转 review。优先级和高风险结论保留给人类确认。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>自动化链路：Plan 与 Apply 分离</h2>
+    <p class="section-intro">当前主链路由两个 GitHub Actions workflow 构成。第一阶段接收新 issue 事件并以低权限保存编号；第二阶段在受保护环境运行 Pi agent，生成结构化 triage plan，再由不接触模型的 job 执行受限写入。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/issue-triage.yml">[1]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/issue-triage-pi.yml">[2]</a></p>
+    <div class="flow">
+      <div class="step"><h3>提交入口</h3><p>GitHub Issue Forms 收集 bug、feature、torch.compile 报告；bug 模板引导填写复现、结果、完整 traceback 和版本环境，但只有描述与版本是必填。</p></div>
+      <div class="step"><h3>捕获事件</h3><p><code>issues: opened</code> 触发 Stage 1，仅捕获 issue number 并上传短期 artifact；不持有 issue 写权限。</p></div>
+      <div class="step"><h3>只读计划</h3><p>Stage 2 的 Plan job 读取 issue / comments / repo 内相似 issue，通过只读工具提交 JSON；模型无 shell、无 issue 写 token，runner 出网受限。</p></div>
+      <div class="step"><h3>规则化 Apply</h3><p>独立 Apply job 校验计划、过滤标签、生成固定评论，并按规则执行有限的标签或关闭动作。</p></div>
+      <div class="step"><h3>维护者接手</h3><p><code>triaged</code> / <code>module:</code> / <code>oncall:</code> 进入对应队列；<code>triage review</code>、复现和设计工作继续由人处理。</p></div>
+    </div>
+    <div class="grid three">
+      <div class="card panel">
+        <h3><span class="tag ai">AI 规划</span> Pi + Bedrock</h3>
+        <p>当前 issue workflow 调用仓库内 Pi agent；默认模型配置为 <code>global.openai.gpt-6.1-sol</code>、medium thinking，而不是“模型直接写 GitHub”。工具只开放读取、搜索和提交结果。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/actions/pi-agent/README.md">[3]</a></p>
+      </div>
+      <div class="card panel">
+        <h3><span class="tag rule">确定性门禁</span> JSON → Effects</h3>
+        <p>schema 限定决策枚举和字段；<code>apply_plan.py</code> 把计划转为动作。禁用 / 未知标签不会直接写入；只添加标签，不根据模型计划移除现有标签。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/pi/schemas/issue-triage-plan.json">[4]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/scripts/issue_triage_pi/apply_plan.py">[5]</a></p>
+      </div>
+      <div class="card panel">
+        <h3><span class="tag human">人工保留权</span> 高风险不自动定案</h3>
+        <p>高优先级、严重性、需要判断根因的数字精度问题等转为 <code>triage review</code>；转到其他仓库也不自动搬运，交由维护者处理。AI 不直接赋予 <code>high priority</code>。</p>
+      </div>
+    </div>
+    <div class="callout">
+      <p><strong>信任边界：</strong>issue 标题、正文和评论被明确视为不可信输入；提示词要求忽略其中要求贴特定标签、关闭 issue 或处理其他 issue 的指令。只读工具固定仓库范围，计划通过 schema 校验，Apply 阶段才拥有 <code>issues: write</code> 且不具备 AWS 模型访问。Plan job 的出网白名单只保留 Bedrock、GitHub、S3 和 npm 等必要端点。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/issue-triage-pi.yml">[2]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/pi/extensions/github-issue-tools.ts">[6]</a></p>
+    </div>
+  </section>
+
+  <section id="decisions">
+    <h2>决策分工：语义判断与硬规则</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>决策环节</th><th>主要判定者</th><th>实际动作 / 门槛</th><th>需人参与？</th></tr></thead>
+        <tbody>
+          <tr><td>问题类型与领域归属</td><td>模型判断；白名单和规则约束</td><td>识别 question / bug / feature，选择 <code>module:</code> 或 <code>oncall:</code>，并避免只凭关键词贴标签。</td><td><span class="tag ai">低风险可自动</span></td></tr>
+          <tr><td>普通 oncall 路由</td><td>模型提出；Apply 校验</td><td>向 JIT、Export、Profiler 等队列路由；一般非 PT2 / distributed 路由后停止，不叠加错误的 module 标签。</td><td><span class="tag ai">队列团队后续处理</span></td></tr>
+          <tr><td>PT2 / distributed 分类</td><td>模型按专门 rubric 判断</td><td>PT2 需要继续补 <code>module:</code>；distributed 选择一个子队列，parallelisms 路由还需相应 module 标签。</td><td><span class="tag human">不确定则 review</span></td></tr>
+          <tr><td>严重性 / 高优先级</td><td>模型可识别风险信号；维护者定案</td><td>crash、silent correctness、regression 等先加 <code>triage review</code>，模型不得直接加 <code>high priority</code>。</td><td><span class="tag human">必须人工确认</span></td></tr>
+          <tr><td>关闭 usage question</td><td>模型判断；固定模板与动作由代码执行</td><td>引导到 PyTorch Discussion Forum 后关闭；不允许自由生成关闭评论。</td><td><span class="tag rule">受限自动化</span></td></tr>
+          <tr><td>数值行为 / umbrella</td><td>模型提供匹配建议；代码再次检查规则</td><td>数值问题只有在文档能解释且无未解决证据时才能关；umbrella 只能从仓库目录选择，依策略 link 或 close。</td><td><span class="tag human">冲突时转人工</span></td></tr>
+          <tr><td>普通疑似重复</td><td>模型提出候选；Apply 验证同仓库 issue</td><td>只发固定“可能重复”建议，源 issue 保持 open；不自动将普通重复 issue 关闭。</td><td><span class="tag human">提交者确认合并</span></td></tr>
+          <tr><td>标签与评论写入</td><td>确定性代码</td><td>只接受 allowlist；过滤禁止 / 未知 / 冗余标签；评论只能来自模板或受控引用；机器人动作加 <code>bot-triaged</code>。</td><td><span class="tag rule">无模型写权限</span></td></tr>
+          <tr><td>分配负责人 / 跨仓转移</td><td>维护者</td><td>V1 不自动 assign 用户；跨仓 transfer 变成 <code>triage review</code>，并非 bot 直接搬运。</td><td><span class="tag human">需要人工处理</span></td></tr>
+          <tr><td>编辑 / 评论后的再分流</td><td>当前没有自动路径</td><td>主 triage workflow 只监听 <code>issues: opened</code>；用户补充信息后，需要人或评论提及维护者来推进。</td><td><span class="tag human">生命周期缺口</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small" style="margin-top:10px">模型负责语义归纳与建议；规则代码负责“允许做什么、怎样落地”。例如模型给出标签名不代表它一定会被添加，最终集合要经过 schema、allowlist、禁止规则、冗余规则及当前 issue 状态校验。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.agents/skills/triaging-issues/SKILL.md">[7]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/scripts/issue_triage_pi/labels.py">[8]</a></p>
+  </section>
+
+  <section id="lifecycle">
+    <h2>Issue 生命周期：自动首分流不是完整分诊</h2>
+    <p class="section-intro">PyTorch 文档把流程拆成 AI 初分流和模块维护者后续 triage。维护者的目标是在 issue 创建后一周内完成 fully triaged；“fully triaged”不等于打上一个 <code>triaged</code> 标签，而可能是关闭，或落入明确的复现、研究、设计、可执行 / 不处理状态。<a href="https://docs.pytorch.org/docs/main/community/maintainer_guide.html">[9]</a></p>
+    <div class="flow">
+      <div class="step"><h3>New issue</h3><p>问题表单先收集复现、环境、预期与实际表现；问题咨询导向论坛。</p></div>
+      <div class="step"><h3>AI triage</h3><p>加上合适的 module / oncall 路由；机器人失败或人工接管时进入手动首分流。<code>no automated triage</code> 的 opt-out 仍在 rollout，尚未被 bot 执行。</p></div>
+      <div class="step"><h3>Module queue</h3><p>对应维护者查证问题、复现与影响范围，决定是否需要讨论、研究或设计。</p></div>
+      <div class="step"><h3>Fully triaged</h3><p>关闭，或标为 needs reproduction / research / design / actionable / won't fix，并明确下一责任方。</p></div>
+      <div class="step"><h3>推进或复评</h3><p>可行动 issue 等待社区 PR；新证据应由维护者复核并调整状态。</p></div>
+    </div>
+    <div class="grid cols">
+      <div class="card panel">
+        <h3>入口质量设计</h3>
+        <p>Bug 表单<strong>引导</strong>填写最小复现、观察结果、完整 traceback 和版本环境，并建议搜索旧 issue；torch.compile 有独立模板，提供额外 trace / ablation 信息。模板禁用空白 issue，常见使用问题链接到论坛。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/ISSUE_TEMPLATE/bug-report.yml">[10]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/ISSUE_TEMPLATE/pt2-bug-report.yml">[11]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/ISSUE_TEMPLATE/config.yml">[12]</a></p>
+      </div>
+      <div class="card panel">
+        <h3>人类闭环状态</h3>
+        <p><code>needs reproduction</code> 等是维护者确认后表达后续协作状态；<code>actionable</code> 同时意味着维护者愿意 review 对应 PR；<code>won't fix</code> 是最终处置且应说明原因。<code>triage review</code> 则是请求进一步讨论，不等同于已完成问题解决。</p>
+      </div>
+    </div>
+    <div class="callout warn">
+      <p><strong>生命周期缺口（代码事实）：</strong>主 triage workflow 只监听 <code>issues: opened</code>，编辑 / 评论不会自动触发再分流；<code>stale.yml</code> 明确只处理 PR（<code>pulls.list</code>，且权限是 <code>pull-requests: write</code>），issue 没有 stale / 到期关闭兜底；<code>triage review</code> 只是标签，没有 assignee 或时限；<code>no automated triage</code> 标签在 CONTRIBUTING 中明确“bot 目前不执行”，移除标签请求复评也仍不受支持。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/issue-triage.yml">[1]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/stale.yml">[20]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/CONTRIBUTING.md#current-status">[13]</a></p>
+    </div>
+  </section>
+
+  <section id="stock">
+    <h2>存量与瓶颈：首分流之外</h2>
+    <p class="section-intro">只看近期新 issue，会得到一个“分流覆盖很高”的乐观结论；把全部 open issue 放进来看，问题结构完全不同。<strong>标签覆盖已接近饱和，但 fully-triaged 状态覆盖很低</strong>——瓶颈在模块级判断和后续处置，不在入口分类。</p>
+    <div class="grid impact-stats">
+      <div class="card metric"><div class="value">14,239</div><div class="label">全部 open issue</div><div class="hint">不含 PR；GitHub 的 open_issues_count 会把 PR 算进去，需拆开。</div></div>
+      <div class="card metric warn"><div class="value">81.8%</div><div class="label">创建超过一年</div><div class="hint">11,643 条；>2 年 9,722 条，>3 年 7,774 条。</div></div>
+      <div class="card metric warn"><div class="value">11,640</div><div class="label">triaged 但仍待模块级处置</div><div class="hint">81.7% 的全部 open；其中 9,810 条超过一年。</div></div>
+      <div class="card metric"><div class="value">−2,009</div><div class="label">2026 年净减少（约）</div><div class="hint">创建 6,402，关闭 8,411；存量在缓慢下降，但绝对量仍大。</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>层级（按公开标签口径）</th><th>数量</th><th>占全部 open</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>全部 open issue</td><td>14,239</td><td>100%</td><td>不含 PR；快照时点 2026-11-11 08:28 UTC。</td></tr>
+          <tr><td>带 <code>triaged</code></td><td>13,329</td><td>93.6%</td><td>入口路由覆盖已很高，含 bot 与人工历史标注。</td></tr>
+          <tr><td>其中：等待模块级 triage</td><td>11,640</td><td>81.7%</td><td>有 <code>triaged</code>，但没有 needs reproduction / research / design / actionable / won't fix 等 fully-triaged 状态。</td></tr>
+          <tr><td>其中：已有 fully-triaged 状态</td><td>1,689</td><td>11.9%</td><td>按维护者指南的标签口径；未计 assignee 状态，可能有少量低估。</td></tr>
+          <tr><td>不带 <code>triaged</code></td><td>910</td><td>6.4%</td><td>可能是新 issue、跳过、失败、人工处理或特殊例外。</td></tr>
+          <tr><td>带 <code>bot-triaged</code>（全量）</td><td>2,429</td><td>17.1%</td><td>新 bot 触达的主要是近期 issue；老 issue 的标签更可能来自历史人工流程。</td></tr>
+          <tr><td>创建超过一年且带 <code>triaged</code></td><td>11,057 / 11,643</td><td>95.0%</td><td>老 issue 并不缺入口标签；缺的是后续处置。</td></tr>
+          <tr><td>创建超过一年且带 <code>bot-triaged</code></td><td>388 / 11,643</td><td>3.3%</td><td>新 bot 基本没有回扫存量。</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid cols" style="margin-top:13px">
+      <div class="card panel">
+        <h3>为什么首分流不是当前瓶颈</h3>
+        <p>93.6% 的 open issue 已有 <code>triaged</code>，说明在公开标签口径下，入口路由覆盖已接近饱和；但 11,640 条（81.7%）没有进入 fully-triaged 状态，9,810 条已经超过一年。维护者指南要求“一周内 fully triage”，按公开标签口径，存量距离这个目标很远。</p>
+        <p>AI 首分流能压缩新 issue 的入口时间，却不能替代模块维护者的复现、归因、设计和优先级判断。入口更快，只会让模块队列更快地收到更多已分类 issue。</p>
+      </div>
+      <div class="card panel">
+        <h3>人类队列也在老化</h3>
+        <p><code>needs reproduction</code> 全库 553 条，其中 467 条超过一年；<code>triage review</code> 211 条，90 条超过一年；<code>actionable</code> 362 条、<code>needs design</code> 227 条、<code>needs research</code> 212 条都超过一年。它们不是“没标签”，而是“有下一步、但没人推进”。</p>
+        <p>这解释了为什么“标签覆盖率”与“解决率”不能互换：两者的分母和责任人完全不同。</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>口径提醒：</strong>上表是<strong>按公开标签</strong>构造的近似，不是官方 SLA 统计。未计 assignee、未读取 issue timeline、未区分标签的最后修改者；<code>triaged</code> 也可能是历史遗留状态。它足以说明“存量瓶颈存在”，不足以给出精确的模块级 SLA。</p>
+    </div>
+  </section>
+
+  <section id="paths">
+    <h2>当前状态构成：互斥分组</h2>
+    <p class="section-intro">为避免把重叠标签重复计数，这里选取同一成熟窗口：2026-08-01 至 2026-11-04 创建的 <strong>2,163 个 issue</strong>，统计截至 2026-11-11 的当前 open / closed 状态及状态标签。以下 7 个叶节点互斥并加总为 100%；这是“当前状态快照”，不等同于“AI 决策原因”。</p>
+
+    <div class="path-source">创建期 Cohort A · 2,163 Issues · 2026-08-01 — 2026-11-04</div>
+    <div class="path-grid">
+      <article class="path-card closed">
+        <h3>已关闭 · Completed</h3>
+        <div class="path-stat"><span class="path-count">825</span><span class="path-share">38.1%</span></div>
+        <div class="path-track"><span style="width:38.1%"></span></div>
+        <p>GitHub close reason 为 completed。可能由维护者、关联 PR 或自动化关闭；不能直接归因于 AI 分流。</p>
+      </article>
+      <article class="path-card closed">
+        <h3>已关闭 · Duplicate</h3>
+        <div class="path-stat"><span class="path-count">83</span><span class="path-share">3.8%</span></div>
+        <div class="path-track"><span style="width:3.8%"></span></div>
+        <p>GitHub close reason 为 duplicate；包含机器人建议后由人关闭等情形，不表示 bot 自动关闭。</p>
+      </article>
+      <article class="path-card closed">
+        <h3>已关闭 · 其他 reason（残差）</h3>
+        <div class="path-stat"><span class="path-count">72</span><span class="path-share">3.3%</span></div>
+        <div class="path-track"><span style="width:3.3%"></span></div>
+        <p>按 980 个 closed 减去 825 completed 与 83 duplicate 得出；不把残差误标为某一种自动关闭动作。</p>
+      </article>
+      <article class="path-card review">
+        <h3>仍 open · 人工 review</h3>
+        <div class="path-stat"><span class="path-count">38</span><span class="path-share">1.8%</span></div>
+        <div class="path-track"><span style="width:1.8%"></span></div>
+        <p>带 <code>triage review</code>；其中 19 条也带 <code>triaged</code>，本图优先归到人工 review，避免双计数。</p>
+      </article>
+      <article class="path-card">
+        <h3>仍 open · 已 triaged，无 review</h3>
+        <div class="path-stat"><span class="path-count">1,074</span><span class="path-share">49.7%</span></div>
+        <div class="path-track"><span style="width:49.7%"></span></div>
+        <p>1,093 个 open + triaged 中扣除与 review 重叠的 19 个；进入 module / oncall 维护者队列。</p>
+      </article>
+      <article class="path-card pending">
+        <h3>仍 open · Bot 已动作，未完成首分流标记</h3>
+        <div class="path-stat"><span class="path-count">56</span><span class="path-share">2.6%</span></div>
+        <div class="path-track"><span style="width:2.6%"></span></div>
+        <p>带 <code>bot-triaged</code>，但无 <code>triaged</code> / <code>triage review</code>；可能仍在等待补充信息或处理其他中间状态。</p>
+      </article>
+      <article class="path-card unmarked">
+        <h3>仍 open · 三类标记均无</h3>
+        <div class="path-stat"><span class="path-count">15</span><span class="path-share">0.7%</span></div>
+        <div class="path-track"><span style="width:0.7%"></span></div>
+        <p>无 <code>bot-triaged</code>、<code>triaged</code>、<code>triage review</code>；可能是手动接手、未处理或特殊例外。</p>
+      </article>
+    </div>
+    <div class="path-legend">
+      <span>互斥核算：closed → open review → open triaged → bot-only interim → 无上述标记</span>
+      <span>合计：825 + 83 + 72 + 38 + 1,074 + 56 + 15 = 2,163（100.0%）</span>
+    </div>
+
+    <h3 style="margin-top:20px">代码定义的分流决策（main 分支）</h3>
+    <div class="logic-grid">
+      <article class="logic-card route">
+        <h3>入口跳过 / 人工兜底</h3>
+        <p>已有 oncall 路由时按 skill 规则 skip；工作流失败或 opt-out 预期转手动首分流。注意：<code>no automated triage</code> 标签仍处于 rollout 限制中。</p>
+      </article>
+      <article class="logic-card close">
+        <h3><code>close_question</code> → 引导论坛并关闭</h3>
+        <p>明确为用法咨询时发固定 Discussion Forum 模板；不确定是否为 bug 则转 <code>request_info</code>，不直接关闭。</p>
+      </article>
+      <article class="logic-card close">
+        <h3><code>close_expected_behavior</code> → 数值行为关闭</h3>
+        <p>仅在文档能解释且没有未决证据 / 影响需要 review 时，使用固定 numerical accuracy 模板。</p>
+      </article>
+      <article class="logic-card wait">
+        <h3><code>request_info</code> / <code>request_reproduction</code> → 等待提交者</h3>
+        <p>评论请求补环境或最小复现；外部文件复现路径还会按固定规则清理下载链接。issue 保持 open，不标完成。</p>
+      </article>
+      <article class="logic-card route">
+        <h3><code>redirect_oncall</code> → 路由专业队列</h3>
+        <p>普通 oncall 路由后停止；PT2 / distributed 有专门续分诊逻辑，需补 module 或子队列标签。</p>
+      </article>
+      <article class="logic-card route">
+        <h3><code>label</code> → 分类并标为 triaged</h3>
+        <p>为一般队列添加 module / 类型标签；满足约束时由 Apply 添加 <code>triaged</code>，之后由模块维护者继续处理。</p>
+      </article>
+      <article class="logic-card review">
+        <h3><code>triage_review</code> / 高风险 → 人工判断</h3>
+        <p>模型认为有高优先级信号、证据不确定或应讨论时加 <code>triage review</code>；不会擅自赋予 high priority。</p>
+      </article>
+      <article class="logic-card review">
+        <h3><code>transfer</code> → review 后人工跨仓</h3>
+        <p>不自动转仓；Apply 将不支持的 transfer 计划转为 review 标记，等待维护者搬运或重定向。</p>
+      </article>
+      <article class="logic-card extra">
+        <h3>可叠加支路：Duplicate / Umbrella</h3>
+        <p>普通重复只给固定建议且源 issue 保持 open；受控 umbrella 可按目录 link 或 close。这是附加动作，不是互斥终态。</p>
+      </article>
+    </div>
+    <div class="callout warn">
+      <p><strong>为什么不把 7 个状态百分比硬拆成每个模型决策的占比？</strong>GitHub 公开标签会重叠，关闭状态也不记录由哪个 triage 决策触发；例如 19 个 open issue 同时有 <code>triaged</code> 和 <code>triage review</code>。若要精确统计“咨询关闭 / 数值关闭 / 等待复现 / 各 oncall 路由”等细分，需要对 workflow 的结构化 plan 与执行结果做 cohort 汇总，不能用当前标签猜测。</p>
+    </div>
+    <p class="small">数据查询（GitHub 搜索，快照 2026-11-11）：
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+created%3A2026-08-01..2026-11-04">全部 2,163 条</a>、
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aclosed+created%3A2026-08-01..2026-11-04">关闭 980</a>、
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aclosed+created%3A2026-08-01..2026-11-04+reason%3Acompleted">completed 825</a>、
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aclosed+created%3A2026-08-01..2026-11-04+reason%3Aduplicate">duplicate 83</a>、
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A2026-08-01..2026-11-04+label%3Atriaged">open + triaged 1,093</a>、
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A2026-08-01..2026-11-04+label%3A%22triage+review%22">open + review 38</a>、
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A2026-08-01..2026-11-04+label%3Atriaged+label%3A%22triage+review%22">双标签重叠 19</a>、
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A2026-08-01..2026-11-04+label%3Abot-triaged+-label%3Atriaged+-label%3A%22triage+review%22">Bot-only interim 56</a>、
+      <a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A2026-08-01..2026-11-04+-label%3Abot-triaged+-label%3Atriaged+-label%3A%22triage+review%22">三标记均无 15</a>。
+    </p>
+  </section>
+
+  <section id="screening">
+    <h2>AI 减负：公开数据能说到哪一步？</h2>
+    <p class="section-intro">同一批 2,163 个 issue 里，既能算“bot 有没有动作”，也能算“动作之后有没有关闭”；但这两件事都不能直接等同于“替维护者筛掉了多少”。下面把关闭原因拆开，给出可辩护的上限代理。</p>
+
+    <div class="grid cols">
+      <div class="card panel">
+        <h3>Bot 标记 vs 未标记：关闭率不可直接比较</h3>
+        <div class="table-wrap" style="box-shadow:none;margin:10px 0">
+          <table style="min-width:0">
+            <thead><tr><th>分组</th><th>总数</th><th>已关闭</th><th>仍 open</th></tr></thead>
+            <tbody>
+              <tr><td>带 bot-triaged</td><td>1,911</td><td>814（42.6%）</td><td>1,097（57.4%）</td></tr>
+              <tr><td>不带 bot-triaged</td><td>252</td><td>166（65.9%）</td><td>86（34.1%）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small">非 bot 组的关闭率反而更高，但这<strong>不是</strong>“人工更高效”的证据：该组包含大量自动生成的 <code>DISABLED test_*</code> flaky-test issue、release checklist 等，关闭机制与普通 bug report 完全不同。两组不可比。</p>
+      </div>
+      <div class="card panel">
+        <h3>814 个 bot 标记且关闭的 issue 按原因拆</h3>
+        <div class="share-row"><span class="name">completed（多为 PR 修复）</span><div class="share-track"><span style="width:82.4%"></span></div><span class="number">671</span></div>
+        <div class="share-row"><span class="name">duplicate</span><div class="share-track teal"><span style="width:9.2%"></span></div><span class="number">75</span></div>
+        <div class="share-row"><span class="name">not planned</span><div class="share-track amber"><span style="width:8.4%"></span></div><span class="number">68</span></div>
+        <p class="small" style="margin-top:6px">completed 占 82.4%，说明大多数“bot 标记且关闭”以“已完成”收尾，而不是被分流筛掉；其中不少由关联 PR 修复。只有 duplicate + not planned 共 143 条（占 cohort 6.6%）更接近“分流直接退出”的候选。</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>最重要的口径修正：</strong>“37.6% 的 issue 带 bot 标记且已关闭”不能被读成“AI 筛掉了 37.6%”。其中 671 条是 completed，主要是 PR 修复；真正可能由分流直接退出的候选上限是 <strong>143 / 2,163 ≈ 6.6%</strong>，而且仍无法区分关闭者是人还是机器人。把 37.6% 直接写成“减负上限”，会把“修好”误算成“筛掉”。</p>
+    </div>
+
+    <div class="card panel">
+      <h3>2,163 个 Issue 的当前状态构成（按关闭原因重排）</h3>
+      <p class="small">互斥分组：bot 标记且 completed、bot 标记且 duplicate/not planned、无 bot 标记且 closed、仍 open。此图展示“发生过什么”，不是 AI 的因果贡献。</p>
+      <div class="stacked-chart" role="img" aria-label="bot标记且completed31.0%，bot标记且duplicate或notplanned6.6%，无bot标记且closed7.7%，仍open54.7%">
+        <span class="seg-botfixed" style="width:31.0%">31.0%</span>
+        <span class="seg-botscreened" style="width:6.6%">6.6%</span>
+        <span class="seg-otherclosed" style="width:7.7%">7.7%</span>
+        <span class="seg-open" style="width:54.7%">54.7%</span>
+      </div>
+      <div class="chart-legend four">
+        <div class="legend-item"><i class="swatch" style="background:var(--blue)"></i><span><strong>671 条 · 31.0% · bot + completed</strong><br>多数由 PR 修复；bot 参与过，不等于分流筛除。</span></div>
+        <div class="legend-item"><i class="swatch" style="background:var(--teal)"></i><span><strong>143 条 · 6.6% · bot + duplicate/not planned</strong><br>更接近分流直接退出活跃队列的候选上限。</span></div>
+        <div class="legend-item"><i class="swatch" style="background:#81909d"></i><span><strong>166 条 · 7.7% · 无 bot + closed</strong><br>不在 bot 覆盖内；含自动关闭的测试 / 清单类 issue。</span></div>
+        <div class="legend-item"><i class="swatch" style="background:#d49a37"></i><span><strong>1,183 条 · 54.7% · 仍 open</strong><br>其中 1,074 条已 triaged、无 review，留在模块维护者队列。</span></div>
+      </div>
+    </div>
+
+    <div class="grid cols" style="margin-top:14px">
+      <div class="card panel">
+        <h3>AI 覆盖面不等于筛除量</h3>
+        <div class="share-row"><span class="name">bot-triaged</span><div class="share-track"><span style="width:88.3%"></span></div><span class="number">88.3%</span></div>
+        <div class="share-row"><span class="name">triaged</span><div class="share-track teal"><span style="width:86.0%"></span></div><span class="number">86.0%</span></div>
+        <div class="share-row"><span class="name">bot + duplicate/not planned</span><div class="share-track amber"><span style="width:6.6%"></span></div><span class="number">6.6%</span></div>
+        <p class="small">前两个是覆盖指标，且不是严格的先后步骤；不能相加，也不能把 86% 当成维护者不用再看的比例。第三个才是更接近“筛除”的候选代理。</p>
+      </div>
+      <div class="card panel">
+        <h3>什么才算真正“筛掉”？</h3>
+        <p>较严格的口径应是：AI 按固定规则关闭或明确转出 PyTorch 代码维护队列，且后续没有维护者重新打开 / 接管。当前公开搜索只给标签与 open / closed 状态，不给这一完整因果链。</p>
+        <p>因此现阶段适合对外说：<strong>约 88% 的 cohort 有 bot 分流动作；37.6% 落在“bot 标记且已关闭”的交集；其中完成修复占 82.4%；分流筛除的候选上限约 6.6%；真实净减负比例待日志核算。</strong></p>
+      </div>
+    </div>
+    <p class="small" style="margin-top:10px">路径数据查询：<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+created%3A2026-08-01..2026-11-04+label%3Abot-triaged">bot-triaged 1,911</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+created%3A2026-08-01..2026-11-04+label%3Atriaged">triaged 1,860</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aclosed+created%3A2026-08-01..2026-11-04+label%3Abot-triaged">bot-triaged 且 closed 814</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aclosed+created%3A2026-08-01..2026-11-04+-label%3Abot-triaged">closed 且无 bot-triaged 166</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A2026-08-01..2026-11-04">仍 open 1,183</a>。</p>
+  </section>
+
+  <section id="results">
+    <h2>效果快照：覆盖有信号，提效缺因果证据</h2>
+    <p class="section-intro">以下数量来自 GitHub Issues 搜索结果，快照于 2026-11-11 08:28 UTC。统一分母为 Cohort B：<code>pytorch/pytorch</code> 中创建时间 ≥ 2026-08-01、当前仍 open 的 issue（1,367 条）。每个标签独立计数，标签可叠加，不能把这些百分比当作互斥分类或解决率。</p>
+    <div class="bars">
+      <div class="barrow"><div class="barlabel"><code>bot-triaged</code> 机器人有动作</div><div class="track"><div class="fill teal" style="width:91.6%"></div></div><div class="barvalue">1,252 · 91.6%</div></div>
+      <div class="barrow"><div class="barlabel"><code>triaged</code> 完成首轮路由</div><div class="track"><div class="fill" style="width:87.0%"></div></div><div class="barvalue">1,189 · 87.0%</div></div>
+      <div class="barrow"><div class="barlabel"><code>triage review</code> 转人工复核</div><div class="track"><div class="fill amber" style="width:7.2%"></div></div><div class="barvalue">98 · 7.2%</div></div>
+      <div class="barrow"><div class="barlabel"><code>bot-mislabeled</code> 被标记错分</div><div class="track"><div class="fill amber" style="width:0.8%"></div></div><div class="barvalue">11 · 0.8%</div></div>
+      <div class="barrow"><div class="barlabel">无 <code>triaged</code> 标签</div><div class="track"><div class="fill gray" style="width:13.0%;background:#8b96a1"></div></div><div class="barvalue">178 · 13.0%</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>观测</th><th>可支持的结论</th><th>不能据此声称</th></tr></thead>
+        <tbody>
+          <tr><td>1,252 / 1,367 带 <code>bot-triaged</code></td><td>近期仍 open 的 issue 中，大多数已有机器人执行过动作；说明分流机制处于真实运行而非仅有设计文档。</td><td>不能确认所有新 issue 都成功执行，也不能证明机器人动作正确。</td></tr>
+          <tr><td>1,189 / 1,367 带 <code>triaged</code></td><td>当前标签状态下，约 87.0% 的近期 open issue 已具备首轮 triaged 标记。</td><td>不等于 fully triaged、已分配负责人、问题已复现或已经修复；该标签也可能由人工添加。</td></tr>
+          <tr><td>98 / 1,367 带 <code>triage review</code></td><td>约 7.2% 的集合被显式送入人工复核队列；这是人机协作的可见出口。</td><td>不等于 7.2% 模型错误；其中可能是高风险、证据不足或需要讨论的正确升级。</td></tr>
+          <tr><td>11 条带 <code>bot-mislabeled</code></td><td>可见的纠错反馈标签说明维护者 / 社区有报告错误标签的路径；约占该集合 bot 标记 issue 的 0.9%。</td><td>不是准确率或误报率：发现、报告、加标签都不完整；全库 open 的 bot-mislabeled 是 49 条，近期 11 条只是一个切片。</td></tr>
+          <tr><td>Cohort A 的 1,183 个 open 中，1,093 个有 <code>triaged</code></td><td>成熟窗口内 92.4% 的 open issue 已完成入口路由；其中 1,074 个没有 review，进入模块队列。</td><td>不能把这些 issue 当作已解决；它们正是存量瓶颈的一部分。</td></tr>
+          <tr><td>Cohort A 的 1,183 个 open 中，90 个无 <code>triaged</code></td><td>7.6% 的成熟窗口 open issue 没有入口分类标记，可作为检查跳过 / 失败的入口。</td><td>不能直接算一周 SLA 违约：需同时检查 fully-triaged 状态、关闭记录、人工接管及标签事件时间。</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <p><strong>指标定义必须拆开：</strong><code>bot-triaged</code> 表示机器人确实改变过 issue；<code>triaged</code> 表示已完成初轮分类 / 路由；<code>triage review</code> 表示需要人继续判断；<code>bot-mislabeled</code> 是已报告的纠错，不是错误率。这些标签不是同义词，更不能合并成“自动解决率”。</p>
+    </div>
+    <div class="grid cols">
+      <div class="card panel">
+        <h3>公开样例：风险升级而非自动定性</h3>
+        <p><a href="https://github.com/pytorch/pytorch/issues/204325">#204325</a> 是 CUDA graphs 崩溃与回归报告，当前标有 <code>bot-triaged</code>、<code>triage review</code>、<code>module: crash</code>、<code>module: regression</code> 与 <code>release triage</code>；<a href="https://github.com/pytorch/pytorch/issues/204323">#204323</a> 涉及可能的未初始化内存暴露，也被送入人工 review。样例符合“模型发现信号、维护者判断严重性”的设计，但不能单凭个案评估精度。</p>
+      </div>
+      <div class="card panel">
+        <h3>公开样例：分类可以关联工程推进</h3>
+        <p><a href="https://github.com/pytorch/pytorch/issues/204311">#204311</a> 当前有 <code>bot-triaged</code>、<code>module: tests</code>、<code>triaged</code> 标签，并被 PR <a href="https://github.com/pytorch/pytorch/pull/203847">#203847</a> 交叉引用。它说明标签可作为工作流索引，但 issue 与 PR 的关联不能证明该标签由 bot 独立促成，也不能证明整体速度提升。</p>
+      </div>
+    </div>
+    <p class="small" style="margin-top:10px">数据源：<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A%3E%3D2026-08-01">近期 open issue 总量 1,367</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A%3E%3D2026-08-01+label%3Atriaged">triaged 1,189</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A%3E%3D2026-08-01+label%3Abot-triaged">bot-triaged 1,252</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A%3E%3D2026-08-01+label%3A%22triage+review%22">triage review 98</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A%3E%3D2026-08-01+label%3Abot-mislabeled">bot-mislabeled 11</a>、<a href="https://github.com/pytorch/pytorch/issues?q=is%3Aissue+is%3Aopen+created%3A2026-08-01..2026-11-04+-label%3Atriaged">Cohort A 无 triaged 90</a>。</p>
+  </section>
+
+  <section id="risks">
+    <h2>局限、风险与验证重点</h2>
+    <div class="grid cols">
+      <div class="card panel">
+        <h3>1. Rollout 状态并非“全自动已完成”</h3>
+        <p>贡献指南将 Issue workflow 标为 rollout 中：AI 先路由、失败转人工；<code>no automated triage</code> 标签存在但 bot 目前不执行；移除标签请求复评也不受支持。当前全库仅 1 个 open issue 带该标签。必须把流程目标与当前已落地边界区分开。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/CONTRIBUTING.md#current-status">[13]</a></p>
+      </div>
+      <div class="card panel">
+        <h3>2. 生命周期没有闭环触发器</h3>
+        <p>主 triage workflow 只监听 <code>issues: opened</code>；编辑、补评论、reopen 不会自动再分流。<code>request_info</code> / <code>request_reproduction</code> 的 issue 可能一直等到人来看。更外层，<code>stale.yml</code> 只处理 PR，issue 没有 stale / 到期关闭兜底。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/issue-triage.yml">[1]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/stale.yml">[20]</a></p>
+      </div>
+      <div class="card panel">
+        <h3>3. 人工 review 队列没有 SLA</h3>
+        <p>全库 211 个 open issue 带 <code>triage review</code>，其中 90 个超过一年；<code>needs reproduction</code> 553 个，其中 467 个超过一年。<code>triage review</code> 只是标签，没有 assignee、时限或升级路径。首分流越自动，这个队列越可能成为新的瓶颈。</p>
+      </div>
+      <div class="card panel">
+        <h3>4. PT2 / Step 0 规则存在时序歧义</h3>
+        <p>Skill 的 Step 0 写“已有任意 <code>oncall:</code> 标签就跳过”，但 Step 2.5 又规定 <code>oncall: pt2</code> 不是 redirect、必须继续补 module；<code>pt2-bug-report.yml</code> 声明 <code>labels: ["oncall: pt2"]</code>。不过样本 #204362 / #204369 的时间线显示，<code>oncall: pt2</code> 是 pytorch-bot 在 AI 标签之后添加的，当前没有触发 Step 0。规则仍应加合同测试，避免模板或时序变化后静默失效。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.agents/skills/triaging-issues/SKILL.md">[7]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/ISSUE_TEMPLATE/pt2-bug-report.yml">[11]</a></p>
+      </div>
+      <div class="card panel">
+        <h3>5. 搜索相似 issue 不构成重复证据</h3>
+        <p><code>search_issues</code> 每次最多返回 10 个候选，且拒绝 <code>repo:</code> / <code>org:</code> / <code>user:</code> 限定、未加引号的 <code>OR</code> 和分组；Skill 要求读取候选正文和评论，普通 duplicate 只给建议而不关源 issue。搜索命中 / 未命中都不能代表完整性，umbrella 自动动作应继续受静态目录约束。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/actions/pi-agent/README.md">[3]</a></p>
+      </div>
+      <div class="card panel">
+        <h3>6. 标签体系有维护成本</h3>
+        <p>全库约 705 个标签，而 skill 的 <code>labels.json</code> 是静态 allowlist；README 明确要求仓库新增标签后手动 bump。<code>update_pytorch_labels.yml</code> 只把标签导出到 S3，不更新 skill。新标签会被当作 unknown 丢弃，若没有有效标签则转 review——系统不会静默乱写，但会损失分类能力。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.agents/skills/triaging-issues/README.md">[14]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/update_pytorch_labels.yml">[15]</a></p>
+      </div>
+      <div class="card panel">
+        <h3>7. 错误信号不完整</h3>
+        <p><code>bot-mislabeled</code> 全库 open 49 条（近期 11 条），<code>bot-triage-error</code> 0 条，<code>ptd-bot-mislabeled</code> 0 条，<code>no automated triage</code> 1 条。0 不等于没有错误，可能只是没人打标或标签未使用；关闭后重开率、人工撤销率、错误关闭率都没有公开聚合。</p>
+      </div>
+      <div class="card panel">
+        <h3>8. 数据与归因仍有缺口</h3>
+        <p>本文只做了单次标签快照，没有采集 issue timeline、plan artifact 或执行日志；同一 cohort 在 11-11 当天数小时内 closed 从 972 增到 980，说明搜索计数会漂移。非 bot 组含自动关闭的测试 / 清单 issue，关闭率不可直接比较；“37.6% bot + closed”也不能读成减负率。</p>
+      </div>
+    </div>
+    <div class="callout">
+      <p><strong>复现与审计能力：</strong>工作流提供 <code>replay</code>（按第一次 bot 标签前的标签状态比较后续标签）、<code>dry-run</code>（不写入）和单 issue <code>apply</code>；Plan artifact、执行记录及 usage metrics 可支持抽样评估。Replay 不是冻结历史快照：issue 正文、评论、重复候选可能已变化，评估时应保留该限制。GitHub timeline API 也能提供标签事件时间，本文没有采集，但它是下一步最便宜的证据来源。<a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/issue-triage-pi.yml">[2]</a> <a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/actions/pi-agent/README.md">[3]</a></p>
+    </div>
+
+    <h3 style="margin-top:19px">建议：先补生命周期，再谈净提效</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>优先级</th><th>建议</th><th>解决什么</th></tr></thead>
+        <tbody>
+          <tr><td>P0</td><td>给 <code>request_info</code> / <code>request_reproduction</code> 增加再分流触发：<code>issues: edited</code>、<code>issue_comment</code>（防抖）或每日 sweep；确保幂等、不重复评论。</td><td>用户补信息后不再无限等待；把“等待提交者”变成可回收状态。</td></tr>
+          <tr><td>P0</td><td>明确 issue 的 stale / 关闭策略：要么扩展 <code>stale.yml</code> 覆盖 issue（带 <code>no-stale</code> / <code>high priority</code> 豁免），要么明确写下“issue 永不自动关闭”并配套容量规划。</td><td>当前 PR 有兜底、issue 没有；存量老化缺少制度解释。</td></tr>
+          <tr><td>P0</td><td>让 <code>no automated triage</code> 真正生效，并提供重新评估入口（标签或命令）；同步更新 CONTRIBUTING。</td><td>贡献者 opt-out 目前是“写了但没用”的承诺缺口。</td></tr>
+          <tr><td>P0</td><td>把模块级队列做成可见指标：按模块统计“<code>triaged</code> 但无 fully-triaged 标签”的数量、年龄、周变化；给 <code>triage review</code> 设 owner / 时限。</td><td>11,640 条待模块处置的 issue 是当前真正的瓶颈，但缺少公开看板。</td></tr>
+          <tr><td>P1</td><td>采集首分流延迟与结果：created_at → 首次 bot / human triage label 的 P50 / P90；按周 cohort 统计。</td><td>补上“更快”是否成立的直接证据；timeline API 即可起步。</td></tr>
+          <tr><td>P1</td><td>做路由准确率盲审：抽样 module / oncall 标签，与维护者确认值比较，报告 precision、recall 和混淆矩阵。</td><td>区分“有动作”与“分得对”；<code>bot-mislabeled</code> 只是选择偏差极大的样本。</td></tr>
+          <tr><td>P1</td><td>把 <code>labels.json</code> 从仓库标签自动生成，或在 CI 中做漂移检查；保留人工描述覆盖。</td><td>705 个标签下的静态 allowlist 会持续漂移，导致未知标签被丢弃。</td></tr>
+          <tr><td>P1</td><td>为 PT2 / Step 0 时序、模板预置标签、apply 的 skip 行为增加合同测试。</td><td>当前测试未覆盖该分支；规则文本已经存在歧义。</td></tr>
+          <tr><td>P2</td><td>建立错误与代价指标：每千次自动动作的 mislabeled / error / 人工撤销 / 错误关闭 / 重开率；记录 token 与成本。</td><td>当前只报覆盖量，不报代价；无法做成本收益判断。</td></tr>
+          <tr><td>P2</td><td>把 PR triage、repro agent（<code>repro:agent:*</code>）、distributed bot（<code>ptd-bot-*</code>）纳入同一张 issue 生命周期图，分别评估。</td><td>本文只覆盖首分流；相邻自动化可能改变瓶颈位置。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="verdict">
+      <h3>综合判断</h3>
+      <p><strong>方案：</strong>以安全分离为核心的“Agent 建议 + 确定性执行 + 人工升级”架构，适合 PyTorch 这种 issue 体量大、模块边界复杂的项目。两阶段信任隔离、schema / allowlist 二次校验和固定模板是这套方案最成熟的部分，值得复用。</p>
+      <p><strong>效果：</strong>2026-11-11 的公开快照显示，Cohort A 中 88.3% 的 issue 有 bot 动作，Cohort B 中 91.6% 的近期 open issue 带 <code>bot-triaged</code>；这支持“自动化已在较大范围运行”。但它不支持“解决更快 / 维护者少花多少时间”：37.6% 的 bot 标记且 closed 中，82.4% 以 completed 收尾（多为 PR 修复），分流筛除的候选上限只有约 6.6%。</p>
+      <p><strong>系统性判断：</strong>14,239 个 open issue 中 81.8% 创建超过一年，11,640 个已 <code>triaged</code> 却仍停在模块级处置之前。入口分流已经不是最大瓶颈；如果模块级 triage 和关闭能力不扩容，AI 首分流带来的增量会堆在同一个队列里。</p>
+      <p><strong>优先建议：</strong>先补再分流触发、issue stale / 关闭策略、<code>no automated triage</code> 生效和模块级队列看板；再公开首分流延迟、盲审路由准确率、重开 / 撤销率和每千次动作成本。没有这些，无法把“覆盖”升级为“净提效”。</p>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>主要来源与数据附录</h2>
+    <p class="section-intro">优先使用 PyTorch 官方仓库和官方维护者文档；代码链接固定到本报告采集的 main commit，避免未来 main 变化导致引用漂移。Issue 搜索结果属于动态页面，数量以本报告标注的 2026-11-11 08:28 UTC 快照为准。</p>
+    <ol class="source-list">
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/issue-triage.yml">Stage 1：Issue Triage workflow</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/issue-triage-pi.yml">Stage 2：Pi plan / report / apply workflow</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/actions/pi-agent/README.md">Pi agent、工具隔离、model 与 replay 说明</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/pi/schemas/issue-triage-plan.json">结构化 plan schema</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/scripts/issue_triage_pi/apply_plan.py">计划到 GitHub effects 的确定性执行器</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/pi/extensions/github-issue-tools.ts">只读 GitHub issue tools</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.agents/skills/triaging-issues/SKILL.md">Issue triaging skill（规则 / 标签语义）</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/scripts/issue_triage_pi/labels.py">标签 allowlist 与禁止 / 冗余规则</a></li>
+      <li><a href="https://docs.pytorch.org/docs/main/community/maintainer_guide.html">PyTorch Maintainer Guide（1 周目标与 fully-triaged 定义）</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/ISSUE_TEMPLATE/bug-report.yml">Bug issue 表单</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/ISSUE_TEMPLATE/pt2-bug-report.yml">torch.compile 专用 issue 表单</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/ISSUE_TEMPLATE/config.yml">Issue form 配置与问题论坛入口</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/CONTRIBUTING.md#current-status">Contributor Guide：Issue 生命周期与 rollout 状态</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.agents/skills/triaging-issues/README.md">Triaging skill README（静态 labels.json 与人工 bump 说明）</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/update_pytorch_labels.yml">Labels 导出 workflow（导出到 S3）</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/CONTRIBUTING.md#issue-lifecycle">Contributor Guide：Issue lifecycle</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.agents/skills/triaging-issues/labels.json">skill 的标签目录</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.agents/skills/triaging-issues/templates.json">固定评论模板</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.agents/skills/triaging-issues/umbrellas.json">umbrella 目录</a></li>
+      <li><a href="https://github.com/pytorch/pytorch/blob/918d19c5ad11fc153b589de0e3fb476e2237abd1/.github/workflows/stale.yml">Stale workflow（仅处理 PR）</a></li>
+    </ol>
+
+    <h3 style="margin-top:18px">数据附录（GitHub Search API，2026-11-11 08:28 UTC）</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>指标</th><th>查询口径（均含 repo:pytorch/pytorch is:issue）</th><th>数量</th></tr></thead>
+        <tbody>
+          <tr><td>Cohort A 总量</td><td>created:2026-08-01..2026-11-04</td><td>2,163</td></tr>
+          <tr><td>Cohort A closed</td><td>+ is:closed</td><td>980（completed 825 / duplicate 83 / 其他 72）</td></tr>
+          <tr><td>Cohort A open</td><td>+ is:open</td><td>1,183（triaged 1,093 / review 38 / 双标签 19）</td></tr>
+          <tr><td>Cohort A bot 覆盖</td><td>+ label:bot-triaged</td><td>1,911（closed 814 / open 1,097）</td></tr>
+          <tr><td>Cohort A bot closed 原因</td><td>+ is:closed label:bot-triaged reason:…</td><td>completed 671 / duplicate 75 / not planned 68</td></tr>
+          <tr><td>Cohort B 近期 open</td><td>is:open created:&gt;=2026-08-01</td><td>1,367（bot 1,252 / triaged 1,189 / review 98 / mislabeled 11）</td></tr>
+          <tr><td>全部 open issue</td><td>is:open</td><td>14,239</td></tr>
+          <tr><td>存量标签覆盖</td><td>is:open + label:triaged / bot-triaged</td><td>13,329 / 2,429</td></tr>
+          <tr><td>模块级等待队列</td><td>is:open label:triaged -label:"needs reproduction" -label:"needs research" -label:"needs design" -label:actionable -label:"won't fix"</td><td>11,640（其中 &gt;1 年 9,810）</td></tr>
+          <tr><td>老化</td><td>is:open created:&lt;2025-11-11 / &lt;2024-11-11 / &lt;2023-11-11</td><td>11,643 / 9,722 / 7,774</td></tr>
+          <tr><td>人类队列</td><td>needs reproduction / triage review</td><td>553（467 &gt;1 年）/ 211（90 &gt;1 年）</td></tr>
+          <tr><td>2026 年流入 / 流出</td><td>created:2026-01-01..2026-11-11 / is:closed closed:同区间</td><td>6,402 / 8,411（净 −2,009）</td></tr>
+          <tr><td>错误与 opt-out 信号</td><td>bot-mislabeled / bot-triage-error / ptd-bot-mislabeled / no automated triage</td><td>49 / 0 / 0 / 1</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <p><strong>数据方法：</strong>所有计数通过 GitHub Search API 的 <code>total_count</code> 获取，未认证、单次快照；标签可叠加，除明确写“互斥”的路径图外，占比不能相加。Cohort A 用于状态构成与关闭原因，Cohort B 用于近期运营覆盖，Stock 用于存量与瓶颈；三者分母不同，不能互相替代。搜索计数会随新 issue、关闭和标签修改漂移，引用时请保留时间戳。</p>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">研究快照：2026-11-11 08:28 UTC · 仓库：<a href="https://github.com/pytorch/pytorch/tree/918d19c5ad11fc153b589de0e3fb476e2237abd1">pytorch/pytorch@918d19c</a> · 指标仅描述所列时间与筛选条件，不构成因果评估。</div>
+</footer>
+</body>
+</html>

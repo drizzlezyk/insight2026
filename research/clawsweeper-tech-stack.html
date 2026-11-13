@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawSweeper 技术栈与落地拆解</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F7F8;
+    --card: #FFFFFF;
+    --ink: #16191E;
+    --ink-2: #3A4149;
+    --muted: #6B7380;
+    --line: #E2E6EA;
+    --accent: #0F766E;
+    --accent-ink: #0B5D56;
+    --accent-soft: #E5F2EF;
+    --signal: #B45309;
+    --signal-soft: #FBF0E1;
+    --good: #157F3D;
+    --shadow: 0 1px 2px rgba(22,25,30,.05), 0 8px 24px rgba(22,25,30,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --paper: #121417; --card: #191C20; --ink: #E7EAEE; --ink-2: #B8BFC8;
+    --muted: #8A93A0; --line: #2A2F36; --accent: #2DD4BF; --accent-ink: #7FEDE0;
+    --accent-soft: #11312C; --signal: #F59E0B; --signal-soft: #2A2110; --good: #4ADE80;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4);
+    color-scheme: dark;
+  } }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px; line-height: 1.65; padding-bottom: 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+  header { padding: 48px 0 8px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif; font-weight: 700; font-size: clamp(28px, 5vw, 42px); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 18px; text-wrap: balance; }
+  .lede { font-size: 18px; line-height: 1.6; color: var(--ink-2); max-width: 700px; margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 28px 0 0; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .stat .num { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 24px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .stat .lab { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .stat.ratio { border-color: var(--accent); background: var(--accent-soft); }
+  .stat.ratio .num { color: var(--accent-ink); }
+
+  nav.toc { margin: 26px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  nav.toc a { font-family: "IBM Plex Mono", monospace; font-size: 12px; text-decoration: none; color: var(--ink-2); border: 1px solid var(--line); background: var(--card); padding: 5px 11px; border-radius: 20px; }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent-ink); }
+
+  section { padding: 36px 0 6px; }
+  .kicker { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 6px; }
+  h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: clamp(21px, 3.2vw, 27px); letter-spacing: -.015em; margin: 0 0 14px; text-wrap: balance; }
+  h3 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 600; font-size: 17px; margin: 26px 0 8px; }
+  p { margin: 0 0 14px; color: var(--ink-2); }
+  p strong, li strong { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
+  ul, ol { margin: 0 0 16px; padding-left: 1.3em; color: var(--ink-2); }
+  li { margin: 6px 0; }
+  code { font-family: "IBM Plex Mono", monospace; font-size: 12.8px; background: var(--accent-soft); color: var(--accent-ink); padding: 1px 6px; border-radius: 5px; word-break: break-word; }
+
+  .callout { border-left: 3px solid var(--signal); background: var(--signal-soft); padding: 16px 20px; border-radius: 0 10px 10px 0; margin: 4px 0 18px; }
+  .callout.acc { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout p { margin: 0; }
+  .callout b { color: var(--ink); }
+
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); margin: 6px 0 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 15px; vertical-align: top; border-bottom: 1px solid var(--line); }
+  thead th { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--paper); }
+  tbody tr:last-child td { border-bottom: none; }
+  tr.grp td { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; background: var(--accent-soft); padding: 8px 15px; }
+  td.k { font-family: "IBM Plex Mono", monospace; font-size: 12.6px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .chip { font-family: "IBM Plex Mono", monospace; font-size: 11px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--line); color: var(--ink-2); background: var(--paper); white-space: nowrap; }
+  .chip.acc { color: var(--accent-ink); border-color: var(--accent); }
+  .chip.sig { color: var(--signal); border-color: var(--signal); }
+
+  .grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 8px; }
+  .card ul, .card ol { margin: 0; }
+
+  .steps { counter-reset: s; list-style: none; padding: 0; margin: 8px 0 14px; }
+  .steps li { counter-increment: s; position: relative; padding: 10px 14px 10px 46px; border: 1px solid var(--line); background: var(--card); border-radius: 10px; margin: 8px 0; }
+  .steps li::before { content: counter(s); position: absolute; left: 12px; top: 11px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+
+  /* ---------- 流程图 ---------- */
+  .flowcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); margin: 8px 0 4px; overflow-x: auto; }
+  .flow-svg { display: block; width: 100%; max-width: 960px; min-width: 760px; height: auto; margin: 0 auto; }
+  .flow-svg text { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .flow-band { fill: var(--paper); stroke: var(--line); stroke-width: 1; }
+  .flow-node { fill: var(--card); stroke: var(--line); stroke-width: 1.2; }
+  .flow-node-ai { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.2; }
+  .flow-node-warn { fill: var(--signal-soft); stroke: var(--signal); stroke-width: 1.2; }
+  .flow-phase { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.2; }
+  .flow-text { fill: var(--ink); }
+  .flow-sub { fill: var(--muted); }
+  .flow-edge { stroke: var(--muted); fill: none; stroke-width: 1.4; }
+  .arrh { fill: var(--muted); }
+  figcaption { font-size: 13px; color: var(--muted); margin: 10px 0 22px; }
+
+  footer { margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .src { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+
+  @media (max-width: 760px) {
+    .stats { grid-template-columns: 1fr 1fr; }
+    .grid-two { grid-template-columns: 1fr; }
+    header { padding-top: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">开源社区洞察 · 技术栈与可落地拆解 · 快照 2026-11-05</p>
+    <h1>ClawSweeper 技术栈与 GitHub Actions 全流程拆解</h1>
+    <p class="lede">如果你管理的社区也想引入这套「AI 审查 + 确定性关闭」系统，这份报告给出<strong>真实的依赖、workflow 编排、容量参数、状态存储与落地清单</strong>——全部来自仓库源码与文档快照，不含推测。</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="stats">
+    <div class="stat"><div class="num">Node ≥24</div><div class="lab">pnpm 12.15 · TypeScript 7</div></div>
+    <div class="stat"><div class="num">4 个</div><div class="lab">运行时依赖（极简）</div></div>
+    <div class="stat ratio"><div class="num">29+</div><div class="lab">GitHub Actions workflow</div></div>
+    <div class="stat"><div class="num">128</div><div class="lab">workers.max（Codex 并发预算）</div></div>
+  </div>
+
+  <nav class="toc">
+    <a href="#stack">技术栈</a>
+    <a href="#tree">仓库结构</a>
+    <a href="#actions">GitHub Actions 全流程</a>
+    <a href="#capacity">队列与容量</a>
+    <a href="#state">状态与存储</a>
+    <a href="#model">模型执行层</a>
+    <a href="#onboard">落地到你的社区</a>
+  </nav>
+
+  <section id="stack">
+    <p class="kicker">01 · 技术栈</p>
+    <h2>刻意保持简单的工具链</h2>
+    <p>整个系统是一个 <strong>纯 TypeScript / Node 单体 CLI</strong>（<code>dist/clawsweeper.js</code>），配一个 Cloudflare Worker 控制面。没有数据库、没有队列中间件、没有 Web 框架——容量与并发全部交给 Cloudflare Durable Object，编排全部交给 GitHub Actions。</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>层</th><th>选型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr class="grp"><td colspan="3">语言与运行时</td></tr>
+          <tr><td class="k">语言 / 模块</td><td>TypeScript 7.0.2 · ESM</td><td><code>"type": "module"</code>，Node 直接跑剥离类型的 <code>.ts</code>（runner 免构建）</td></tr>
+          <tr><td class="k">运行时</td><td>Node ≥ 24</td><td>Actions 侧统一 <code>FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true</code></td></tr>
+          <tr><td class="k">包管理</td><td>pnpm 12.15.0</td><td>workspace 单包；<code>pnpm run check:fast</code> 做 CI 门禁</td></tr>
+          <tr class="grp"><td colspan="3">运行期依赖（仅 4 个）</td></tr>
+          <tr><td class="k">markdown-it</td><td>渲染</td><td>报告与评论的 Markdown 处理</td></tr>
+          <tr><td class="k">yaml</td><td>配置解析</td><td>解析 workflow / 配置</td></tr>
+          <tr><td class="k">pako / yauzl</td><td>压缩与解压</td><td>gzip 状态信封、zip 产物读取</td></tr>
+          <tr class="grp"><td colspan="3">静态检查与测试</td></tr>
+          <tr><td class="k">oxlint / oxfmt</td><td>Lint / 格式化</td><td>Rust 实现，快；<code>--type-aware</code> 类型感知</td></tr>
+          <tr><td class="k">node:test</td><td>测试</td><td>三套 tsconfig 对应三套测试：core / repair / dashboard</td></tr>
+          <tr><td class="k">playwright-core</td><td>媒体与烟雾测试</td><td>视频证明转「接触表」、看板 smoke</td></tr>
+          <tr class="grp"><td colspan="3">执行器与云基础设施</td></tr>
+          <tr><td class="k">Codex</td><td>模型执行器</td><td><code>gpt-6.1-sol</code>（medium reasoning）；runner 可选 <code>codex</code> 或 <code>openclaw</code></td></tr>
+          <tr><td class="k">Cloudflare Worker</td><td>控制面</td><td>路由、看板、只读遥测；<strong>从不把 GitHub 变更委托给浏览器</strong></td></tr>
+          <tr><td class="k">Durable Object</td><td>精确审查队列</td><td><code>ExactReviewQueue</code>：SQLite 存储 + 租约 + 去抖 + 限流</td></tr>
+          <tr><td class="k">R2</td><td>对象存储</td><td>不可变账本、素材、重试缓存</td></tr>
+          <tr><td class="k">wrangler 4.131.1</td><td>部署</td><td><code>dashboard:deploy</code> / <code>dashboard:dev</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout acc">
+      <p><b>设计取向：</b>能交给模型判断的（候选筛选、失败恢复、重试策略、分诊、异常诊断）就交给 Codex，并把推理写进账本；代码只存在于<b>信任边界</b>上——鉴权、幂等、只增账本、花费上限、破坏性动作闸门。</p>
+    </div>
+  </section>
+
+  <section id="tree">
+    <p class="kicker">02 · 仓库结构</p>
+    <h2>模块地图</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>路径</th><th>职责</th></tr></thead>
+        <tbody>
+          <tr><td class="k">src/</td><td>核心引擎：审查、应用（apply）、标签、决策、审计、链接、本地审查等（约 60 个 <code>clawsweeper-*.ts</code> 模块）</td></tr>
+          <tr><td class="k">src/repair/</td><td>「修复/编排」子运行时：队列请求构建、状态发布、命令路由、workflow 工具、目标扇出</td></tr>
+          <tr><td class="k">dashboard/</td><td>Cloudflare Worker：<code>worker.ts</code> 只做路由，队列逻辑与迁移在 <code>exact-review-queue.ts</code></td></tr>
+          <tr><td class="k">dashboard-site/</td><td>静态看板站点（Pages 部署）</td></tr>
+          <tr><td class="k">config/</td><td><code>automation-limits.json</code>（容量单一真源）、<code>target-repositories.json</code>（目标仓库配置档）</td></tr>
+          <tr><td class="k">prompts/</td><td>审查提示词与 <code>review-close-reasons.md</code> 关闭理由片段</td></tr>
+          <tr><td class="k">schema/</td><td>结构化输出的 JSON Schema（判定、决策包等）</td></tr>
+          <tr><td class="k">scripts/</td><td>检查与工具：<code>check-limits</code>、<code>check-docs</code>、<code>control-plane-curl.sh</code>（重试+HMAC 签名）</td></tr>
+          <tr><td class="k">instructions/ · .agents/skills/</td><td>给编码 agent 的指令与本地 skill</td></tr>
+          <tr><td class="k">.github/workflows/ · .github/actions/</td><td>29+ 个 workflow 与 10 个复合 action（见下节）</td></tr>
+          <tr><td class="k">docs/</td><td>架构/调度/状态/策略文档索引（本报告主要依据）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:var(--muted);">三套编译目标：<code>tsconfig.json</code>（核心）、<code>tsconfig.repair.json</code>（编排）、<code>tsconfig.dashboard.json</code>（Worker），外加一个 dashboard 严格档。</p>
+  </section>
+
+  <section id="actions">
+    <p class="kicker">03 · GitHub Actions 全流程（重点）</p>
+    <h2>Actions 只做 5 件事，路由逻辑全在 TypeScript</h2>
+    <div class="callout">
+      <p><b>硬性架构约束：</b>workflow 只负责 <b>环境准备、铸凭据、跑脚本、上传产物、发布状态</b>。所有的路由规则必须写在 TypeScript 里——这样 webhook 接入、repository_dispatch 回退、手动触发、定时任务<b>走同一套行为</b>。workflow 里不写业务 YAML/bash。</p>
+    </div>
+
+    <h3>三类触发器</h3>
+    <ul>
+      <li><strong>schedule（cron）</strong>：定时扫描/回填/执行，见下方时间表。</li>
+      <li><strong>repository_dispatch</strong>：目标仓库事件或扇出派发单条审查（<code>clawsweeper_target_sweep</code> 等 action 类型）。</li>
+      <li><strong>workflow_dispatch</strong>：人工运维（指定 <code>item_number</code> / 重跑 / 回填 / apply_existing）。</li>
+    </ul>
+
+    <h3>cron 时间表（真实值）</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>workflow</th><th>cron</th><th>含义</th></tr></thead>
+        <tbody>
+          <tr><td class="k" rowspan="4">review-plan.yml</td><td class="k">*/5 * * * *</td><td>热接入（hot intake）：最新队列边缘每 5 分钟</td></tr>
+          <tr><td class="k">2/5 * * * *</td><td>ClawHub 热接入（需装 App 才启用）</td></tr>
+          <tr><td class="k">9/20 * * * *</td><td>openclaw/openclaw 常规回填，每 20 分钟派发一次</td></tr>
+          <tr><td class="k">22 * * * *</td><td>每小时补充规划</td></tr>
+          <tr><td class="k" rowspan="3">sweep.yml</td><td class="k">3,18,33,48 * * * *</td><td>apply 通道：每 15 分钟唤醒执行关闭/评论</td></tr>
+          <tr><td class="k">8,23,38,53 * * * *</td><td>ClawHub apply</td></tr>
+          <tr><td class="k">6,21,36,51 * * * *</td><td>评论同步（comment sync）恢复通道</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>一次「精确审查」的完整生命周期</h3>
+    <div class="flowcard">
+      <svg class="flow-svg" viewBox="0 0 960 400" role="img" aria-label="精确审查流水线">
+        <defs>
+          <marker id="arrowC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path class="arrh" d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+        </defs>
+
+        <!-- 阶段 1 -->
+        <rect class="flow-band" x="8" y="32" width="944" height="80" rx="10"/>
+        <rect class="flow-phase" x="24" y="40" width="140" height="64" rx="10"/>
+        <text class="flow-text" x="94" y="70" text-anchor="middle" font-size="13">① 接入</text>
+        <text class="flow-sub" x="94" y="88" text-anchor="middle" font-size="10.5">Intake</text>
+        <rect class="flow-node" x="184" y="40" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="300" y="66" text-anchor="middle" font-size="13">目标仓库 dispatcher</text>
+        <text class="flow-sub" x="300" y="85" text-anchor="middle" font-size="10.5">OIDC · 无需密钥</text>
+        <rect class="flow-node" x="444" y="40" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="560" y="66" text-anchor="middle" font-size="13">App Webhook / dispatch</text>
+        <text class="flow-sub" x="560" y="85" text-anchor="middle" font-size="10.5">Issues · PR · Comments</text>
+        <rect class="flow-node" x="704" y="40" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="820" y="66" text-anchor="middle" font-size="13">enqueue → DO 队列</text>
+        <text class="flow-sub" x="820" y="85" text-anchor="middle" font-size="10.5">HMAC-SHA256 签名</text>
+        <line class="flow-edge" x1="416" y1="72" x2="440" y2="72" marker-end="url(#arrowC)"/>
+        <line class="flow-edge" x1="676" y1="72" x2="700" y2="72" marker-end="url(#arrowC)"/>
+
+        <!-- 阶段 2 -->
+        <rect class="flow-band" x="8" y="128" width="944" height="80" rx="10"/>
+        <rect class="flow-phase" x="24" y="136" width="140" height="64" rx="10"/>
+        <text class="flow-text" x="94" y="166" text-anchor="middle" font-size="13">② 认领与审查</text>
+        <text class="flow-sub" x="94" y="184" text-anchor="middle" font-size="10.5">Claim &amp; Review</text>
+        <rect class="flow-node" x="184" y="136" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="300" y="162" text-anchor="middle" font-size="13">claim 租约</text>
+        <text class="flow-sub" x="300" y="181" text-anchor="middle" font-size="10.5">免 checkout 先认领</text>
+        <rect class="flow-node" x="444" y="136" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="560" y="162" text-anchor="middle" font-size="13">setup-pnpm + checkout</text>
+        <text class="flow-sub" x="560" y="181" text-anchor="middle" font-size="10.5">Node 24 · 稀疏检出</text>
+        <rect class="flow-node-ai" x="704" y="136" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="820" y="162" text-anchor="middle" font-size="13">Codex 只读审查</text>
+        <text class="flow-sub" x="820" y="181" text-anchor="middle" font-size="10.5">gpt-6.1-sol · 无写权限</text>
+        <line class="flow-edge" x1="416" y1="168" x2="440" y2="168" marker-end="url(#arrowC)"/>
+        <line class="flow-edge" x1="676" y1="168" x2="700" y2="168" marker-end="url(#arrowC)"/>
+
+        <!-- 阶段 3 -->
+        <rect class="flow-band" x="8" y="224" width="944" height="80" rx="10"/>
+        <rect class="flow-phase" x="24" y="232" width="140" height="64" rx="10"/>
+        <text class="flow-text" x="94" y="262" text-anchor="middle" font-size="13">③ 发布</text>
+        <text class="flow-sub" x="94" y="280" text-anchor="middle" font-size="10.5">Publish</text>
+        <rect class="flow-node" x="184" y="232" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="300" y="258" text-anchor="middle" font-size="13">批量水合记录</text>
+        <text class="flow-sub" x="300" y="277" text-anchor="middle" font-size="10.5">只读本项 canonical 记录</text>
+        <rect class="flow-node" x="444" y="232" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="560" y="258" text-anchor="middle" font-size="13">与实时状态对账</text>
+        <text class="flow-sub" x="560" y="277" text-anchor="middle" font-size="10.5">标签 · 署名 · 快照漂移</text>
+        <rect class="flow-node" x="704" y="232" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="820" y="258" text-anchor="middle" font-size="13">发布记录 + 同步评论</text>
+        <text class="flow-sub" x="820" y="277" text-anchor="middle" font-size="10.5">单条评论原地编辑</text>
+        <line class="flow-edge" x1="416" y1="264" x2="440" y2="264" marker-end="url(#arrowC)"/>
+        <line class="flow-edge" x1="676" y1="264" x2="700" y2="264" marker-end="url(#arrowC)"/>
+
+        <!-- 阶段 4 -->
+        <rect class="flow-band" x="8" y="320" width="944" height="80" rx="10"/>
+        <rect class="flow-phase" x="24" y="328" width="140" height="64" rx="10"/>
+        <text class="flow-text" x="94" y="358" text-anchor="middle" font-size="13">④ 执行与状态</text>
+        <text class="flow-sub" x="94" y="376" text-anchor="middle" font-size="10.5">Apply &amp; State</text>
+        <rect class="flow-node-warn" x="184" y="328" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="300" y="354" text-anchor="middle" font-size="13">apply 关闭（安全门）</text>
+        <text class="flow-sub" x="300" y="373" text-anchor="middle" font-size="10.5">变更前重取实时状态</text>
+        <rect class="flow-node" x="444" y="328" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="560" y="354" text-anchor="middle" font-size="13">行动账本 ledger/v1</text>
+        <text class="flow-sub" x="560" y="373" text-anchor="middle" font-size="10.5">R2 · 不可变 · 可重放</text>
+        <rect class="flow-node" x="704" y="328" width="232" height="64" rx="10"/>
+        <text class="flow-text" x="820" y="354" text-anchor="middle" font-size="13">state 仓库发布</text>
+        <text class="flow-sub" x="820" y="373" text-anchor="middle" font-size="10.5">jobs / results / notifications</text>
+        <line class="flow-edge" x1="416" y1="360" x2="440" y2="360" marker-end="url(#arrowC)"/>
+        <line class="flow-edge" x1="676" y1="360" x2="700" y2="360" marker-end="url(#arrowC)"/>
+
+        <!-- 竖向衔接 -->
+        <line class="flow-edge" x1="560" y1="112" x2="560" y2="132" marker-end="url(#arrowC)"/>
+        <line class="flow-edge" x1="560" y1="208" x2="560" y2="228" marker-end="url(#arrowC)"/>
+        <line class="flow-edge" x1="560" y1="304" x2="560" y2="324" marker-end="url(#arrowC)"/>
+      </svg>
+    </div>
+    <figcaption>青色=AI 判断（Codex，只读）；琥珀=受护栏约束的执行；灰色=确定性步骤。整条链路里 Codex 全程不持有写权限，写操作只发生在 Apply 通道并再次校验实时状态。</figcaption>
+
+    <h3>关键 workflow 分工</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>workflow</th><th>角色</th></tr></thead>
+        <tbody>
+          <tr><td class="k">review-plan.yml</td><td>规划器：决定扫哪些候选，并把它们投递到共享的精确审查队列</td></tr>
+          <tr><td class="k">sweep.yml</td><td>审查 + 执行：跑 Codex 审查、<code>apply_existing</code> 落地已存提案、评论同步</td></tr>
+          <tr><td class="k">target-fanout.yml</td><td>多仓库扇出：按 <code>target_inventory</code> 分批派发（游标存在 DO 里）</td></tr>
+          <tr><td class="k">hosted-target-admission.yml</td><td>可复用 workflow：校验目标仓库是否准入（public/private、策略档）</td></tr>
+          <tr><td class="k">audit.yml</td><td>审计水合，按波次推进（<code>audit.max_parallel_targets = 3</code>）</td></tr>
+          <tr><td class="k">exact-review-*.yml</td><td>队列对账、批量发布、死信处理与重试、队列存储维护（压缩/统计）</td></tr>
+          <tr><td class="k">repair-*.yml</td><td>命令路由（评论命令）与容器化冒烟</td></tr>
+          <tr><td class="k">clawsweeper-dispatch.yml</td><td>目标仓库侧 dispatcher 模板（装到被管理的仓库里）</td></tr>
+          <tr><td class="k">github-activity / failed-review-retry / maintainer-report-discord</td><td>活动观察（有损）、失败重试、维护者报告推送</td></tr>
+          <tr><td class="k">dashboard*.yml / pages.yml</td><td>看板构建与静态站点部署</td></tr>
+          <tr><td class="k">ci.yml / codeql.yml / release.yml</td><td>自身的 CI、安全检查与发布</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>10 个复合 action（组合式步骤）</h3>
+    <p>把重复的「准备」抽成可复用 action，workflow 里只引用它们：</p>
+    <ul>
+      <li><code>setup-pnpm</code>、<code>setup-state</code>（稀疏检出运维状态）、<code>setup-action-ledger</code>（账本）</li>
+      <li><code>create-state-token</code>、<code>create-target-write-token</code>（按最小权限铸造 GitHub App token）</li>
+      <li><code>setup-codex</code>、<code>setup-openclaw</code>、<code>setup-openclaw-codex-source</code>（安装/缓存模型执行器）</li>
+      <li><code>setup-review-tools</code>（审查工具链）、<code>setup-github-egress-observer</code>（出网遥测）</li>
+    </ul>
+
+    <h3>权限与凭据模型</h3>
+    <ul>
+      <li><strong>最小权限</strong>：workflow 显式声明 <code>contents/actions/issues/pull-requests: write</code>；审查 job 只读（<code>checks/contents/issues/pull-requests/statuses: read</code>）。</li>
+      <li><strong>GitHub App token</strong>：用 <code>actions/create-github-app-token</code> 按 owner/repo 粒度铸造，读 token 与写 token 分离（<code>create-target-write-token</code> 单独控制）。</li>
+      <li><strong>公开发布的 App client id</strong>：<code>Iv23liOECG0slfuhz093</code>（私钥走 secret，不进仓库）。</li>
+      <li><strong>控制面签名</strong>：<code>control-plane-curl.sh</code> 只在这里计算 <code>x-clawsweeper-exact-review-signature</code>＝<code>sha256=</code> + 以 <code>CLAWSWEEPER_WEBHOOK_SECRET</code> 为密钥、对 body 精确字节做 HMAC-SHA256。</li>
+      <li><strong>重试语义</strong>：连接失败/HTTP 5xx 最多 6 次尝试、总退避 ≤62 秒（2/4/8/16/32 秒，尊重 <code>Retry-After</code> 上限 60 秒），足以覆盖 Worker 部署/DO 重置的 15–30 秒抖动窗口；4xx 不重试。</li>
+      <li><strong>concurrency</strong>：按「目标仓库 + 租约」分组，<code>cancel-in-progress: false</code>，避免重复/竞态。</li>
+    </ul>
+  </section>
+
+  <section id="capacity">
+    <p class="kicker">04 · 队列与容量</p>
+    <h2>并发不是靠 Actions 信号量，而是靠 Durable Object 队列</h2>
+    <p>精确审查的准入由 Worker 里的 <code>ExactReviewQueue</code> 决定：它按「仓库 + item 编号」合并投递（新 webhook 只更新最新意图，不额外消耗 runner），并用租约、回收、去抖与限流控制并发。容量参数集中在 <code>config/automation-limits.json</code>。</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>参数</th><th>值</th><th>含义</th></tr></thead>
+        <tbody>
+          <tr><td class="k">workers.max</td><td>128</td><td>全局 Codex 并发预算（唯一主旋钮）</td></tr>
+          <tr><td class="k">workers.reserve_for_interactive</td><td>16</td><td>后台通道为精确/手动/紧急工作预留的槽位</td></tr>
+          <tr><td class="k">workers.expansion_reserve</td><td>8</td><td>为独立规划的矩阵扩展预留</td></tr>
+          <tr><td class="k">EXACT_REVIEW_QUEUE_MAX_CONCURRENT</td><td>80</td><td>同时派发的精确审查上限</td></tr>
+          <tr><td class="k">EXACT_REVIEW_TARGET_MAX_CONCURRENT</td><td>64</td><td>单个目标仓库可占用的上限（给其他仓库留 16 槽）</td></tr>
+          <tr><td class="k">EXACT_REVIEW_ACTIONS_BUDGET</td><td>194</td><td>独立的 Actions 预算，保证发布不被审查挤到 0</td></tr>
+          <tr><td class="k">EXACT_REVIEW_SCHEDULED_MAX_CONCURRENT</td><td>32</td><td>定时热接入 + 常规回填合计上限</td></tr>
+          <tr><td class="k">派生上限</td><td>89 / 38 / 44</td><td>常规审查 70%、常规活跃下限 30%、热接入 35%（相对 128）</td></tr>
+          <tr><td class="k">入门静默窗</td><td>10 分钟</td><td>普通 PR 需 head/title/body/draft 稳定 10 分钟才审</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>背压分级（自动降速）</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>级别</th><th>触发条件</th><th>后台预算</th></tr></thead>
+        <tbody>
+          <tr><td class="k">none</td><td>未达软阈值</td><td>正常动态预算</td></tr>
+          <tr><td class="k">soft</td><td>≥150 待处理 或 最老待处理 ≥30 分钟</td><td><code>ceil(正常预算 × 0.5)</code></td></tr>
+          <tr><td class="k">hard</td><td>≥400 待处理 或 最老待处理 ≥2 小时</td><td><code>max(1, floor(正常预算 × 0.1))</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:var(--muted);">阈值可由仓库变量覆盖：<code>CLAWSWEEPER_QUEUE_PRESSURE_SOFT_PENDING</code>(150)、<code>..._HARD_PENDING</code>(400)、<code>..._SOFT_AGE_MS</code>(1800000)、<code>..._HARD_AGE_MS</code>(7200000)。</p>
+  </section>
+
+  <section id="state">
+    <p class="kicker">05 · 状态与存储</p>
+    <h2>三个明确的状态所有者</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>逻辑路径</th><th>规范所有者</th></tr></thead>
+        <tbody>
+          <tr><td class="k">records/**</td><td>Durable Object 记录存储（快照到 R2）</td></tr>
+          <tr><td class="k">队列游标 / 命令摄入 / 版本水位 / 收据</td><td>ExactReviewQueue DO 的 KV 与 SQLite（从不检出到 Git）</td></tr>
+          <tr><td class="k">ledger/v1/**</td><td>R2 不可变 blob（行动账本）</td></tr>
+          <tr><td class="k">assets/**</td><td>R2 可变 blob（已发布素材）</td></tr>
+          <tr><td class="k">artifacts/exact-review/v1/&lt;sha256&gt;</td><td>R2 不可变缓存 blob（重试缓存）</td></tr>
+          <tr><td class="k">jobs/** · results/** · notifications/** · apply-report.json</td><td><code>clawsweeper-state</code> 仓库的 <code>state</code> 分支（待迁移）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <p><b>可回滚的存储演进：</b>状态 JSON 在「信封压缩」后更小；但代码明确要求 <b>部署支持解压的 Worker 之后才允许写压缩格式</b>，并把「已部署的可解码 SHA」作为回滚下限——历史压缩必须用 <code>exact-review-queue-maintenance.yml</code> 分页、可断点、可审计地手动执行。</p>
+    </div>
+  </section>
+
+  <section id="model">
+    <p class="kicker">06 · 模型执行层</p>
+    <h2>Codex 只读审查是怎么跑起来的</h2>
+    <ul>
+      <li><strong>一次审查 = 一个 Codex 进程</strong>；Codex 自己负责请求与流恢复，ClawSweeper 只保留最终错误分类，由队列决定是否发起新的一次审查。</li>
+      <li><strong>模型与档位</strong>：<code>gpt-6.1-sol</code>，medium reasoning；直接 API 认证模式（<code>login</code> / <code>proxy</code>）走该模型，<code>clawrouter</code> 模式走其私有推理别名。</li>
+      <li><strong>优先服务</strong>：由 OWNER/MEMBER/COLLABORATOR 撰写，或实时权限为 <code>write</code>/<code>maintain</code>/<code>admin</code> 的条目走 priority（快）服务；其余走 standard。</li>
+      <li><strong>输入扫描</strong>（<code>agent-input-scan.ts</code>）：拒绝不安全内容，输出终止性原因（<code>scanner_unavailable</code>、<code>findings</code>、<code>deadline</code>、<code>unsafe_path</code> 等）；<code>scanner_refused</code> 会保留队列项并阻止自动释放。</li>
+      <li><strong>安全信号</strong>（<code>security-signals.ts</code>）：在提示压缩前检查原始正文与讨论，识别远程 shell 替换、下载即执行、编码环境变量泄漏等；命中即升级为需要人工审核的安全项，并<strong>阻止一切自动关闭</strong>。</li>
+      <li><strong>提示组装</strong>：按 <code>repositoryProfileFor(item.repo)</code> 选中配置档，渲染出 <code>Repository Policy</code> 段，并按其 <code>apply_close_rules</code> 裁剪可用的关闭理由。</li>
+    </ul>
+    <div class="callout acc">
+      <p><b>必须保持确定性、不得交给模型的清单：</b>维护者/写权限判定 · 目标仓库准入边界 · 受保护标签与维护者署名关闭护栏 · 陈旧漂移与精确 head 身份 · worker 预算强制 · 最终评论/标签/关闭动作。Codex 只「提议处置」，由确定性代码决定该变更是否被允许并执行。</p>
+    </div>
+  </section>
+
+  <section id="onboard">
+    <p class="kicker">07 · 落地到你的社区</p>
+    <h2>如果你想引入，需要准备什么</h2>
+    <div class="grid-two">
+      <div class="card">
+        <h3>基础设施前置</h3>
+        <ul>
+          <li><strong>Cloudflare 账号</strong>：Worker + Durable Object（<code>ExactReviewQueue</code>，SQLite 后端）+ 一个 R2 bucket。</li>
+          <li><strong>GitHub App</strong>：client id + 私钥；订阅 <strong>Issues / Pull requests / Issue comments</strong> webhook；按最小权限授予 contents/issues/pull-requests 读写。</li>
+          <li><strong>一个 state 仓库</strong>（如 <code>&lt;org&gt;/clawsweeper-state</code>），含 <code>state</code> 分支。</li>
+          <li><strong>模型执行凭据</strong>：用 <code>openclaw</code> runner 时需 OpenAI/Anthropic/Gemini/Kimi/OpenRouter 等 provider key；用 <code>codex</code> runner 走内部服务。</li>
+          <li><strong>自托管</strong>：官方实例不对外提供免费审查——fork 后部署到你自己的组织。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>需要改的配置</h3>
+        <ul>
+          <li><code>config/automation-limits.json</code> — 全局并发预算（<code>workers.max</code>）</li>
+          <li><code>config/target-repositories.json</code> — 目标仓库、关闭规则、<code>promptNote</code></li>
+          <li><code>src/repository-profiles.ts</code> — 内置配置档与 <code>apply_close_rules</code></li>
+          <li><code>dashboard/wrangler.toml</code> — <code>TARGET_REPOS</code> / <code>APPLY_TARGET_REPOS</code> / 公开看板白名单</li>
+          <li>Actions 仓库变量/密钥 — App 私钥、<code>CLAWSWEEPER_WEBHOOK_SECRET</code>、队列 URL、各关闭开关</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>接入一个仓库：官方 6 步</h3>
+    <ol class="steps">
+      <li>在目标仓库<strong>安装 ClawSweeper GitHub App</strong>。</li>
+      <li>把 <strong>target dispatcher workflow</strong> 加进目标仓库并合并（用 OIDC，<strong>不需要任何 ClawSweeper 密钥</strong>）。</li>
+      <li>确认 App 收到 <strong>Issues、Pull requests、Issue comments</strong> 三类 webhook。</li>
+      <li>在目标仓库打开/编辑/评论一个 issue 或 PR，确认出现一次 dispatcher run。</li>
+      <li>确认 Worker 直接摄入成功，且队列审查出现在 <code>clawsweeper/actions</code>（<strong>不应</strong>出现中继 run）。</li>
+      <li>确认该条目获得<strong>一条耐久审查评论</strong>。</li>
+    </ol>
+
+    <h3>建议的渐进上线路径</h3>
+    <div class="callout">
+      <p><b>先观察，再放开关闭。</b> OpenClaw 自己就是这么推的：<b>① review-only</b>——所有仓库先只审查、全部 <code>apply_close_rules</code> 留空（本地配置档默认关闭规则为空）；<b>② 定点开放</b>——只为明确需要的仓库开 <code>implemented_on_main</code>；<b>③ 按需开关</b>——超大 PR（默认开）、作者 PR 配额、未确认产品方向、陈旧版本 bug 等策略一律<b>默认 off</b>，靠环境变量逐项开启。批量推广用 <code>target-fanout</code> 先小批试跑（<code>--dry-run</code> 先看清单）。</p>
+    </div>
+    <div class="grid-two">
+      <div class="card">
+        <h3>默认开启的关闭策略</h3>
+        <ul>
+          <li><code>CLAWSWEEPER_OVERSIZED_PR_CLOSE_ENABLED</code> = <code>true</code>（&gt;50,000 行）</li>
+          <li><code>CLAWSWEEPER_MAX_PR_CHANGED_LINES</code> = <code>50000</code></li>
+          <li><code>CLAWSWEEPER_AUTO_CLOSE_REASONS</code> = <code>all</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>默认关闭（需显式开启）</h3>
+        <ul>
+          <li>未确认产品方向关闭（product direction）</li>
+          <li>无赞助功能关闭（unsponsored feature）</li>
+          <li>陈旧版本 bug / 过时小修 PR 关闭</li>
+          <li>作者 PR 配额关闭（<code>CLAWSWEEPER_AUTHOR_PR_BUDGET</code>=15，单次最多关 5 个）</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap" style="padding:0;">
+      数据与引文来自仓库源码与文档快照（<span class="src">openclaw/clawsweeper@main</span>，2026-11-05）：<span class="src">package.json</span> · <span class="src">docs/orchestration.md</span> · <span class="src">docs/scheduler.md</span> · <span class="src">docs/limits.md</span> · <span class="src">docs/state-storage.md</span> · <span class="src">docs/target-repositories.md</span> · <span class="src">.github/workflows/*</span>。<br>
+      来源：<span class="src">github.com/openclaw/clawsweeper</span> · <span class="src">clawsweeper.openclaw.ai</span>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

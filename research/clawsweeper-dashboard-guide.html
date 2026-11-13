@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawSweeper Dashboard 功能与角色指南</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F7F8; --card: #FFFFFF; --ink: #16191E; --ink-2: #3A4149;
+    --muted: #6B7380; --line: #E2E6EA;
+    --accent: #0F766E; --accent-ink: #0B5D56; --accent-soft: #E5F2EF;
+    --signal: #B45309; --signal-soft: #FBF0E1;
+    --good: #157F3D; --good-soft: #E7F5EC;
+    --violet: #6847A8; --violet-soft: #F0ECF8;
+    --shadow: 0 1px 2px rgba(22,25,30,.05), 0 8px 24px rgba(22,25,30,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --paper: #121417; --card: #191C20; --ink: #E7EAEE; --ink-2: #B8BFC8;
+    --muted: #8A93A0; --line: #2A2F36; --accent: #2DD4BF; --accent-ink: #7FEDE0;
+    --accent-soft: #11312C; --signal: #F59E0B; --signal-soft: #2A2110;
+    --good: #4ADE80; --good-soft: #12291B; --violet: #C4A9FF; --violet-soft: #261E35;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4);
+    color-scheme: dark;
+  } }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px; line-height: 1.65; padding-bottom: 64px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 44px 0 8px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif; font-weight: 700; font-size: clamp(27px, 4.6vw, 40px); line-height: 1.12; letter-spacing: -.02em; margin: 0 0 16px; text-wrap: balance; }
+  .lede { font-size: 17px; line-height: 1.6; color: var(--ink-2); max-width: 850px; margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 21px; letter-spacing: -.01em; margin: 0 0 12px; }
+  h2 .idx { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--accent); margin-right: 10px; }
+  h3 { margin: 0 0 7px; font-size: 16px; line-height: 1.35; }
+  section { padding: 30px 0 6px; }
+  p { margin: 0 0 14px; color: var(--ink-2); }
+  code { font-family: "IBM Plex Mono", monospace; font-size: 12.8px; background: var(--accent-soft); color: var(--accent-ink); padding: 1px 6px; border-radius: 5px; }
+  a { color: var(--accent-ink); }
+
+  .thesis { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: stretch; margin: 10px 0 4px; }
+  .thesis-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 18px 20px; }
+  .thesis-card.observe { border-top: 4px solid var(--accent); }
+  .thesis-card.act { border-top: 4px solid var(--signal); }
+  .thesis-card .k { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+  .thesis-card .big { font-family: "Bricolage Grotesque", sans-serif; font-size: 20px; font-weight: 700; line-height: 1.3; color: var(--ink); }
+  .thesis-card .small { font-size: 13px; line-height: 1.5; margin: 7px 0 0; color: var(--muted); }
+  .versus { align-self: center; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted); }
+
+  .role-legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 10px 0 6px; }
+  .role { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .role .role-name { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .role .role-name .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+  .role p { font-size: 13px; line-height: 1.5; margin: 0; }
+  .dot-maint { background: var(--accent); } .dot-ops { background: var(--violet); } .dot-user { background: var(--signal); }
+  .role-tag { display: inline-block; font: 10.5px "IBM Plex Mono", monospace; border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; margin-left: auto; color: var(--muted); white-space: nowrap; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 10px 0 6px; }
+  .feature { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 17px 18px; min-width: 0; }
+  .feature-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+  .feature h3 { margin: 0; }
+  .feature h3 a { text-decoration: none; }
+  .feature h3 a:hover { text-decoration: underline; }
+  .path { display: block; font: 11px "IBM Plex Mono", monospace; color: var(--muted); margin-top: 3px; }
+  .role-pill { border-radius: 999px; padding: 3px 8px; font: 10.5px "IBM Plex Mono", monospace; border: 1px solid var(--line); white-space: nowrap; }
+  .rp-maint { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
+  .rp-ops { background: var(--violet-soft); color: var(--violet); border-color: var(--violet); }
+  .rp-both { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .rp-public { background: var(--signal-soft); color: var(--signal); border-color: var(--signal); }
+  .feature p { font-size: 13.5px; line-height: 1.55; margin: 0 0 8px; }
+  .feature .use { color: var(--ink); }
+  .feature .boundary { color: var(--muted); margin: 0; }
+  .feature .label { font: 10px "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+
+  .tablecard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow-x: auto; margin: 8px 0 6px; }
+  table { width: 100%; min-width: 800px; border-collapse: collapse; font-size: 13.5px; }
+  thead th { position: sticky; top: 0; background: var(--accent-soft); color: var(--accent-ink);
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    text-align: left; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid var(--line); z-index: 2; }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+  td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+  .mode { display: inline-block; border-radius: 5px; padding: 2px 6px; font: 10px "IBM Plex Mono", monospace; white-space: nowrap; }
+  .mode-read { background: var(--accent-soft); color: var(--accent-ink); }
+  .mode-write { background: var(--signal-soft); color: var(--signal); }
+  .mode-ops { background: var(--violet-soft); color: var(--violet); }
+
+  .journey { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; margin: 10px 0 12px; }
+  .step { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 15px 14px; }
+  .step:not(:last-child)::after { content: "→"; position: absolute; right: -11px; top: 19px; z-index: 1; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--paper); color: var(--accent); font-weight: 700; }
+  .step .n { font: 11px "IBM Plex Mono", monospace; color: var(--accent); margin-bottom: 5px; }
+  .step .t { font-weight: 600; font-size: 13.5px; line-height: 1.4; margin-bottom: 5px; }
+  .step .d { font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .note { font-size: 13px; color: var(--muted); }
+  .note strong { color: var(--ink-2); }
+  .callout { border-left: 4px solid var(--signal); background: var(--signal-soft); padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 12px 0 4px; }
+  .callout p { margin: 0; font-size: 14px; }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .sources { font: 11.5px "IBM Plex Mono", monospace; color: var(--muted); line-height: 1.8; overflow-wrap: anywhere; }
+
+  @media (max-width: 760px) {
+    .thesis { grid-template-columns: 1fr; gap: 8px; }
+    .versus { justify-self: center; }
+    .role-legend { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 1fr; }
+    .journey { grid-template-columns: 1fr; }
+    .step:not(:last-child)::after { content: "↓"; right: 14px; top: auto; bottom: -12px; }
+  }
+  @media (max-width: 640px) { thead th, tbody td { padding-left: 10px; padding-right: 10px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <p class="eyebrow">OpenClaw · ClawSweeper dashboard field guide · 2026-11-06</p>
+    <h1>Dashboard 有哪些功能？谁在什么场景使用？</h1>
+    <p class="lede">基于当前线上页面与仓库文档梳理。核心边界：<strong>Dashboard 是只读观察台，不是 GitHub 管理后台</strong>。社区维护者通常在仪表盘发现问题，再回到 GitHub Issue/PR 阅读证据、请求复审或作出治理决定。</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <div class="thesis">
+      <div class="thesis-card observe">
+        <div class="k">Dashboard · Observe</div>
+        <div class="big">看队列、运行健康、覆盖与审查结果</div>
+        <p class="small">浏览器提供聚合指标和受限的公开引用；不负责执行 GitHub 写操作。</p>
+      </div>
+      <div class="versus">看见 ≠ 操作</div>
+      <div class="thesis-card act">
+        <div class="k">GitHub / Operator · Act</div>
+        <div class="big">评论命令、人工决策、受护栏的 Apply</div>
+        <p class="small">具体 Issue/PR 的交互发生在 GitHub；部署、凭据和队列运维由授权操作者通过 Actions / CLI / Cloudflare 处理。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">01</span>使用角色</h2>
+    <div class="role-legend">
+      <div class="role">
+        <div class="role-name"><span class="dot dot-maint"></span>社区 / 仓库维护者<span class="role-tag">治理者</span></div>
+        <p>看审查与队列是否正常；在 GitHub 查看单条 Issue/PR 的报告、处理待人工决定事项，并按需请求复审。</p>
+      </div>
+      <div class="role">
+        <div class="role-name"><span class="dot dot-ops"></span>ClawSweeper 服务操作者<span class="role-tag">运维者</span></div>
+        <p>维护 GitHub Actions、Worker、Cloudflare、App 凭据和数据管道；处理部署、积压或基础设施异常。通常是 ClawSweeper 项目的指定维护者。</p>
+      </div>
+      <div class="role">
+        <div class="role-name"><span class="dot dot-user"></span>贡献者 / 公共观察者<span class="role-tag">提交者</span></div>
+        <p>通过 GitHub Issue/PR 获得审查反馈、补充复现或环境信息；公共 triage 页面只能查看聚合分类，不提供逐条检索。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">02</span>Dashboard 页面地图</h2>
+    <div class="grid">
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/">Overview · 系统总览</a></h3><span class="path">/</span></div>
+          <span class="role-pill rp-both">维护者 + 运维者</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 快速判断系统当前是否在工作、是否有明显拥塞或异常。</p>
+        <p>汇总 Codex 容量、exact review、Apply/close 健康、handoff、活跃 worker、活动管线、fleet coverage 和近期活动，并提供各详情页入口。</p>
+        <p class="boundary">适合“先看全局，再决定去哪一页”；不是逐项审批列表。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/agent/">Agent performance · 执行表现</a></h3><span class="path">/agent/</span></div>
+          <span class="role-pill rp-ops">运维者为主</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 审查变慢、失败增加或同一条目反复被领取时，定位执行层信号。</p>
+        <p>查看运行时长分位数、按阶段归类的失败尝试、重复 claim 样例及有限的最近历史。</p>
+        <p class="boundary">claim 不等于模型执行；重复 claim 本身不能证明浪费算力，也不提供原始日志。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/throughput/">Throughput · 吞吐</a></h3><span class="path">/throughput/</span></div>
+          <span class="role-pill rp-both">维护者 + 运维者</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 回答“审查量、关闭量和工作流活动近期如何变化”。</p>
+        <p>展示审查条目数、关闭量、sweep 运行量、创建到最近审查的时间分布，以及 workflow 成功/失败、耗时统计。</p>
+        <p class="boundary">这是历史量与趋势；成功运行不代表判断正确，重审会影响最新审查日期统计。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/quality/">Assessments · 审查评估</a></h3><span class="path">/quality/</span></div>
+          <span class="role-pill rp-maint">维护者为主</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 找出审查记录中曾标记为维护者关注或安全关注的条目。</p>
+        <p>按记录的评估标记查看关注项和历史记录，可跳转到公开仓库中的对应 GitHub 条目。</p>
+        <p class="boundary">反映已保存审查记录，不保证当前仍 open 或仍有效；评估是审查者判断，不是验证过的严重度。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/queue/">Queue · 队列</a></h3><span class="path">/queue/</span></div>
+          <span class="role-pill rp-ops">运维者为主</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 发现待处理工作积压、退避、搁置、容量压力或发布延迟。</p>
+        <p>查看 review/publication lane 容量、active/leased/pending/backoff/parked、完成数、失败健康、shed、scheduled feed 与有限 warning evidence。</p>
+        <p class="boundary">公开样例有上限且不构成完整清单；页面不提供清队列、重试或改优先级按钮。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/operations/">Operations · 运行运营</a></h3><span class="path">/operations/</span></div>
+          <span class="role-pill rp-ops">运维者为主</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 判断交接、发布和自动关闭流程是否健康，追踪长时间 handoff。</p>
+        <p>查看 review flow、handoff incidents、publication backlog/deliveries，以及 close sweep 检查量、关闭量和安全阻断分类。</p>
+        <p class="boundary">Apply 汇总有明确范围；它不覆盖所有审查后即时发布操作，也不执行浏览器端写入。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/coverage/">Coverage · 覆盖与新鲜度</a></h3><span class="path">/coverage/</span></div>
+          <span class="role-pill rp-both">维护者 + 运维者</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 检查参与仓库的观测覆盖和审查证据是否足够新。</p>
+        <p>呈现公开仓库的计数观察、identity-matched review evidence、集合窗口和覆盖完整性状态。</p>
+        <p class="boundary">观测计数与历史报告是不同证据；缺口会显示 Unknown，不会用旧记录伪装成实时覆盖。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/repos/">Repositories · 仓库视图</a></h3><span class="path">/repos/</span></div>
+          <span class="role-pill rp-maint">仓库维护者为主</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 对比不同仓库的记录量、近期审查、stale open 和关闭情况。</p>
+        <p>支持筛选仓库并进入单仓概览；仓库卡片可聚合 stale、maintainer、安全关注和近期关闭等记录。</p>
+        <p class="boundary">只纳入构建侧确认公开的仓库；基于保存的 corpus，不等于完整实时 GitHub inventory。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/triage">Issue triage · Issue 分类概览</a></h3><span class="path">/triage</span></div>
+          <span class="role-pill rp-public">公共观察者</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 快速了解 ClawSweeper 建议分类的总体分布，如 needs-info、needs-maintainer-review。</p>
+        <p>展示固定分类视图的聚合计数和数据完整性状态，帮助理解队列构成。</p>
+        <p class="boundary">没有逐条 Issue、搜索、标签筛选或详情链接；不能从这个页面分配工作。</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature-top">
+          <div><h3><a href="https://clawsweeper.openclaw.ai/pr-proof-triage">PR proof triage · PR 证明分类</a></h3><span class="path">/pr-proof-triage</span></div>
+          <span class="role-pill rp-public">公共观察者</span>
+        </div>
+        <p class="use"><span class="label">场景</span> 查看 PR proof / 验证类分类的聚合情况。</p>
+        <p>与 Issue triage 类似，提供隐私受限的类别计数和完整性信息。</p>
+        <p class="boundary">不展示 PR 明细、源码诊断或可直接执行的审查动作。</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">03</span>按角色看：从发现到处理</h2>
+    <div class="journey" aria-label="维护者使用 ClawSweeper 的流程">
+      <div class="step"><div class="n">01 · Observe</div><div class="t">Dashboard 发现信号</div><div class="d">维护者查看趋势或 Queue；运维者判断积压、失败与 handoff。</div></div>
+      <div class="step"><div class="n">02 · Locate</div><div class="t">跳回 GitHub 条目</div><div class="d">打开公开样例或 Issue/PR，检查审查报告、证据和 advisory labels。</div></div>
+      <div class="step"><div class="n">03 · Decide</div><div class="t">完成需要人的判断</div><div class="d">补信息、验证复现、决定产品行为，或安排安全 / 维护者复核。</div></div>
+      <div class="step"><div class="n">04 · Request</div><div class="t">按需使用评论命令</div><div class="d"><code>@clawsweeper explain</code>、<code>review</code>、<code>re-review</code> 或 <code>stop</code>。</div></div>
+      <div class="step"><div class="n">05 · Apply</div><div class="t">由授权流程执行</div><div class="d">标签同步或满足条件的关闭由独立 Apply 车道完成；不是在 Dashboard 点按钮。</div></div>
+    </div>
+    <div class="callout">
+      <p><strong>维护者命令的含义：</strong><code>review</code> / <code>re-review</code> 请求只读审查；<code>explain</code> 解释现有结果；<code>stop</code> 阻止后续自动处理并转人工关注。命令会经过仓库权限与当前评论校验，不等于无条件授权任何模型操作。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">04</span>功能 × 场景 × 角色 × 操作边界</h2>
+    <div class="tablecard">
+      <table>
+        <thead>
+          <tr><th>功能面</th><th>典型场景</th><th>主要角色</th><th>界面能做什么</th><th>下一步 / 边界</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>全局健康与趋势</td><td>发现整体审查量、执行耗时、失败率或容量异常</td><td>服务操作者；维护者查看概况</td><td><span class="mode mode-read">只读观察</span> 看聚合 KPI、趋势图、时间窗口</td><td>定位到 Queue / Agent / Operations；不在页面调并发或改预算</td></tr>
+          <tr><td>队列与异常样例</td><td>pending/backoff 增长、审查搁置或 publication 延迟</td><td>服务操作者</td><td><span class="mode mode-read">只读观察</span> 看 lane 计数、固定原因、有限样例</td><td>授权操作者再通过 GitHub Actions / 运维流程调查；不暴露原始日志或 scanner 内容</td></tr>
+          <tr><td>审查关注项</td><td>寻找 security / maintainer flags 或某仓记录</td><td>社区 / 仓库维护者</td><td><span class="mode mode-read">只读观察</span> 浏览保存记录的受限引用</td><td>去 GitHub 核实当前状态；历史标记不保证当前仍 open 或有效</td></tr>
+          <tr><td>单条 Issue / PR</td><td>读证据、补环境信息、提出人工决策</td><td>维护者与贡献者</td><td><span class="mode mode-write">GitHub 交互</span> 阅读评论、查看标签、发表评论命令</td><td>实际协作在 Issue/PR；Dashboard 不提供逐条修改表单</td></tr>
+          <tr><td>标签同步 / 关闭</td><td>应用审查得到的建议，或满足政策的关闭提议</td><td>ClawSweeper Apply 流程；维护者负责监督</td><td><span class="mode mode-ops">独立执行车道</span> 经确定性规则与状态校验后写入 GitHub</td><td>不是 Review Job 写入，也不是 Dashboard 点击；不满足护栏则拒绝或要求人工处理</td></tr>
+          <tr><td>部署与凭据</td><td>发布 Worker / Dashboard、配置 App 与 Cloudflare</td><td>指定 ClawSweeper 服务操作者</td><td><span class="mode mode-ops">Actions / CLI / Cloudflare</span> 经受控工作流与权限执行</td><td>普通社区维护者没有默认管理权限；不能从只读 Dashboard 获得执行权</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">05</span>读数时要记住的限制</h2>
+    <div class="tablecard">
+      <table>
+        <thead><tr><th>限制</th><th>实际含义</th><th>建议解读方式</th></tr></thead>
+        <tbody>
+          <tr><td>页面刷新不同步</td><td>站点构建约每 15 分钟；队列/运行遥测可更频繁；审查总量、评估和关闭汇总约每日两次更新。</td><td>先看页首的 Snapshot、Reviews、Queue 时间，再判断数据是否足够新。</td></tr>
+          <tr><td>公开投影有意收窄</td><td>未认证 observer API 只返回固定聚合字段和 allowlist 范围的公开引用，不返回私有仓库、自由文本、凭据或原始诊断。</td><td>页面样例是有限观测，不是完整清单；排查具体事件需转 GitHub / 授权运维渠道。</td></tr>
+          <tr><td>记录 ≠ 实时事实</td><td>Assessment 和 Repository 页面主要基于已存储报告；历史状态不能证明条目现在仍打开、来源仍匹配或问题已经解决。</td><td>到 GitHub 核对 live 状态、当前源码与最新报告；“Unknown”不要读成“没有问题”。</td></tr>
+          <tr><td>官方实例有服务边界</td><td>官方托管服务针对 OpenClaw / steipete 生态。其它社区接入需自行托管并配置目标仓 dispatcher、App、Worker 与权限。</td><td>Dashboard 页面可以作为设计参考，不代表第三方仓能直接加入官方实例。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>一句话总结：</strong>Dashboard 解决“系统现在怎样、哪里值得查”；GitHub 解决“这条 Issue/PR 怎么处理”；受控 Apply 与运维工作流解决“哪些变更可以自动执行”。</p>
+    <div class="sources">
+      页面实况：<a href="https://clawsweeper.openclaw.ai/">Overview</a> ·
+      <a href="https://clawsweeper.openclaw.ai/agent/">Agent performance</a> ·
+      <a href="https://clawsweeper.openclaw.ai/throughput/">Throughput</a> ·
+      <a href="https://clawsweeper.openclaw.ai/quality/">Assessments</a> ·
+      <a href="https://clawsweeper.openclaw.ai/queue/">Queue</a> ·
+      <a href="https://clawsweeper.openclaw.ai/operations/">Operations</a> ·
+      <a href="https://clawsweeper.openclaw.ai/coverage/">Coverage</a> ·
+      <a href="https://clawsweeper.openclaw.ai/repos/">Repositories</a> ·
+      <a href="https://clawsweeper.openclaw.ai/triage">Issue triage</a> ·
+      <a href="https://clawsweeper.openclaw.ai/pr-proof-triage">PR proof triage</a><br>
+      架构与边界：<a href="https://github.com/openclaw/clawsweeper/blob/main/docs/live-dashboard.md">docs/live-dashboard.md</a> ·
+      <a href="https://github.com/openclaw/clawsweeper/blob/main/docs/triage-dashboard.md">docs/triage-dashboard.md</a> ·
+      <a href="https://github.com/openclaw/clawsweeper/blob/main/docs/public-api.md">docs/public-api.md</a> ·
+      <a href="https://github.com/openclaw/clawsweeper/blob/main/README.md#maintainer-commands">README · Maintainer Commands</a><br>
+      线上页面与仓库文档快照：2026-11-06。指标刷新节奏以页面显示的时间戳和当前部署为准。
+    </div>
+  </footer>
+</main>
+</body>
+</html>

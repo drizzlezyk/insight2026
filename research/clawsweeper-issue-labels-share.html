@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw Issue 闭环与 ClawSweeper 效率观察</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F7F8; --card: #FFFFFF; --ink: #16191E; --ink-2: #3A4149;
+    --muted: #6B7380; --line: #E2E6EA;
+    --accent: #0F766E; --accent-ink: #0B5D56; --accent-soft: #E5F2EF;
+    --signal: #B45309; --signal-soft: #FBF0E1;
+    --good: #157F3D; --good-soft: #E7F5EC;
+    --shadow: 0 1px 2px rgba(22,25,30,.05), 0 8px 24px rgba(22,25,30,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --paper: #121417; --card: #191C20; --ink: #E7EAEE; --ink-2: #B8BFC8;
+    --muted: #8A93A0; --line: #2A2F36; --accent: #2DD4BF; --accent-ink: #7FEDE0;
+    --accent-soft: #11312C; --signal: #F59E0B; --signal-soft: #2A2110;
+    --good: #4ADE80; --good-soft: #12291B;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4);
+    color-scheme: dark;
+  } }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px; line-height: 1.65; padding-bottom: 64px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px; }
+
+  header { padding: 44px 0 8px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif; font-weight: 700; font-size: clamp(26px, 4.6vw, 38px); line-height: 1.12; letter-spacing: -.02em; margin: 0 0 16px; text-wrap: balance; }
+  .lede { font-size: 17px; line-height: 1.6; color: var(--ink-2); max-width: 800px; margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  section { padding: 30px 0 6px; }
+  p { margin: 0 0 14px; color: var(--ink-2); }
+  code { font-family: "IBM Plex Mono", monospace; font-size: 12.8px; background: var(--accent-soft); color: var(--accent-ink); padding: 1px 6px; border-radius: 5px; }
+
+  .tablecard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow-x: auto; margin: 8px 0 6px; }
+  table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px; }
+  thead th { position: sticky; top: 0; background: var(--accent-soft); color: var(--accent-ink);
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase;
+    text-align: left; font-weight: 600; padding: 12px 16px; border-bottom: 1px solid var(--line); z-index: 2; }
+  thead th.num { text-align: right; }
+  tbody td { padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+
+  td.label { font-family: "IBM Plex Mono", monospace; font-size: 12.6px; color: var(--ink); white-space: nowrap; }
+  td.label .pill { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: 1px; }
+
+  td.domain { white-space: nowrap; vertical-align: top; }
+  .dom { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); }
+  .dom-intake { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
+  .dom-triage { background: var(--signal-soft); color: var(--signal); border-color: var(--signal); }
+  .dom-gov { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .dom-pr { background: var(--paper); color: var(--muted); }
+  .dom-sub { display: block; font-size: 11px; color: var(--muted); margin-top: 5px; font-family: "IBM Plex Mono", monospace; }
+
+  td.human { white-space: nowrap; }
+  .need { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); }
+  .need-yes { background: var(--signal-soft); color: var(--signal); border-color: var(--signal); }
+  .need-no { background: var(--paper); color: var(--muted); }
+  .need .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .who { display: block; font-size: 11px; color: var(--muted); margin-top: 5px; white-space: normal; max-width: 190px; }
+
+  td.num { text-align: right; white-space: nowrap; }
+  .pct { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 13.5px; color: var(--ink); }
+  .cnt { display: block; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); }
+  .bar { height: 6px; border-radius: 4px; background: var(--accent); opacity: .85; margin-top: 6px; }
+  .bar.signal { background: var(--signal); }
+  .bar.good { background: var(--good); }
+  .bar.zero { background: var(--line); }
+
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 10px 0 14px; }
+  .metric { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 15px 17px; }
+  .metric .value { font-family: "IBM Plex Mono", monospace; font-size: clamp(21px, 3vw, 28px); font-weight: 600; color: var(--accent-ink); line-height: 1.2; }
+  .metric.warn .value { color: var(--signal); }
+  .metric .name { font-weight: 600; color: var(--ink); margin-top: 5px; font-size: 13px; }
+  .metric .detail { color: var(--muted); font-size: 11.5px; margin-top: 3px; line-height: 1.45; }
+  .reason-tag { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-size: 10.5px; font-family: "IBM Plex Mono", monospace; white-space: nowrap; }
+  .reason-tag.counted { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
+  .reason-tag.inferred { background: var(--signal-soft); color: var(--signal); border-color: var(--signal); }
+  .caveat { border-left: 4px solid var(--signal); background: var(--signal-soft); padding: 13px 17px; border-radius: 0 10px 10px 0; margin: 12px 0 8px; }
+  .caveat p { margin: 0; font-size: 13px; }
+  .formula { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-2); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; margin: 10px 0; overflow-wrap: anywhere; }
+  .metric-table td:first-child { min-width: 185px; font-weight: 600; color: var(--ink); }
+  .metric-table td:nth-child(2) { white-space: nowrap; font-family: "IBM Plex Mono", monospace; color: var(--ink); }
+
+  .note { font-size: 13px; color: var(--muted); }
+  .note strong { color: var(--ink-2); }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .src { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+  @media (max-width: 640px) { thead th, tbody td { padding-left: 10px; padding-right: 10px; } td.label { white-space: normal; } .metric-table td:nth-child(2) { white-space: normal; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">OpenClaw · ClawSweeper 标签与社区 Issue 闭环 · OpenClaw 快照 2026-11-06 · vLLM-Ascend 数据 2026-11-09</p>
+    <h1>ClawSweeper 标签分布与 OpenClaw Issue 闭环观察</h1>
+    <p class="lede">统计对象为 <code>openclaw/openclaw</code> 的 <strong>全部 issue（open + closed，共 63,057 条）</strong>。领域分类沿用 PPT《openclaw-clawsweeper-issue-labels》的四类：初筛 6 · 深度分诊 12 · 跟踪治理 6 · PR 相关 5，共 <strong>29 个标签</strong>。占比 = 携带该标签的 issue 数 ÷ 全部 issue 数；标签可叠加，故各行相加大于 100%。下文另补全社区状态存量、闭合 cohort、ClawSweeper 接入前后观察，以及 vLLM-Ascend 的 Issue 响应与闭环参照。</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <section>
+    <div class="tablecard">
+      <table>
+        <thead>
+          <tr>
+            <th>标签</th>
+            <th>领域</th>
+            <th>需人参与</th>
+            <th class="num">百分比</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 初筛 -->
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--accent)"></span>clawsweeper:intake:bug</td>
+            <td class="domain" rowspan="6"><span class="dom dom-intake">初筛</span><span class="dom-sub">intake · 6</span></td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">机器自动继续深审</span></td>
+            <td class="num"><span class="pct">0.035%</span><span class="cnt">22 issues</span><span class="bar" style="width:0.14%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--accent)"></span>clawsweeper:intake:feature</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">机器自动继续深审</span></td>
+            <td class="num"><span class="pct">0.021%</span><span class="cnt">13 issues</span><span class="bar" style="width:0.08%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--accent)"></span>clawsweeper:intake:needs-repro</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">提交者补触发步骤</span></td>
+            <td class="num"><span class="pct">0.016%</span><span class="cnt">10 issues</span><span class="bar" style="width:0.06%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--accent)"></span>clawsweeper:intake:support</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">机器自动继续深审</span></td>
+            <td class="num"><span class="pct">0.002%</span><span class="cnt">1 issue</span><span class="bar zero" style="width:2px"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--line)"></span>clawsweeper:intake:docs</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">机器自动继续深审</span></td>
+            <td class="num"><span class="pct">0.000%</span><span class="cnt">0 issues</span><span class="bar zero" style="width:2px"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--line)"></span>clawsweeper:intake:needs-environment</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">提交者补版本 / 运行环境</span></td>
+            <td class="num"><span class="pct">0.000%</span><span class="cnt">0 issues</span><span class="bar zero" style="width:2px"></span></td>
+          </tr>
+
+          <!-- 深度分诊 -->
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:no-new-fix-pr</td>
+            <td class="domain" rowspan="12"><span class="dom dom-triage">深度分诊</span><span class="dom-sub">triage · 12</span></td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">纯路由建议，不触发写操作</span></td>
+            <td class="num"><span class="pct">24.697%</span><span class="cnt">15,573 issues</span><span class="bar signal" style="width:100%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:source-repro</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">机器已给出高可信证据</span></td>
+            <td class="num"><span class="pct">19.955%</span><span class="cnt">12,583 issues</span><span class="bar signal" style="width:80.8%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:needs-maintainer-review</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">维护者审查</span></td>
+            <td class="num"><span class="pct">12.704%</span><span class="cnt">8,011 issues</span><span class="bar signal" style="width:51.4%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:needs-product-decision</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">产品 / 行为决策</span></td>
+            <td class="num"><span class="pct">11.967%</span><span class="cnt">7,546 issues</span><span class="bar signal" style="width:48.5%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:linked-pr-open</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">转交关联 PR 的常规流程</span></td>
+            <td class="num"><span class="pct">8.892%</span><span class="cnt">5,607 issues</span><span class="bar signal" style="width:36.0%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:fix-shape-clear</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">仅为修复候选的前置信号</span></td>
+            <td class="num"><span class="pct">6.702%</span><span class="cnt">4,226 issues</span><span class="bar signal" style="width:27.1%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:queueable-fix</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">仅标记候选；自动派单已退役</span></td>
+            <td class="num"><span class="pct">4.853%</span><span class="cnt">3,060 issues</span><span class="bar signal" style="width:19.6%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:needs-security-review</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">安全敏感审查</span></td>
+            <td class="num"><span class="pct">4.583%</span><span class="cnt">2,890 issues</span><span class="bar signal" style="width:18.6%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:needs-live-repro</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">人工 / 实机验证复现</span></td>
+            <td class="num"><span class="pct">3.922%</span><span class="cnt">2,473 issues</span><span class="bar signal" style="width:15.9%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:needs-info</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">提交者补充信息</span></td>
+            <td class="num"><span class="pct">3.102%</span><span class="cnt">1,956 issues</span><span class="bar signal" style="width:12.6%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:not-repro-on-main</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">机器已判定，等待确定性分流</span></td>
+            <td class="num"><span class="pct">1.253%</span><span class="cnt">790 issues</span><span class="bar signal" style="width:5.1%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--signal)"></span>clawsweeper:current-main-repro</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">机器已给出高可信证据</span></td>
+            <td class="num"><span class="pct">0.179%</span><span class="cnt">113 issues</span><span class="bar signal" style="width:0.7%"></span></td>
+          </tr>
+
+          <!-- 跟踪与治理 -->
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--good)"></span>clawsweeper:bulk-filed</td>
+            <td class="domain" rowspan="6"><span class="dom dom-gov">跟踪治理</span><span class="dom-sub">governance · 6</span></td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">风控标记，机器继续处理</span></td>
+            <td class="num"><span class="pct">2.089%</span><span class="cnt">1,317 issues</span><span class="bar good" style="width:8.5%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--good)"></span>clawsweeper-recovery-stuck</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">需运维 / 维护者干预解卡</span></td>
+            <td class="num"><span class="pct">0.408%</span><span class="cnt">257 issues</span><span class="bar good" style="width:1.7%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--good)"></span>clawsweeper:manual-only</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">维护者手动处理</span></td>
+            <td class="num"><span class="pct">0.068%</span><span class="cnt">43 issues</span><span class="bar good" style="width:0.3%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--good)"></span>clawsweeper</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">跟踪标记</span></td>
+            <td class="num"><span class="pct">0.049%</span><span class="cnt">31 issues</span><span class="bar good" style="width:0.2%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--good)"></span>clawsweeper:idea-archive</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">可自动复活，无需人工</span></td>
+            <td class="num"><span class="pct">0.019%</span><span class="cnt">12 issues</span><span class="bar good" style="width:0.1%"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--good)"></span>clawsweeper:human-review</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">维护者审查后才能继续</span></td>
+            <td class="num"><span class="pct">0.005%</span><span class="cnt">3 issues</span><span class="bar good" style="width:0.1%"></span></td>
+          </tr>
+
+          <!-- PR 相关 -->
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--line)"></span>clawsweeper:autogenerated</td>
+            <td class="domain" rowspan="5"><span class="dom dom-pr">PR 相关</span><span class="dom-sub">pull request · 5</span></td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">机器生成的 PR 标记</span></td>
+            <td class="num"><span class="pct">0.000%</span><span class="cnt">0 issues</span><span class="bar zero" style="width:2px"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--line)"></span>clawsweeper:commit-finding</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">来自 commit 审查的 PR 标记</span></td>
+            <td class="num"><span class="pct">0.000%</span><span class="cnt">0 issues</span><span class="bar zero" style="width:2px"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--line)"></span>clawsweeper:merge-ready</td>
+            <td class="human"><span class="need need-yes"><span class="dot"></span>是</span><span class="who">人工合并门禁仍未开</span></td>
+            <td class="num"><span class="pct">0.000%</span><span class="cnt">0 issues</span><span class="bar zero" style="width:2px"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--line)"></span>clawsweeper:autofix</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">维护者已 opt-in，无需再介入</span></td>
+            <td class="num"><span class="pct">0.000%</span><span class="cnt">0 issues</span><span class="bar zero" style="width:2px"></span></td>
+          </tr>
+          <tr>
+            <td class="label"><span class="pill" style="background:var(--line)"></span>clawsweeper:automerge</td>
+            <td class="human"><span class="need need-no"><span class="dot"></span>否</span><span class="who">维护者已 opt-in，无需再介入</span></td>
+            <td class="num"><span class="pct">0.000%</span><span class="cnt">0 issues</span><span class="bar zero" style="width:2px"></span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note"><strong>读法：</strong>百分比基数为 <code>openclaw/openclaw</code> 全部 issue 63,057 条（open + closed，2026-11-06 快照）。同一 issue 可同时携带多个标签，因此各行百分比之和大于 100%。<strong>PR 相关</strong>标签作用于 pull request，不进入 issue 统计，故为 0；这与 PPT 中「自动修复 / 自动合并已退役」的说明一致。<strong>初筛</strong>标签为临时性（preliminary），完整审查后会被移除，因此存量很低。</p>
+    <p class="note"><strong>「需人参与」判定口径：</strong>依据标签的官方 description（GitHub Labels API 实取）+ <code>docs/work-lane.md</code>。29 个标签中 <strong>11 个需要人参与</strong>——其中<strong>提交者</strong>侧 3 个（<code>intake:needs-repro</code>、<code>intake:needs-environment</code>、<code>needs-info</code>），<strong>维护者 / 产品 / 安全</strong>侧 6 个（<code>needs-maintainer-review</code>、<code>needs-product-decision</code>、<code>needs-security-review</code>、<code>human-review</code>、<code>manual-only</code>、<code>merge-ready</code>），<strong>人工验证</strong> 1 个（<code>needs-live-repro</code>），<strong>运维干预</strong> 1 个（<code>clawsweeper-recovery-stuck</code>，该标签无官方说明，据语义推断）。其余为机器自动分流的纯路由状态。</p>
+    <p class="note"><strong>关键观察：</strong>深度分诊标签占绝对主导——<code>no-new-fix-pr</code>（24.70%）、<code>source-repro</code>（19.96%）两行占比合计 44.65%，但标签可重叠，不能当作去重覆盖率；而最终可进入修复队列的 <code>queueable-fix</code> 仅 4.85%，真正「当前 main 高可信可复现」的 <code>current-main-repro</code> 只有 0.18%（113 条）。这印证了 ClawSweeper「大量分流、极少派单」的保守设计。</p>
+  </section>
+
+  <section>
+    <h2>补充：没有 ClawSweeper 标签的 Issue</h2>
+    <p>按 PPT 中的 <strong>29 个 ClawSweeper 标签名</strong>逐个使用 GitHub Search API 排除，再统计 <code>openclaw/openclaw</code> 的 issue。这里的「无标签」专指没有这 29 个 ClawSweeper 标签之一，不代表 GitHub 上完全没有其它标签。</p>
+    <div class="metric-grid">
+      <div class="metric warn">
+        <div class="value">64.44%</div>
+        <div class="name">全部历史 Issue 无 ClawSweeper 标签</div>
+        <div class="detail">40,635 / 63,057 · open + closed</div>
+      </div>
+      <div class="metric">
+        <div class="value">6.89%</div>
+        <div class="name">当前 open Issue 无 ClawSweeper 标签</div>
+        <div class="detail">327 / 4,747 个 open issue</div>
+      </div>
+      <div class="metric">
+        <div class="value">99.20%</div>
+        <div class="name">无标签集合中已关闭的比例</div>
+        <div class="detail">40,308 / 40,635 · closed items</div>
+      </div>
+      <div class="metric">
+        <div class="value">69.13%</div>
+        <div class="name">closed Issue 无 ClawSweeper 标签</div>
+        <div class="detail">40,308 / 58,310 个 closed issue</div>
+      </div>
+    </div>
+    <div class="formula">口径：repo:openclaw/openclaw is:issue + 对 29 个 ClawSweeper 标签逐个添加 -label:"标签名"</div>
+    <p class="note"><strong>解读：</strong>若问题是「现在仍 open 的 Issue 有多少没被 ClawSweeper 分类」，答案约为 <strong>6.89%</strong>，而不是把历史关闭项也计入后的 64.44%。两种口径都列出，避免将已关闭存量误读为当前未处理工作。</p>
+
+    <h2 style="margin-top:24px">为什么没有标签？</h2>
+    <div class="tablecard">
+      <table>
+        <thead>
+          <tr><th>常见情况</th><th>证据类型</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Issue 已关闭</td>
+            <td><span class="reason-tag counted">可量化</span></td>
+            <td>无标签集合里有 40,308 个 closed issue，占无标签集合 99.2%。源码只对 open issue 同步 advisory labels；关闭项不再获得新的 ClawSweeper 建议标签。</td>
+          </tr>
+          <tr>
+            <td>还没有当前、完整的审查报告</td>
+            <td><span class="reason-tag inferred">机制解释</span></td>
+            <td>标签发布要求 issue 为 open，且报告完整、对应当前来源。未进入队列、被维护者请求门禁挂起、预算 / backpressure 暂缓，以及失败或过期的报告，都可能尚不满足发布条件。</td>
+          </tr>
+          <tr>
+            <td>完整审查没有命中某个标签条件</td>
+            <td><span class="reason-tag inferred">机制解释</span></td>
+            <td>29 个标签不是“审过就必须任选其一”。例如复现标签依赖复现状态与置信度；needs-info 也只在信息不足的条件满足时投影。没有匹配的建议状态，可以没有 ClawSweeper 标签。</td>
+          </tr>
+          <tr>
+            <td>报告提出关闭建议</td>
+            <td><span class="reason-tag inferred">机制解释</span></td>
+            <td>Apply 的 close proposal 路径不会先写 Issue advisory labels，以免标签写入改变更新时间、干扰关闭资格检查。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="caveat">
+      <p><strong>重要边界：</strong>GitHub Search API 只能告诉我们“当前是否带这些标签”，不能逐条判定没标签的原因。因此只有 closed/open 的计数是直接统计；其它原因是依据发布门禁与标签选择源码归纳，不能当作 40,635 条 Issue 的原因分布。<strong>没有标签 ≠ 一定没被审查。</strong></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>补充：Issue 处理效率（Dashboard 可观测指标）</h2>
+    <p>以下为 ClawSweeper Dashboard 的最新可读快照，时间窗口为最近 30 个完整日（页面快照：2026-11-06 08:32 UTC；review 汇总截至 07:41 UTC）。Dashboard 的 <code>items</code> 统计在适用时包含 Issue 与 PR，并非纯 Issue cohort；指标反映 ClawSweeper 保存的审查记录和 workflow，不等于社区所有人工响应。</p>
+    <div class="tablecard">
+      <table class="metric-table">
+        <thead>
+          <tr><th>指标</th><th>数值</th><th>定义与解读</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>最近审查量</td>
+            <td>36,143 / 30d<br>约 1,205 / 日</td>
+            <td>按 item 计数，每个 item 只落在其最近一次已存审查日期；重复审查会移动日期，不是不可变的审查事件总数。</td>
+          </tr>
+          <tr>
+            <td>ClawSweeper 关闭量</td>
+            <td>1,106 / 30d<br>约 37 / 日</td>
+            <td>ClawSweeper 自身关闭的 item；不含合并 PR，也不含由维护者或其它 bot 关闭的 item。</td>
+          </tr>
+          <tr>
+            <td>关闭量 / 最近审查量</td>
+            <td>约 3.06%</td>
+            <td>1,106 ÷ 36,143 的方向性吞吐代理值。分子和分母不是同一批 item 的队列 cohort，<strong>不能称为真正的闭环率</strong>。</td>
+          </tr>
+          <tr>
+            <td>创建 → 最近审查</td>
+            <td>p50 39 分 36 秒<br>p90 25 天 · n=127,929</td>
+            <td>Dashboard 最接近“响应时长”的公开指标，但测的是创建到<strong>最近一次</strong>已存审查；复审会重置，且长尾包含较旧条目，不能代表首次响应 SLA。</td>
+          </tr>
+          <tr>
+            <td>Sweep workflow 失败率</td>
+            <td>5.8% / 30d<br>11,231 / 193.5K runs</td>
+            <td>workflow run 失败 / 启动失败占运行总数的比例，是执行基础设施信号；不等于 5.8% 的 Issue 审查失败，也不衡量决策质量。</td>
+          </tr>
+          <tr>
+            <td>首响与创建到关闭时长</td>
+            <td>未由 Dashboard 提供</td>
+            <td>本页后附 GitHub Search API 构建的社区 cohort 闭合比例；但公开 Dashboard 没有 per-issue 的创建 → 首响、创建 → 关闭 p50/p90。本次无法从搜索计数推导这些时长。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="caveat">
+      <p><strong>结论：</strong>ClawSweeper Dashboard 可确认的效率信号是“审查吞吐较高，创建到最近审查的中位数约 40 分钟，但尾部很长”。Dashboard 本身不提供全社区闭环率；本页后段另用 GitHub Search API 构造了近似创建 cohort 闭合比例，但仍无法得出全社区首次响应或创建到关闭的时长分布。严谨评估还应追踪 <code>opened → first review → human decision / PR → closed</code> 和 reopen。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>横向参照：vLLM-Ascend Issue 闭环与首响</h2>
+    <p>统计对象为 <code>vllm-project/vllm-ascend</code>。闭环采用最近一个已成熟的 7 天创建 cohort（2026-09-01–09-07），观察创建日起 30–36 天内的当前 closed 状态；首响按截至 2026-11-09 可见的 Issue 评论计算。</p>
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="value">91</div>
+        <div class="name">Issue 创建 cohort</div>
+        <div class="detail">2026-09-01–09-07 · GitHub Search API</div>
+      </div>
+      <div class="metric">
+        <div class="value">28 / 91 · 30.8%</div>
+        <div class="name">30–36 天闭环比例</div>
+        <div class="detail">当前仍 closed，且 closed_at 落在 2026-09-01–10-07</div>
+      </div>
+      <div class="metric">
+        <div class="value">71.3 小时 · 2.97 天</div>
+        <div class="name">平均首次公开响应</div>
+        <div class="detail">39 条有合格回复的 Issue；均值条件于已响应</div>
+      </div>
+    </div>
+    <h3>与 OpenClaw 现有指标的对应关系</h3>
+    <div class="tablecard">
+      <table class="metric-table">
+        <thead><tr><th>指标</th><th>vLLM-Ascend</th><th>OpenClaw 对应数据</th><th>能否直接比较</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>7 天创建 cohort 的 30–36 天闭环比例</td>
+            <td>30.8%（28 / 91）<br>2026-09-01–09-07</td>
+            <td>接入前 37.05%（936 / 2,526，03-01–03-07）；接入后 82.27%（1,109 / 1,348，05-15–05-21）</td>
+            <td>算法口径相同；时间段、Issue 构成和样本量不同。是描述性参照，不是同周期或因果对比。</td>
+          </tr>
+          <tr>
+            <td>创建 → 首次公开响应</td>
+            <td>平均 71.3 小时（n=39 个有合格回复的 Issue）</td>
+            <td>没有同口径值。Dashboard 只有创建 → 最近一次审查：p50 39 分 36 秒、p90 25 天（n=127,929 items）</td>
+            <td>不可直接比较：最近一次审查可能是复审，且 Dashboard items 适用时包含 PR；它不是首条社区评论。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note"><strong>读法：</strong>你在后面的「接入前后：30–36 天观察窗口的累计闭合比例」能找到 OpenClaw 的对应闭环值；首响尚未用相同 Issue 评论口径计算。要做严格横向比较，应再对 OpenClaw 的同一创建 cohort 按相同评论规则计算，并同时报告未响应比例。</p>
+    <div class="tablecard">
+      <table class="metric-table">
+        <thead><tr><th>观察项</th><th>结果</th><th>口径与边界</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>30–36 天闭环比例</td>
+            <td>30.8%（28 / 91）</td>
+            <td>按同一创建 cohort 计算，不是仓库全部历史 Issue 的 closed 存量占比；只计快照时仍为 closed 且关闭日期落在观察窗内的 Issue。</td>
+          </tr>
+          <tr>
+            <td>创建 → 首次公开响应</td>
+            <td>平均 71.3 小时（n=39）</td>
+            <td>逐条读取 Issue 评论，取第一条“评论者不同于 Issue 发起者，且 GitHub 用户类型未标记为 Bot”的评论；只对观察到合格回复的 Issue 求均值。</td>
+          </tr>
+          <tr>
+            <td>截至快照未观察到合格回复</td>
+            <td>52 / 91（57.1%）</td>
+            <td>包括没有公开 Issue 评论，以及只有发起者自评或 Bot 评论的 Issue；不表示这些 Issue 从未获得其他形式的维护者响应。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note"><strong>比较边界：</strong>这组数据是 vLLM-Ascend 社区 Issue 的公开评论与状态，不是 ClawSweeper 审查记录，也不代表所有回复均来自维护者。平均首响排除了未观察到合格回复的 52 条，因此必须与未响应占比一起读，不能单独当作整体 SLA；它与上文 ClawSweeper Dashboard 的“创建 → 最近一次审查”不是同一指标。</p>
+  </section>
+
+  <section>
+    <h2>OpenClaw 全社区 Issue 闭环基线</h2>
+    <p>以下切回 <code>openclaw/openclaw</code> 全部 Issue（不按 ClawSweeper 标签筛选），直接统计 GitHub 当前状态与创建/关闭日期。它描述的是社区整体，不代表每条 Issue 都经过 ClawSweeper。</p>
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="value">63,057</div>
+        <div class="name">Issue 总量</div>
+        <div class="detail">open + closed · GitHub Search API</div>
+      </div>
+      <div class="metric">
+        <div class="value">58,310 · 92.47%</div>
+        <div class="name">当前处于 closed 状态</div>
+        <div class="detail">closed stock share，不是按创建 cohort 算出的闭环率</div>
+      </div>
+      <div class="metric">
+        <div class="value">4,747 · 7.53%</div>
+        <div class="name">当前仍 open</div>
+        <div class="detail">当前未关闭积压 · 2026-11-06 快照</div>
+      </div>
+      <div class="metric">
+        <div class="value">93.11%</div>
+        <div class="name">open Issue 带有至少一个 ClawSweeper 标签</div>
+        <div class="detail">4,420 / 4,747 · 标签存量不等于审查覆盖率</div>
+      </div>
+      <div class="metric">
+        <div class="value">5,085 → 6,478</div>
+        <div class="name">最近 30 日新增 → 关闭</div>
+        <div class="detail">2026-10-07 至 2026-11-05 · close/create = 1.27×</div>
+      </div>
+    </div>
+    <p class="note"><strong>读法：</strong>58,310 / 63,057 是仓库历史 Issue 的当前状态构成，受仓库年龄和历史积压影响，不能解读成“ClawSweeper 闭环率 92.47%”。最近 30 日的关闭数包含此前创建的旧 Issue；5,085 与 6,478 不是同一 cohort，1.27× 也不是闭环率。</p>
+
+    <h2 style="margin-top:24px">当前 open backlog 的年龄结构</h2>
+    <div class="tablecard">
+      <table class="metric-table">
+        <thead><tr><th>Issue 创建距今</th><th>open 数量</th><th>占当前 open backlog</th><th>治理含义</th></tr></thead>
+        <tbody>
+          <tr><td>&lt; 30 天</td><td>2,146</td><td>45.21%</td><td>近期进入队列；看 intake、去重和首轮响应。</td></tr>
+          <tr><td>30–90 天</td><td>2,221</td><td>46.79%</td><td>积压主体；可作为维护者复查与回填优先级的重点。</td></tr>
+          <tr><td>90–180 天</td><td>249</td><td>5.25%</td><td>长期未闭合存量，需要区分仍有效、等待信息与失活。</td></tr>
+          <tr><td>&gt; 180 天</td><td>131</td><td>2.76%</td><td>陈旧尾部；不能仅凭年龄判断应关闭，需保留验证与申诉路径。</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">年龄桶按创建日期查询，计数合计 4,747；各项来自独立 GitHub 搜索，查询间状态可能因新建、关闭或重开而轻微漂移。</p>
+
+    <h2 style="margin-top:24px">接入前后：30–36 天观察窗口的累计闭合比例</h2>
+    <p>OpenClaw 目标仓首次加入 ClawSweeper 事件 dispatcher 的提交是 <a href="https://github.com/openclaw/openclaw/commit/23818600">2026-04-28</a>。据此选取接入前和接入后的两个 7 天创建 cohort；统计各 cohort 中，当前仍 closed 且 closed 日期落在创建周起始日至 cohort 结束后 30 天窗口内的 Issue。每条 Issue 因创建日不同，约有 30–36 天的观察时间。</p>
+    <div class="tablecard">
+      <table class="metric-table">
+        <thead><tr><th>创建 cohort</th><th>创建量</th><th>观察窗口内 closed</th><th>累计闭合比例</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>接入前<br>2026-03-01–03-07</td>
+            <td>2,526</td>
+            <td>936</td>
+            <td>37.05%</td>
+            <td>观察关闭日期：2026-03-01–04-06；发生在 dispatcher 接入之前。</td>
+          </tr>
+          <tr>
+            <td>接入后<br>2026-05-15–05-21</td>
+            <td>1,348</td>
+            <td>1,109</td>
+            <td>82.27%</td>
+            <td>观察关闭日期：2026-05-15–06-20；创建 cohort 全部晚于首次接入。</td>
+          </tr>
+          <tr>
+            <td>前后差</td>
+            <td>创建量下降 46.6%</td>
+            <td>—</td>
+            <td>+45.22 个百分点</td>
+            <td>37.05% → 82.27%；只表示两段时间的全社区观测差异。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="caveat">
+      <p><strong>这不是“ClawSweeper 带来 45.22 个百分点提升”的因果结论。</strong>它是接入前后全社区 Issue cohort 的描述性变化。两个 cohort 创建量相差 46.6%，Issue 类型与社区流量可能不同；同期还存在 stale、duplicate 等其它自动化。且事件被 dispatcher 投递，不代表每条都实际完成审查。要估计净提升，需要以“实际完成 ClawSweeper 审查”为处理组，匹配同期相似的未处理 Issue / 对照仓库，并校正类型、优先级、创建时间、关闭原因和 reopen。</p>
+    </div>
+    <p class="note"><strong>当前能支持的判断：</strong>接入后的样本周，截至约 30–36 天观察窗口结束时的累计闭合比例明显更高（82.27% vs 37.05%）；但由于 cohort 量级和构成变化大，现有公开数据只能说明相关性，不能回答“其中多少由 ClawSweeper 单独造成”。公开数据也没有全社区首次响应 p50/p90、Issue 创建到关闭 p50/p90；前文 39 分 36 秒只代表 ClawSweeper 记录中的创建到最近审查时间。</p>
+  </section>
+
+  <footer>
+    <p class="src">数据来源：GitHub Search API（repo:openclaw/openclaw, is:issue, label:&lt;name&gt;, total_count）· 标签描述：GitHub Labels API · 免鉴权采集，2026-11-06</p>
+    <p class="src">无标签统计：GitHub Search API · 29 个 ClawSweeper 标签逐项负向过滤 · 采集快照 2026-11-06</p>
+    <p class="src">全社区状态、30 日流量、backlog 年龄与 cohort：GitHub Search API（is:issue / is:open / created / closed）· 查询快照 2026-11-06</p>
+    <p class="src">vLLM-Ascend cohort：<a href="https://api.github.com/search/issues?q=repo%3Avllm-project%2Fvllm-ascend+is%3Aissue+created%3A2026-09-01..2026-09-07">GitHub Search API · 创建 91 条</a> · <a href="https://api.github.com/search/issues?q=repo%3Avllm-project%2Fvllm-ascend+is%3Aissue+created%3A2026-09-01..2026-09-07+closed%3A2026-09-01..2026-10-07">观察窗内 closed 28 条</a> · 查询快照 2026-11-09</p>
+    <p class="src">vLLM-Ascend 首响：<a href="https://api.github.com/search/issues?q=repo%3Avllm-project%2Fvllm-ascend+is%3Aissue+created%3A2026-09-01..2026-09-07+comments%3A%3E0&amp;sort=created&amp;order=asc">48 条有评论的 Issue</a> · <a href="https://docs.github.com/en/rest/issues/comments">Issue Comments REST API</a> · 首条非发起者且 API 未标记为 Bot 的评论</p>
+    <p class="src">接入时间锚点：<a href="https://github.com/openclaw/openclaw/commit/23818600">openclaw/openclaw · 首次加入 ClawSweeper event dispatcher · 2026-04-28</a></p>
+    <p class="src">效率指标：<a href="https://clawsweeper.openclaw.ai/throughput/">ClawSweeper Throughput Dashboard</a> · 定义：<a href="https://github.com/openclaw/clawsweeper/blob/main/dashboard-site/src/pages/throughput.astro">throughput.astro</a>、<a href="https://github.com/openclaw/clawsweeper/blob/main/docs/live-dashboard.md">docs/live-dashboard.md</a></p>
+    <p class="src">建议标签发布条件：<a href="https://github.com/openclaw/clawsweeper/blob/main/src/clawsweeper-apply-report-labels.ts">clawsweeper-apply-report-labels.ts</a> · 分类条件：<a href="https://github.com/openclaw/clawsweeper/blob/main/docs/work-lane.md">docs/work-lane.md</a></p>
+    <p class="src">分类来源：research/openclaw-clawsweeper-issue-labels.pptx · 标签定义：docs/work-lane.md</p>
+  </footer>
+</div>
+
+</body>
+</html>
