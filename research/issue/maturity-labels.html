@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw Issue「成熟度」维度 · maturity:stable 唯一标签的判据</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1100px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:32px; line-height:1.28; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:16px; color:#3c3f47; max-width:880px; }
+  .lede code, p code, li code, td code, th code, .cap code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#f1ece3; padding:1px 6px; border-radius:5px; color:#3a3d45; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  section { margin-top:52px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 8px; }
+  h2 b { color:var(--ink); }
+  .secdesc { font-size:14px; color:#54575f; margin:0 0 18px; max-width:880px; }
+  .callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:12px; padding:16px 22px; margin:20px 0 0; }
+  .callout p { margin:0; font-size:14px; color:#3c3f47; }
+  .callout p b { color:var(--ink); }
+  .callout.warn { border-left-color:var(--lob); }
+  .callout.gold { border-left-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px 8px; border-bottom:1px solid #f0eae1; vertical-align:top; }
+  td.lab { font-family:ui-monospace,Menlo,monospace; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.desc { color:#3c3f47; min-width:300px; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .lbl { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .lbl .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .chip { font-size:11px; background:#f2ede4; color:#4a4d55; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.g { background:#e7f2e8; color:#1f6b2f; }
+  .conduit { display:grid; grid-template-columns:1fr 40px 1fr; gap:10px; align-items:center; margin:0 0 18px; }
+  .conduit .box { background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 15px; font-size:12.5px; }
+  .conduit .box .h { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:4px; }
+  .conduit .box code { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--ink); font-weight:600; }
+  .conduit .arrow { text-align:center; color:var(--lob); font-weight:700; }
+  .prompt { background:#20222a; color:#e8e4dc; border-radius:12px; padding:18px 20px; font-size:13px; line-height:1.7; }
+  .prompt code { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:#e8835d; }
+  .prompt .h { font-size:11px; letter-spacing:.1em; color:#9aa0a6; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .flow { display:grid; grid-template-columns:1fr 26px 1fr 26px 1fr; gap:8px; align-items:stretch; }
+  .fstep { background:var(--card); border:1px solid var(--line); border-radius:11px; padding:13px 14px; }
+  .fstep .t { font-size:12.5px; font-weight:700; }
+  .fstep .d { font-size:12px; color:#54575f; margin-top:5px; line-height:1.5; }
+  .fstep .d code { font-size:11px; }
+  .farrow { align-self:center; text-align:center; color:var(--lob); font-weight:700; }
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px 20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); line-height:1.8; }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  @media (max-width:900px) { .concl { grid-template-columns:1fr 1fr; } .conduit { grid-template-columns:1fr; } .conduit .arrow { transform:rotate(90deg); } .flow { grid-template-columns:1fr; } .farrow { transform:rotate(90deg); } }
+  @media (max-width:640px) {
+    .wrap { padding:36px 16px 72px; }
+    .concl { grid-template-columns:1fr; }
+    h1 { font-size:24px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · Issue 成熟度</div>
+  <h1>成熟度维度：<b><em>maturity:stable</em></b> 这一个标签是怎么判的</h1>
+  <p class="lede">这是五个维度里<b>最小也最深</b>的一个：只有 1 个标签 <code>maturity:stable</code>，但它的判据是唯一一个<b>要求模型去读仓库里的评分卡文件</b>（<code>qa/maturity-scores.yaml</code>）才能下的判断。它标记的不是「严重度」，而是「坏掉的是不是已经成熟的 M4/M5 功能」——本质是给「稳定功能回归」打的一个特殊记号。</p>
+  <div class="meta">
+    <span>源码 commit <code>a053c71</code></span>
+    <span><code>src/repository-profiles.ts</code></span>
+    <span><code>src/clawsweeper-label-selection.ts</code></span>
+    <span>时间窗口 <code>2026-09-13..11-13</code></span>
+  </div>
+
+  <!-- 01 -->
+  <section>
+    <h2><b>01 · 这个维度有几种</b> 1 个标签，二选一</h2>
+    <p class="secdesc">整个维度只有一个值：贴 <code>maturity:stable</code>，或不贴。它是 issue 专用（代码对 PR 传空数组）。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述（英文原话）</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#1F883D"></span>maturity:stable</span></td><td class="hex">1F883D</td><td class="desc">Broken existing behavior primarily owned by an M4/M5 scorecard surface.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 02 判据 -->
+  <section>
+    <h2><b>02 · 书面判据</b> schema 一句 + 仓库 profile 一整段</h2>
+    <p class="secdesc">成熟度的判据分两层：schema 字段只给一句，真正的完整规则写在<b>仓库 profile 的 issue prompt note</b> 里（<code>repository-profiles.ts</code> 的 <code>kindPromptNotes.issue</code>），这段会在审查 issue 时注入 prompt。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>来源</th><th>判据</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">schema 字段</td><td class="desc">Issue-only <code>maturity:stable</code> for broken contract-defined behavior on an M4/M5 primary-owner surface.</td></tr>
+        <tr><td class="lab">标签描述</td><td class="desc">Broken existing behavior primarily owned by an M4/M5 scorecard surface.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 03 流程 -->
+  <section>
+    <h2><b>03 · 判定流程</b> 要读评分卡文件，不是只看正文</h2>
+    <p class="secdesc">与其它维度「看 issue 正文就够」不同，成熟度要求模型<b>实际读取 checked-out 的源码树里的评分卡</b>：<code>qa/maturity-scores.yaml</code>、<code>taxonomy.yaml</code>、以及 <code>docs/maturity/</code>。流程如下：</p>
+    <div class="flow">
+      <div class="fstep"><div class="t">读评分卡</div><div class="d">查 <code>qa/maturity-scores.yaml</code> + <code>taxonomy.yaml</code>，确定坏掉行为的主 owner 表面</div></div>
+      <div class="farrow">→</div>
+      <div class="fstep"><div class="t">判 M4/M5</div><div class="d">该表面成熟度是否 ≥ M4？否则 <code>[]</code>（不贴）</div></div>
+      <div class="farrow">→</div>
+      <div class="fstep"><div class="t">填字段</div><div class="d"><code>maturityLabels=[]</code> 或 <code>["maturity:stable"]</code> → <code>nextMaturityLabels()</code> 贴标签</div></div>
+    </div>
+    <div class="callout"><p><b>默认不给</b>：schema 明确要求「没有评分卡能证明当前成熟度时，用 <code>[]</code>」。这个标签是<b>需要正面证据才贴</b>的，不是默认贴上再排除。</p></div>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <h2><b>04 · 驱动字段 → 贴标签代码</b></h2>
+    <div class="conduit">
+      <div class="box"><div class="h">schema 决策字段</div><code>maturityLabels</code> · Issue-only（目前仅 <code>["maturity:stable"]</code>）</div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="h">贴标签</div><code>nextMaturityLabels()</code> · clawsweeper-label-selection.ts:95</div>
+    </div>
+  </section>
+
+  <!-- 05 prompt -->
+  <section>
+    <h2><b>05 · 关键 prompt 与输入</b></h2>
+    <p class="secdesc">下面这段是成熟度维度<b>唯一</b>的完整书面判据，来自仓库 profile 的 issue prompt note。注意它反复强调「不确定就给 <code>[]</code>」——这是一个保守的、宁可漏贴不可错贴的标签。</p>
+    <div class="prompt">
+      <div class="h">src/repository-profiles.ts · kindPromptNotes.issue</div>
+      For <code>maturity:stable</code>, read the checked-out <code>qa/maturity-scores.yaml</code> and relevant <code>taxonomy.yaml</code> entries, and <code>docs/maturity/</code> when the owner or category is ambiguous; without a scorecard that establishes current maturity, use <code>[]</code>. Identify exactly one primary owner surface from the broken behavior and the source owner boundary. Shared Gateway/CLI transit, APIs, hosting, diagnostics, or plumbing do not qualify an issue whose primary owner is below M4. Select the label only when current docs, tests, an API or CLI contract, or established shipped behavior define the expected behavior and current-source evidence supports both that contract and the owner. Use <code>[]</code> for a feature proposal, new capability, UX preference, new configuration or policy choice, docs/support request, cleanup, or unclear report; <code>requiresNewFeature: true</code> or <code>requiresNewConfigOption: true</code> strongly means <code>[]</code>. If the existing-behavior contract or primary owner remains ambiguous, use <code>[]</code>. When selected, cite the contract and surface in <code>evidence</code> and <code>labelJustifications</code>; stable maturity does not raise priority automatically.
+    </div>
+    <p class="secdesc" style="margin-top:16px"><b>输入</b>：除了 issue 正文，模型还能访问 checked-out 的源码树（<code>qa/maturity-scores.yaml</code>、<code>taxonomy.yaml</code>、<code>docs/maturity/</code>），并据此确定「坏掉行为的 primary owner surface」是否达到 M4 成熟度。</p>
+  </section>
+
+  <!-- 06 数据 -->
+  <section>
+    <h2><b>06 · 比例 + completed 关闭占比</b></h2>
+    <p class="secdesc">单标签维度，无所谓「占比」，直接看绝对量与关闭去向。窗口 <code>2026-09-13..11-13</code>。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th class="num">总数</th><th class="num">关闭率</th><th class="num">completed</th><th class="num">not_planned</th><th>读取</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#1F883D"></span>maturity:stable</span></td><td class="num">1370</td><td class="num">83.6%</td><td class="num">68.6%</td><td class="num">31.4%</td><td class="desc"><span class="chip g">稳定功能回归，多半真修掉</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><p><b>一眼结论</b>：<code>maturity:stable</code> 的关闭率（83.6%）在 issue 各维度里偏高，completed 占比 68.6%。合逻辑——「成熟功能的回归」是证据最扎实、边界最清晰的一类 bug，模型读源码 + 评分卡后确认是「既有行为坏了」，通常能给出明确修法，最终真修掉的比例高于模糊的 feature/UX 请求。</p></div>
+  </section>
+
+  <!-- 结论 -->
+  <section>
+    <h2><b>结论</b> 一个需要「读文件」的保守标签</h2>
+    <div class="concl">
+      <div class="c"><div class="n">1 · 最小维度</div><p>全维度只有 1 个标签，二选一：贴 <code>maturity:stable</code> 或不贴。</p></div>
+      <div class="c"><div class="n">2 · 判据活在 profile 里</div><p>完整规则不在 review prompt，而在仓库 profile 的 issue prompt note，且要求模型读评分卡 yaml。</p></div>
+      <div class="c"><div class="n">3 · 宁可漏贴</div><p>全文反复强调「不确定就给 <code>[]</code>」，是保守正面证据标签，不是默认标签。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：openclaw/clawsweeper @ <code>a053c71</code> —— <code>src/repository-profiles.ts</code>（<code>kindPromptNotes.issue</code>）、<code>src/clawsweeper-label-selection.ts</code>（<code>nextMaturityLabels</code>）、<code>src/clawsweeper-policy.ts</code>（<code>MATURITY_LABELS</code>）、<code>schema/clawsweeper-decision.schema.json</code>（<code>maturityLabels</code>）。比例与关闭占比来自 GitHub 搜索 API，窗口 <code>created:2026-09-13..2026-11-13</code>。中文解读为作者注记。<br>
+    生成于 2026-11-15 · 配套：<a href="clawsweeper-label-taxonomy.html">全维度分类法</a> · <a href="routing-labels.html">路由</a> · <a href="priority-labels.html">优先级</a> · <a href="impact-labels.html">影响</a>
+  </footer>
+
+</div>
+</body>
+</html>

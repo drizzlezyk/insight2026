@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codex 评审 Prompt 解剖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F7F8; --card: #FFFFFF; --ink: #16191E; --ink-2: #3A4149;
+    --muted: #6B7380; --line: #E2E6EA;
+    --accent: #0F766E; --accent-ink: #0B5D56; --accent-soft: #E5F2EF;
+    --signal: #B45309; --signal-soft: #FBF0E1;
+    --good: #157F3D; --good-soft: #E7F5EC;
+    --shadow: 0 1px 2px rgba(22,25,30,.05), 0 8px 24px rgba(22,25,30,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --paper: #121417; --card: #191C20; --ink: #E7EAEE; --ink-2: #B8BFC8;
+    --muted: #8A93A0; --line: #2A2F36; --accent: #2DD4BF; --accent-ink: #7FEDE0;
+    --accent-soft: #11312C; --signal: #F59E0B; --signal-soft: #2A2110;
+    --good: #4ADE80; --good-soft: #12291B;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4);
+    color-scheme: dark;
+  } }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px; line-height: 1.65; padding-bottom: 56px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  header { padding: 44px 0 10px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif; font-weight: 700; font-size: clamp(27px, 4.8vw, 40px); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 16px; text-wrap: balance; }
+  .lede { font-size: 17px; line-height: 1.65; color: var(--ink-2); max-width: 820px; margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+  .meta li { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 4px 10px; }
+  .meta li b { color: var(--accent-ink); font-weight: 600; }
+
+  section { padding: 36px 0 4px; }
+  .kicker { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 6px; }
+  h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: clamp(21px, 3.1vw, 27px); letter-spacing: -.015em; margin: 0 0 12px; text-wrap: balance; }
+  h3 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 600; font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; color: var(--ink-2); }
+  p strong, li strong { color: var(--ink); font-weight: 600; }
+  ul, ol { margin: 0 0 14px; padding-left: 1.35em; color: var(--ink-2); }
+  li { margin: 5px 0; }
+  code { font-family: "IBM Plex Mono", monospace; font-size: 12.6px; background: var(--accent-soft); color: var(--accent-ink); padding: 1px 5px; border-radius: 5px; word-break: break-word; }
+  a { color: var(--accent-ink); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0 2px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .kpi .n { font-family: "Bricolage Grotesque", sans-serif; font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+  .kpi .n small { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+  .kpi .l { font-size: 12.5px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+  .kpi code { font-size: 11.5px; }
+
+  .prompt-doc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; margin: 14px 0 8px; }
+  .pd-head { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--paper); font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--muted); }
+  .pd-head b { color: var(--ink); font-weight: 600; }
+  .pd-body { padding: 10px 0; }
+  .pd-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; padding: 7px 16px; align-items: baseline; }
+  .pd-row + .pd-row { border-top: 1px dashed transparent; }
+  .pd-row.slot { background: var(--accent-soft); }
+  .pd-row.rule { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 12px; }
+  .pd-row.bound { background: var(--signal-soft); }
+  .pd-code { font-family: "IBM Plex Mono", monospace; font-size: 12.8px; color: var(--ink); line-height: 1.5; word-break: break-word; }
+  .pd-code .h { color: var(--accent-ink); font-weight: 600; }
+  .pd-code .slot-t { color: var(--signal); font-weight: 600; }
+  .pd-note { font-size: 12.4px; color: var(--muted); line-height: 1.5; }
+  .pd-note b { color: var(--ink-2); font-weight: 600; }
+  .pd-note .who { font-family: "IBM Plex Mono", monospace; font-size: 10.8px; }
+
+  .grid2 { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; align-items: start; margin-top: 10px; }
+  .grid2even { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .grid2 > *, .grid2even > * { min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 8px; }
+  .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
+  .card .num { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--accent-ink); letter-spacing: .1em; margin-bottom: 4px; }
+  .card .ref { display: block; margin-top: 10px; }
+
+  .callout { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--card); border-radius: 10px; padding: 13px 16px; margin: 16px 0; font-size: 14px; color: var(--ink-2); }
+  .callout strong { color: var(--ink); }
+  .callout.warn { border-left-color: var(--signal); background: var(--signal-soft); }
+  .callout.good { border-left-color: var(--good); background: var(--good-soft); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .tablewrap { overflow-x: auto; margin: 12px 0 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 660px; }
+  .tbl th { text-align: left; font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--paper); padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .tbl td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl td:first-child { color: var(--ink); font-weight: 600; }
+  .tbl code { font-size: 12px; }
+  .tbl .size { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent-ink); white-space: nowrap; }
+  .tbl td:first-child a { white-space: nowrap; }
+
+  .ladder { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items: stretch; gap: 0; margin: 16px 0 6px; }
+  .ld-step { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .ld-step .n { font-family: "Bricolage Grotesque", sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .ld-step .t { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .ld-step.zero { border-color: color-mix(in srgb, var(--signal) 45%, var(--line)); background: var(--signal-soft); }
+  .ld-step.zero .n { color: var(--signal); }
+  .ld-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 16px; }
+  .ld-arrow .lbl { font-size: 10px; display: block; text-align: center; line-height: 1.3; }
+
+  .quote { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); font-size: 13.5px; color: var(--ink-2); }
+  .quote p { margin: 0 0 10px; }
+  .quote p:last-child { margin-bottom: 0; }
+  .quote .src { display: block; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-family: "IBM Plex Mono", monospace; font-size: 10.8px; color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; padding: 0; list-style: none; }
+  .chips li { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-2); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+  .chips li.gone { color: var(--muted); text-decoration: line-through; opacity: .7; }
+  .chips li.hot { background: var(--signal-soft); border-color: color-mix(in srgb, var(--signal) 40%, var(--line)); color: var(--signal); }
+
+  .ref { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--muted); }
+  p.ref, p .ref, .callout .ref, .card .ref { white-space: normal; overflow-wrap: anywhere; }
+  .ref a { color: var(--muted); }
+  footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .grid2, .grid2even { grid-template-columns: 1fr; }
+    .ladder { grid-template-columns: 1fr; gap: 8px; }
+    .ld-arrow { padding: 2px 0; }
+    .ld-arrow .lbl { display: inline; margin-left: 6px; }
+    .pd-row { grid-template-columns: 1fr; gap: 2px; }
+  }
+  @media (max-width: 480px) {
+    .kpis { grid-template-columns: 1fr; }
+    body { font-size: 15.5px; }
+  }
+  @media print {
+    body { background: #fff; }
+    .card, .quote, .kpi, .tablewrap, .prompt-doc, .ld-step { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">CLAWSWEEPER · REVIEW PROMPT · ANATOMY · 2026-11-16</p>
+    <h1>给 Codex 的评审 prompt，实际装了什么</h1>
+    <p class="lede">它不是五段并列的长文，而是<strong>一个方法论模板，内嵌两个槽位</strong>：品类作业单和<strong>过滤后的</strong>关闭法条，后面再串仓库附则与可核查索引。关闭的判定标准只占其中 25 行，而且模型看到的通常只有 9 条。</p>
+    <ul class="meta">
+      <li>源码基线 <b>d6179da</b></li>
+      <li>拼装函数 <b>buildReviewPrompt</b></li>
+      <li>样本 <b>openclaw/openclaw #198628</b></li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="n">60 <small>行</small></div>
+      <div class="l">共享规则 <code>review-item.md</code>：只读纪律、评审方法、关闭优先级、公开语气。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">9 <small>/ 17</small></div>
+      <div class="l">外部 issue 实际可见的关闭原因 / 系统允许的全部原因。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">0 <small>条</small></div>
+      <div class="l">维护者作者或带保护标签的项，在评审侧能看到的关闭原因。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">1 <small>句</small></div>
+      <div class="l">没有可适用原因时，prompt 里只剩 <code>No close reason applies…</code>。</div>
+    </div>
+  </div>
+
+  <section>
+    <p class="kicker">01 · 装配顺序</p>
+    <h2>最终 prompt 是一份有固定骨架的文档</h2>
+    <p><code>buildReviewPrompt()</code> 先读四个模板，再把 <code>{{item_kind_review}}</code> 与 <code>{{close_reasons}}</code> 两个槽填进共享规则，最后按固定顺序拼接仓库策略、仓库状态、运行时能力与 GitHub 上下文。</p>
+
+    <div class="prompt-doc" role="img" aria-label="最终评审 prompt 的文档骨架：共享规则 60 行，内嵌 issue 模板 11 行与过滤后的关闭原因，之后是仓库策略、仓库状态、运行时能力、GitHub 上下文与可选的维护者请求">
+      <div class="pd-head"><span><b>prompt.md</b> · 最终拼装结果（示意，非全文）</span><span>共享规则 60 行 + 9 条关闭原因 + 动态上下文</span></div>
+      <div class="pd-body">
+        <div class="pd-row">
+          <div class="pd-code"><span class="h"># ClawSweeper Review</span><br><span class="h">## Ground rules</span></div>
+          <div class="pd-note"><b>只读纪律</b>：checkout 字节级干净；工具白名单；GitHub 只走 REST <code>GET</code>；读 <code>AGENTS.md</code>。<span class="who">review-item.md:5-13</span></div>
+        </div>
+        <div class="pd-row">
+          <div class="pd-code"><span class="h">## Review</span><br>&nbsp;&nbsp;深读源码、测试、历史、评论<br>&nbsp;&nbsp;feature-history 找 likely owners</div>
+          <div class="pd-note"><b>方法论</b>：blame 只说明最后编辑，不说明引入；一次 <code>rg</code> 命中不算证据。<span class="who">review-item.md:15-27</span></div>
+        </div>
+        <div class="pd-row slot">
+          <div class="pd-code"><span class="slot-t">{{item_kind_review}}</span></div>
+          <div class="pd-note"><b>品类作业单</b>：issue 11 行 / PR 100 行；决定这个品类产出哪些字段、哪些置空。<span class="who">review-item-issue.md:3-11</span></div>
+        </div>
+        <div class="pd-row">
+          <div class="pd-code"><span class="h">## Close policy</span><br>&nbsp;&nbsp;1. keep-open guards 优先<br>&nbsp;&nbsp;2. 真 bug 保持开放<br>&nbsp;&nbsp;3. 否则默认关闭低价值项<br>&nbsp;&nbsp;4. 条件全满足才关</div>
+          <div class="pd-note"><b>元规则</b>：第一个适用的规则获胜；close 必须 high confidence、至少一条 evidence、对应 closeComment。<span class="who">review-item.md:31-38</span></div>
+        </div>
+        <div class="pd-row slot">
+          <div class="pd-code"><span class="slot-t">{{close_reasons}}</span></div>
+          <div class="pd-note"><b>不是全文</b>：preamble + 宿主判定可能适用的那几条；外部 issue 通常 9 条。<span class="who">review-core.ts:236-249</span></div>
+        </div>
+        <div class="pd-row rule bound">
+          <div class="pd-code"><span class="h">## Repository Policy</span></div>
+          <div class="pd-note"><b>仓库附则</b>：<code>profile.promptNote</code> + 品类附注；OpenClaw 的 CHANGELOG、maturity/owner 规则都在这里。<span class="who">repository-profiles.ts:110-121</span></div>
+        </div>
+        <div class="pd-row">
+          <div class="pd-code"><span class="h">## Repository State</span></div>
+          <div class="pd-note">repo、item、author association、创建/更新时间、抓取的 main SHA、latest release。</div>
+        </div>
+        <div class="pd-row">
+          <div class="pd-code"><span class="h">## Runtime Capabilities</span></div>
+          <div class="pd-note">网络是否走 allowlist 代理；只读 <code>GH_TOKEN</code>；checkout 只读；proof scratch 目录。</div>
+        </div>
+        <div class="pd-row">
+          <div class="pd-code"><span class="h">## GitHub Context</span><br>&nbsp;&nbsp;```json …```</div>
+          <div class="pd-note">被审项正文全量；评论与 timeline；关联项只给索引；<code>bodyCoverage</code> 说明截断与哈希。</div>
+        </div>
+        <div class="pd-row">
+          <div class="pd-code"><span class="h">## Maintainer Request</span> <span style="color:var(--muted)">（可选）</span></div>
+          <div class="pd-note">维护者评论触发时加入；原文保留，不被清洗。</div>
+        </div>
+      </div>
+    </div>
+    <p class="ref">拼装：<a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L290-L303">review-core.ts:290-303</a>、<a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L346-L377">346-377</a>。决策 schema 不在文本里，通过 Codex <code>--output-schema</code> 传入（<a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L945">945</a>）。</p>
+  </section>
+
+  <section>
+    <p class="kicker">02 · 五层一览</p>
+    <h2>每层负责什么，规模多大</h2>
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>层</th><th>来源</th><th>规模</th><th>真正的内容</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>共享规则</td>
+            <td><code>prompts/review-item.md</code></td>
+            <td class="size">60 行</td>
+            <td>Ground rules、Review 方法、Close policy 四级优先级、Fields 字段职责、Public prose 语气。</td>
+          </tr>
+          <tr>
+            <td>issue 模板</td>
+            <td><code>prompts/review-item-issue.md</code></td>
+            <td class="size">11 行</td>
+            <td>一个有用结果、<code>workReason</code> 即 Next step、bulk filer、strict_bug 条件、隐藏 payload 处理、PR 字段置空。</td>
+          </tr>
+          <tr>
+            <td>关闭策略</td>
+            <td><code>prompts/review-close-reasons.md</code></td>
+            <td class="size">25 行 / 16 条</td>
+            <td>每条原因 = 判定条件 + 反向 keep-open + 评论义务；preamble 定义 External、维护者参与、自动化标签。</td>
+          </tr>
+          <tr>
+            <td>仓库策略</td>
+            <td><code>repository-profiles.ts</code></td>
+            <td class="size">2 + 2 段</td>
+            <td>OpenClaw 的源码树政策、release-owned 的 CHANGELOG；issue 的 maturity/owner 标签规则；PR 的 locale 例外。</td>
+          </tr>
+          <tr>
+            <td>上下文</td>
+            <td>prompt-context + 运行时</td>
+            <td class="size">动态</td>
+            <td>正文/评论/关联索引、SHA 与 release、网络与 token 能力、可选的维护者请求。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">03 · 共享规则</p>
+    <h2>“怎么审”与“关哪条”是两件事</h2>
+    <p>共享规则回答流程与判断方式，本身不列具体关闭原因；具体原因留给后面的槽位。最值得注意的是它把关闭写成<strong>四级优先</strong>，而不是一串 reasons。</p>
+
+    <div class="grid2even">
+      <div class="card">
+        <div class="num">CLOSE POLICY · 原文结构</div>
+        <h3>四步，第一个适用者获胜</h3>
+        <ol>
+          <li><strong>Guard 压倒一切</strong>：<code>OWNER/MEMBER/COLLABORATOR</code> 作者、保护标签、带 <code>Fixes</code> 的 open PR、同作者配对，以及每条原因自带的 keep-open。</li>
+          <li><strong>真问题保持开放</strong>：current upstream bug、官方版本受影响、有独特工作的 stale PR、维护者已介入。</li>
+          <li><strong>否则默认关闭</strong>：unprotected 且没有具体 owned bug / 可修能力 / 独特贡献。</li>
+          <li><strong>满足全部条件才关</strong>：<code>confidence: high</code> + 至少一条 evidence + 对应 <code>closeComment</code>。</li>
+        </ol>
+        <p class="ref">review-item.md:31-38</p>
+      </div>
+      <div class="card">
+        <div class="num">FIELDS &amp; PROSE</div>
+        <h3>字段单一职责，评论像维护者</h3>
+        <ul>
+          <li><code>summary</code> 只放 verdict 与理由；<code>changeSummary</code> 只讲请求或改动。</li>
+          <li><code>workReason</code> 是公开的 Next step，不说“排队/派发”。</li>
+          <li>评论里称 “this issue”，其他项必须全 URL。</li>
+          <li>语气：友好、克制、具体；整条评论最多一次甲壳类玩笑。</li>
+          <li>报告结果，不报工具流水账（不写耗时、命令清单）。</li>
+        </ul>
+        <p class="ref">review-item.md:48-61</p>
+      </div>
+    </div>
+
+    <div class="quote" style="margin-top:14px;">
+      <p><em>“Maintainer attention is scarce: an issue or PR must earn its place in the backlog. The output schema says what each field is; this prompt is the procedure and the judgement, each rule stated once.”</em></p>
+      <span class="src">review-item.md:3</span>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">04 · 关闭策略</p>
+    <h2>25 行法条，通常只有 9 条递到模型眼前</h2>
+    <p>关闭策略文件是完整的 16 条原因，但 <code>closeReasonsPrompt()</code> 只把<strong>宿主认为可能适用</strong>的原因行插进 prompt；不适用的连文字都不会出现。</p>
+
+    <div class="ladder" role="img" aria-label="关闭原因过滤链：允许 17 条，OpenClaw issue 配置 15 条，按品类过滤后 9 条，维护者作者或保护标签 0 条">
+      <div class="ld-step"><div class="n">17</div><div class="t"><code>ALLOWED_REASONS</code><br>系统全部原因</div></div>
+      <div class="ld-arrow">→<span class="lbl">profile</span></div>
+      <div class="ld-step"><div class="n">15</div><div class="t">OpenClaw issue 配置<br>去掉 budget / obsolete</div></div>
+      <div class="ld-arrow">→<span class="lbl">kind</span></div>
+      <div class="ld-step"><div class="n">9</div><div class="t">去掉 PR 专属 6 条<br>外部 issue 实际可见</div></div>
+      <div class="ld-arrow">→<span class="lbl">guard</span></div>
+      <div class="ld-step zero"><div class="n">0</div><div class="t">维护者作者 / 保护标签<br>只剩 keep-open 一句</div></div>
+    </div>
+    <p class="ref">过滤逻辑：<a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/review-prompt-sections.ts#L113-L140">review-prompt-sections.ts:113-140</a>；测试还覆盖了“guard 项一律为空、只有 oversized 例外”：<a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/test/review-prompt-sections.test.ts#L277-L310">review-prompt-sections.test.ts:277-310</a>。</p>
+
+    <h3>外部 issue 可见的 9 条</h3>
+    <ul class="chips">
+      <li class="hot">implemented_on_main</li>
+      <li>cannot_reproduce</li>
+      <li>clawhub</li>
+      <li>duplicate_or_superseded</li>
+      <li>not_actionable_in_repo</li>
+      <li>incoherent</li>
+      <li>unsponsored_feature_request</li>
+      <li>stale_version_bug</li>
+      <li>stale_insufficient_info</li>
+    </ul>
+    <p>被过滤掉的 PR 专属原因：<code>mostly_implemented_on_main</code>、<code>low_signal_unmergeable_pr</code>、<code>oversized_pull_request</code>、<code>stalled_unproven_pr</code>、<code>abandoned_pr</code>、<code>unconfirmed_product_direction</code>；<code>author_pr_budget_exceeded</code> 与 <code>obsolete_fix_pr</code> 则在 profile 层就被去掉。</p>
+
+    <div class="grid2" style="margin-top:16px;">
+      <div class="quote">
+        <p><code>implemented_on_main</code>: current <code>main</code> fixes the request well enough, even without the proposed workflow, file split, or names; <strong>main-only counts</strong>. Verify the behavior in source (and tests/docs), then trace the fix … without <code>fixedSha</code> and <code>fixedRelease</code> or <code>fixedAt</code> backed by it, keep open, and invent no release facts.</p>
+        <p>PR 另加：source resemblance、重叠功能、main 上的 commit 都不够；必须有一个 GitHub 正式关联、同仓库、已合并的 fixing PR。</p>
+        <span class="src">review-close-reasons.md:10 · 节选</span>
+      </div>
+      <div class="card">
+        <h3>三条容易忽略的细节</h3>
+        <ul>
+          <li><code>implemented_on_main</code> <strong>没有最小年龄门槛</strong>；其他 <code>stale_*</code>、<code>abandoned_pr</code> 等都带天数门槛，不到龄连文字都不出现。</li>
+          <li>产品类四条（<code>unsponsored_feature_request</code> 等）在 preamble 里被标为“只建议”；Apply 永不执行这些关闭。</li>
+          <li><code>oversized_pull_request</code> 在允许列表与 apply 规则里，但当前 <code>review-close-reasons.md</code> 没有它的条目文本——模型侧拿不到这段规则。</li>
+        </ul>
+        <p class="ref">policy.ts:545-563 · review-close-reasons.md:1-8</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>维护者例外发生在 Apply，不发生在评审。</strong>带 <code>maintainer</code> 标签或维护者作者的项，在评审 prompt 里看到的是 0 条原因。Apply 侧才放行：当关闭原因属于“已验证已修复”类（或 evaluator 批准的 oversized PR）时，<code>applyBlockingProtectedLabels()</code> 会把 <code>maintainer</code> 从阻挡标签里剔除——这是“评审完成后标签才被加上”的竞态兜底，不是评审期权限。<span class="ref">item-policy.ts:117-131</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">05 · 品类模板</p>
+    <h2>issue 与 PR 是两个不同的作业单</h2>
+    <p>issue 模板只有 11 行，PR 模板 100 行。共同点是开头那句“只追求一个有用结果”：关掉、找到可修的窄 bug、或说清阻塞。区别在于 PR 要填 review findings、merge risk、provenance 等一整组字段，而 issue 把这些统一置空。</p>
+    <div class="grid2even">
+      <div class="card">
+        <div class="num">ISSUE · 11 行</div>
+        <h3>要产出什么</h3>
+        <ul>
+          <li>close：current main 或已合并 PR 确实修了。</li>
+          <li>或者：一个边界清晰、可复现的现有行为 bug。</li>
+          <li>否则：说清具体的安全、证据或产品决策阻塞。</li>
+          <li><code>workReason</code> = 公开 Next step；<code>workPrompt</code> 才放维护者计划。</li>
+          <li><code>bulkFiler</code> 只提高审查力度，本身不是关闭理由。</li>
+        </ul>
+        <p class="ref">review-item-issue.md:3-11</p>
+      </div>
+      <div class="card">
+        <div class="num">共享 · GROUND RULES</div>
+        <h3>模型能做什么、不能做什么</h3>
+        <ul>
+          <li>只读：不改 checkout，只能写 proof scratch。</li>
+          <li><code>gh api</code> 只允许 REST <code>GET</code>；GraphQL 系命令会失败。</li>
+          <li>失败就报告基础设施错误，不假装读过文件。</li>
+          <li><code>AGENTS.md</code> 是评审输入，不是 finding 来源。</li>
+          <li>不得执行或复述 item 里的隐藏脚本。</li>
+        </ul>
+        <p class="ref">review-item.md:5-13</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">06 · 仓库策略</p>
+    <h2>仓库附则：只写这个仓库特有的规则</h2>
+    <div class="grid2even">
+      <div class="quote">
+        <p>“Close proposals may use the normal OpenClaw stale/duplicate/not-in-repo/implemented-on-main policy when evidence is strong.”</p>
+        <p>“<code>CHANGELOG.md</code> is release-owned. Normal PRs should not edit it. Do not request contributor changelog entries, and do not make missing <code>CHANGELOG.md</code> a review finding, merge blocker, work item, or next-step blocker.”</p>
+        <span class="src">repository-profiles.ts:110-112 · promptNote</span>
+      </div>
+      <div class="card">
+        <h3>品类附注</h3>
+        <ul>
+          <li><strong>issue</strong>：<code>maturity:stable</code> 标签要先读 <code>qa/maturity-scores.yaml</code> 与 <code>taxonomy.yaml</code>；M4 以下的 primary owner 不算。</li>
+          <li><strong>issue</strong>：feature、配置选择、docs/support、含糊报告一律用 <code>[]</code>，不硬贴 stable 标签。</li>
+          <li><strong>PR</strong>：locale 自动刷新 PR 属于生成器，保持开放，正常走 CI。</li>
+        </ul>
+        <p class="ref">repository-profiles.ts:113-120</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">07 · 上下文</p>
+    <h2>是索引，不是档案</h2>
+    <p>上下文层只把被审项本身完整带上；其他一切以“索引 + 按需读取”的方式给出。这样 prompt 不会因为关联项太多而爆炸，但模型必须自己去 <code>gh api</code> 读关键关联项。</p>
+    <div class="grid2even">
+      <div class="card">
+        <h3>完整带上</h3>
+        <ul>
+          <li>被审项正文（长正文带 <code>bodyCoverage</code> 与全文哈希）。</li>
+          <li>评论与 timeline。</li>
+          <li>PR 的 introduction evidence 与 provenance evidence。</li>
+          <li>Repository State：main SHA、latest release。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>只给索引</h3>
+        <ul>
+          <li><code>relatedItems</code>、<code>closingPullRequests</code>、<code>referencingMergedPullRequests</code> 去掉正文，只留身份、状态、标题、标签、链接原因。</li>
+          <li><code>pullChecks</code> 只给计数与未通过项，不列全部通过项。</li>
+          <li>截断文本明确标为 unknown，不当作“不存在”的证据。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="quote" style="margin-top:14px;">
+      <p><em>“The prompt is an index, not an archive: it carries the item under review in full and points at everything else. Linked-item bodies stay inline only when the agent cannot read GitHub.”</em></p>
+      <span class="src">clawsweeper-prompt-context.ts:49-52</span>
+    </div>
+    <p style="margin-top:12px;">决策 schema 不占 prompt 字符：Codex 以 <code>--output-schema</code> 接收 <code>clawsweeper-decision.schema.json</code>，输出不合法会直接失败，而不是靠模型“记得”字段名。</p>
+  </section>
+
+  <section>
+    <p class="kicker">08 · 以关闭为例</p>
+    <h2>一条外部 issue 走完这五层，实际看到什么</h2>
+    <ol>
+      <li><strong>共享规则</strong>告诉它：guard 优先；只有条件全满足才关；close 必须 high confidence、至少一条 evidence、带 closeComment。</li>
+      <li><strong>issue 模板</strong>告诉它：别为了“看起来处理了”而关；<code>workReason</code> 要给出下一步。</li>
+      <li><strong>关闭策略</strong>只递来 9 条原因；如果它想用 <code>implemented_on_main</code>，必须同时给出源码 <code>file+sha</code>、<code>fixedSha</code>、<code>fixedAt</code> 或 release。</li>
+      <li><strong>仓库策略</strong>补充：可以按 OpenClaw 的 implemented-on-main 政策走，但 changelog 不是 finding。</li>
+      <li><strong>上下文</strong>给出正文、评论、关联项索引与 main SHA；缺证据就只能 keep open。</li>
+    </ol>
+    <div class="callout good">
+      <p><strong>产出不是一段散文，而是一个 typed decision：</strong><code>decision: close</code>、<code>closeReason: implemented_on_main</code>、<code>confidence: high</code>、<code>evidence[]</code>、<code>fixedSha</code>、<code>fixedRelease</code>/<code>fixedAt</code>、<code>closeComment</code>，外加 labels、work lane、rootCauseCluster 等字段。Apply 再根据这些字段做一次独立重检。</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">09 · 可复用的设计</p>
+    <h2>三条能迁移到其他评审 bot 的规则</h2>
+    <div class="grid2even">
+      <div class="card">
+        <h3>1 · 规则分层，槽位明确</h3>
+        <p>方法论（不变）与品类作业单（可变）分开；关闭法条是独立文件，通过槽位插入。改一类规则不会牵动其他层。</p>
+        <h3>2 · 先过滤，再让模型判断</h3>
+        <p>宿主用 kind、年龄、保护标签先把不可能的原因删掉，模型只判断“剩下的里面有没有真的适用”。这比让模型记住 16 条再自我排除更可靠。</p>
+      </div>
+      <div class="card">
+        <h3>3 · 上下文用索引，不给档案</h3>
+        <p>只把被审项全文带上，其余给身份与读取入口；截断内容标注哈希与覆盖率。既控制 token，又保留“可核查”而不是“看起来读过”。</p>
+        <h3>边界</h3>
+        <p>维护者例外属于 Apply 侧；评审侧对 guarded 项不提供关闭原因。两层各自保守，合起来才是完整的关闭链路。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">来源</p>
+    <h2>证据索引</h2>
+    <p>全部固定在 <code>openclaw/clawsweeper@d6179da56748b0a0e791c700b0c7c10e7b6c7a4c</code>。行号为该基线下的起始位置。</p>
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>来源</th><th>证明了什么</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L290-L303">review-core.ts:290-303</a></td><td>两个槽位的填充顺序；品类模板进入共享规则，关闭原因经过 <code>applicableCloseReasons</code> 过滤。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L346-L377">review-core.ts:346-377</a></td><td>最终文档顺序：Prompt → Repository Policy → Repository State → Runtime Capabilities → 证据 → GitHub Context → Maintainer Request。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L236-L249">review-core.ts:236-249</a></td><td>关闭原因只保留 preamble + 命中原因行；没有可用原因时输出单句兜底。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L945">review-core.ts:945</a></td><td>决策 schema 通过 <code>--output-schema</code> 交给 Codex，而不是写进 prompt 文本。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/review-prompt-sections.ts#L113-L140">review-prompt-sections.ts:113-140</a></td><td>kind、年龄、维护者作者/保护标签的预过滤；guarded 项返回空列表。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/test/review-prompt-sections.test.ts#L277-L310">review-prompt-sections.test.ts:277-310</a></td><td>维护者与受保护项的关闭原因一律为空；唯一例外是 evaluator 批准的 oversized PR。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/prompts/review-item.md">prompts/review-item.md</a></td><td>Ground rules、Review 方法、Close policy 四级优先、Fields、Public prose。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/prompts/review-item-issue.md">prompts/review-item-issue.md</a></td><td>issue 品类作业单：一个有用结果、workReason、bulkFiler、strict_bug、隐藏 payload。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/prompts/review-close-reasons.md">prompts/review-close-reasons.md</a></td><td>16 条原因的完整条件、preamble、产品类原因“只建议”的声明。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/repository-profiles.ts#L110-L121">repository-profiles.ts:110-121</a></td><td>OpenClaw 的 promptNote 与 issue/PR 品类附注。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-prompt-context.ts#L49-L72">clawsweeper-prompt-context.ts:49-72</a></td><td>“索引不是档案”：关联项去正文、checks 只留未通过项、PR 正文与 issue 相同则复用。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-policy.ts#L545-L563">clawsweeper-policy.ts:545-563</a></td><td>17 条允许原因、<code>none</code> 的独立地位、决策与 work lane 的枚举。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap" style="padding:0;">
+      快照 2026-11-16 · 源码基线 <span class="ref">openclaw/clawsweeper@d6179da</span>。<br>
+      口径：行数与“可见原因”均指该基线下 OpenClaw profile 的外部 issue 默认路径；不同仓库可通过 profile 调整 <code>applyCloseRules</code>。
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

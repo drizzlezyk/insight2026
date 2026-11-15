@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw Issue「可复现」维度 · ClawSweeper 如何判断复现类型</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1080px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:36px; line-height:1.28; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:16.5px; color:#3c3f47; max-width:860px; }
+  .lede code, p code, li code, td code, th code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#f1ece3; padding:1px 6px; border-radius:5px; color:#3a3d45; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  section { margin-top:56px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 18px; }
+  h2 b { color:var(--ink); }
+  .callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:12px; padding:18px 22px; margin:24px 0 0; }
+  .callout p { margin:0; font-size:15px; color:#3c3f47; }
+  .callout p b { color:var(--ink); }
+  .callout.warn { border-left-color:var(--lob); }
+  .callout.gold { border-left-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); }
+  td { padding:11px 8px; border-bottom:1px solid #f0eae1; vertical-align:top; }
+  td.lab, td code { font-family:ui-monospace,Menlo,monospace; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .an { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .an .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .dot.crab { background:#1F883D; } .dot.lob { background:#0969DA; } .dot.her { background:#0F766E; }
+  .dot.shr { background:#B7791F; } .dot.she { background:#7A828E; } .dot.kra { background:#8C2F39; } .dot.tid { background:#6E7781; }
+  .chip { font-size:11px; background:#f2ede4; color:#4a4d55; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.t { background:var(--teal-soft); color:#1f5e5c; }
+  .chip.r { background:var(--lob-soft); color:#a3341a; }
+  /* reproduction semantics */
+  .repro { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+  .rc { background:var(--card); border:1px solid var(--line); border-radius:13px; padding:15px 15px 13px; display:flex; flex-direction:column; }
+  .rc .k { font-family:ui-monospace,Menlo,monospace; font-size:11.5px; font-weight:700; color:var(--teal); word-break:break-all; }
+  .rc .d { font-size:12px; color:#54575f; margin-top:6px; line-height:1.5; }
+  .rc .map { margin-top:auto; padding-top:9px; font-size:11px; color:var(--muted); border-top:1px dashed var(--line); margin-top:9px; }
+  .rc .map b { color:var(--ink); font-weight:650; }
+  .rc.na .k { color:var(--gold); }
+  .rc.inf .k { color:var(--lob); }
+  .rc .inf-tag { font-size:10px; font-weight:700; letter-spacing:.04em; padding:1px 6px; border-radius:4px; background:#f1ece3; color:var(--muted); margin-left:4px; vertical-align:1px; }
+  .rc.inf .inf-tag { background:var(--lob-soft); color:#a3341a; }
+  /* matrix */
+  .matrix td { text-align:center; }
+  .matrix td.status { text-align:left; font-family:ui-monospace,Menlo,monospace; font-size:12px; font-weight:600; }
+  .matrix th { text-align:center; }
+  .matrix th:first-child { text-align:left; }
+  .matrix .an { justify-content:center; }
+  .matrix td.dash { color:var(--muted); }
+  /* decision list (code first-match order) */
+  .decs { display:flex; flex-direction:column; gap:8px; margin:6px 0 0; }
+  .dec { display:grid; grid-template-columns:24px 1fr auto; gap:12px; align-items:center;
+    background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 15px; }
+  .dec .ord { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; text-align:center; font-weight:700; }
+  .dec .cond { font-size:13px; color:#3a3d45; }
+  .dec .cond code { font-size:11.5px; }
+  .dec .an { justify-self:end; }
+  .dec.fb .cond { color:var(--muted); }
+  /* timeline */
+  .tl { display:flex; flex-direction:column; gap:0; margin-top:6px; }
+  .step { display:grid; grid-template-columns:64px 22px 1fr; gap:10px; }
+  .step .time { font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:var(--muted); padding-top:2px; text-align:right; }
+  .step .dot { position:relative; }
+  .step .dot::before { content:""; position:absolute; left:7px; top:5px; width:8px; height:8px; border-radius:50%; background:var(--lob); }
+  .step .dot::after { content:""; position:absolute; left:10px; top:16px; bottom:-6px; width:1px; background:#e9ddd2; }
+  .step:last-child .dot::after { display:none; }
+  .step .body { padding-bottom:16px; font-size:13.5px; color:#3c3f47; }
+  .step .body b { color:var(--ink); font-weight:650; }
+  .step .body .who { display:block; font-size:11.5px; color:var(--muted); margin-top:2px; }
+  /* evidence label swatches */
+  .elbl { display:inline-flex; align-items:center; gap:7px; font-family:ui-monospace,Menlo,monospace; font-size:12px; font-weight:600; color:var(--ink); }
+  .elbl .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .dot.cr { background:#0A3069; } .dot.sr { background:#0A3069; } .dot.nr { background:#2DA44E; } .dot.lr { background:#FBCA04; } .dot.ni { background:#6E7781; }
+  /* conclusion */
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px 20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .axis { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .axis h4 { margin:0 0 6px; font-size:15px; }
+  .axis h4 code { font-size:13px; }
+  .axis p { margin:0; font-size:13px; color:#54575f; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); line-height:1.8; }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  @media (max-width:900px) { .repro, .concl { grid-template-columns:1fr 1fr; } }
+  @media (max-width:640px) {
+    .wrap { padding:36px 16px 72px; }
+    .repro, .concl, .grid2 { grid-template-columns:1fr; }
+    h1 { font-size:24px; }
+    .step { grid-template-columns:52px 18px 1fr; }
+    .dec { grid-template-columns:20px 1fr; }
+    .dec .an { grid-column:1 / -1; justify-self:start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · Issue 评分机制</div>
+  <h1>「可复现」维度：ClawSweeper 怎么判断一条 issue 是<b><em>哪种</em></b></h1>
+  <p class="lede">动物评级只是表层。真正的判断发生在更早一步：模型先给每条 issue 判一个 <code>reproductionStatus</code>（可复现状态，<b>5 选 1</b>）加一个 <code>reproductionConfidence</code>（置信度，<b>3 选 1</b>），代码再把这对组合<b>查表映射</b>成动物标签和证据标签。这份报告拆开这一步——<b>这个维度有几种值、书面判据到底写了多少、模型凭什么选。</b></p>
+  <div class="meta">
+    <span>源码 commit <code>a053c71</code></span>
+    <span><code>schema/clawsweeper-decision.schema.json</code></span>
+    <span><code>src/clawsweeper-label-selection.ts</code></span>
+    <span><code>prompts/review-item.md</code></span>
+  </div>
+
+  <section>
+    <h2><b>01</b> &nbsp;这个维度有几种：一个字段，两层标签</h2>
+    <p>「可复现」在 ClawSweeper 内部是<b>一个字段、5 个取值</b>，向外投影成<b>两种 GitHub 标签</b>：一层是 7 个动物评级（<code>issue-rating:</code>），一层是 5 个证据标签（<code>clawsweeper:*</code>）。真正承载「复现类型」语义的是下面这 5 个值。</p>
+    <div class="repro" style="margin-top:20px">
+      <div class="rc">
+        <div class="k">reproduced</div>
+        <div class="d"><b>在 current-main 上真实复现</b>。最高证据——<code>schema</code> 有逐字描述。</div>
+        <div class="map">描述原话：「high-confidence current-main reproduction」</div>
+      </div>
+      <div class="rc">
+        <div class="k">source_reproducible</div>
+        <div class="d"><b>源码级可复现</b>：读代码确认 bug 路径可达，但没实际跑出失败。</div>
+        <div class="map">描述原话：「source shows the path without a failing run」</div>
+      </div>
+      <div class="rc inf">
+        <div class="k">not_reproduced<span class="inf-tag">推断</span></div>
+        <div class="d"><b>尝试复现失败</b>，或在 main 上已不复现。<code>schema</code> 未描述。</div>
+        <div class="map">推断依据：证据标签 <code>not-repro-on-main</code>「no longer reproduces on main」</div>
+      </div>
+      <div class="rc inf">
+        <div class="k">unclear<span class="inf-tag">推断</span></div>
+        <div class="d"><b>无法判定</b>：证据不足，说不清能不能复现。</div>
+        <div class="map">推断依据：证据标签 <code>needs-info</code>「needs more reporter information」</div>
+      </div>
+      <div class="rc inf na">
+        <div class="k">not_applicable<span class="inf-tag">推断</span></div>
+        <div class="d"><b>不适用</b>：不是可验证的 bug（如 feature request）。</div>
+        <div class="map">推断依据：动物标签 🌊 off-meta tidepool「does not apply」</div>
+      </div>
+    </div>
+    <p style="margin-top:18px">这 5 个值又派生出一组<b>证据标签</b>（只在命中条件时打，见 04 矩阵）：<code>clawsweeper:current-main-repro</code>、<code>clawsweeper:source-repro</code>、<code>clawsweeper:not-repro-on-main</code>、<code>clawsweeper:needs-live-repro</code>、<code>clawsweeper:needs-info</code>——所以「这个维度的标签」严格说是 <b>5 个内部值 + 5 个公开证据标签</b>，动物评级是它的下游再投影。</p>
+  </section>
+
+  <section>
+    <h2><b>02</b> &nbsp;书面判据有多薄：只有两句话</h2>
+    <p>这是本报告最关键的发现。模型在判定「这条 issue 属于哪种可复现」时，拿到的<b>书面 rubric 少得惊人</b>：</p>
+    <div class="tablewrap" style="margin-top:16px">
+    <table>
+      <thead><tr><th>字段</th><th>取值</th><th>schema 里的描述</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">reproductionStatus</td><td class="lab">reproduced</td><td>high-confidence current-main reproduction</td><td class="chip t">✅ 有描述</td></tr>
+        <tr><td class="lab">reproductionStatus</td><td class="lab">source_reproducible</td><td>source shows the path without a failing run</td><td class="chip t">✅ 有描述</td></tr>
+        <tr><td class="lab">reproductionStatus</td><td class="lab">not_reproduced</td><td>—（无任何描述）</td><td class="chip r">❌ 靠名字推断</td></tr>
+        <tr><td class="lab">reproductionStatus</td><td class="lab">unclear</td><td>—（无任何描述）</td><td class="chip r">❌ 靠名字推断</td></tr>
+        <tr><td class="lab">reproductionStatus</td><td class="lab">not_applicable</td><td>—（无任何描述）</td><td class="chip r">❌ 靠名字推断</td></tr>
+        <tr><td class="lab">reproductionConfidence</td><td class="lab">high / medium / low</td><td>—（无任何描述）</td><td class="chip r">❌ 无描述</td></tr>
+        <tr><td class="lab">reproductionAssessment</td><td class="lab">（自由文本）</td><td>Public answer to: Do we have a high-confidence way to reproduce the issue? With the evidence.</td><td class="chip t">✅ 有描述</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="callout warn">
+      <p><b>判据不是一份详细 rubric，而是「枚举名 + 两句定义 + 一句必须用证据回答的问题」。</b><code>schema/clawsweeper-decision.schema.json</code> 里 5 个取值只给前 2 个写了描述（<code>:518–521</code>），<code>reproductionConfidence</code> 三档完全空白（<code>:523–526</code>）。其余三个取值——<code>not_reproduced</code>、<code>unclear</code>、<code>not_applicable</code>——模型只能从<b>名字本身</b>和它派生的证据标签语义去猜。</p>
+    </div>
+    <p style="margin-top:16px">这意味着 ClawSweeper 把「怎么判复现类型」这件事<b>大部分委托给了模型的深度阅读能力</b>，而不是事先写死逐条判据。prompt 里唯一的总原则是那句反复出现的：<code>review-item.md</code> ——「Review deeply before closing: <b>high confidence means you read enough current code, tests, docs, history</b>…」（高置信 = 你真的读够了代码 / 测试 / 文档 / 历史）。</p>
+  </section>
+
+  <section>
+    <h2><b>03</b> &nbsp;判定流程：模型判枚举，代码选标签</h2>
+    <p>一条 issue 从进来到最后被贴上「🦞 diamond lobster」或「<code>needs-info</code>」，走的是下面这条链。注意<b>职责切分</b>：模型只负责「判」，代码只负责「贴」。</p>
+    <div class="tl">
+      <div class="step">
+        <div class="time">只读</div><div class="dot"></div>
+        <div class="body">模型进入<b>只读环境</b>：只能用 <code>rg</code> <code>sed</code> <code>nl</code> <code>find</code> <code>git log/show/diff/blame</code> 和 <code>gh api</code> 的 REST GET；不许写任何东西。<span class="who">prompts/review-item.md · Ground rules</span></div>
+      </div>
+      <div class="step">
+        <div class="time">深读</div><div class="dot"></div>
+        <div class="body">对 issue 做<b>深度阅读</b>：代码、测试、文档、历史、评论、关联项，搜同义词和旧名。「高置信 = 读够了」——几个独立证据胜过标题、一次 <code>rg</code> 命中或一个邻近文件。<span class="who">prompts/review-item.md · Review</span></div>
+      </div>
+      <div class="step">
+        <div class="time">落答</div><div class="dot"></div>
+        <div class="body">写出 <code>reproductionAssessment</code>：<b>「Do we have a high-confidence way to reproduce the issue?」</b> 的公开答案，并配 <code>evidence</code>（仓库 / 文件 / 行号 / commit SHA）。这是唯一成文的复现判断。<span class="who">schema :537–540</span></div>
+      </div>
+      <div class="step">
+        <div class="time">压枚举</div><div class="dot"></div>
+        <div class="body">把自由文本判断<b>压缩成两个枚举</b>：<code>reproductionStatus</code>（5 选 1）+ <code>reproductionConfidence</code>（3 选 1）。这一步就是「判它是哪种」的落点。<span class="who">schema :518–526</span></div>
+      </div>
+      <div class="step">
+        <div class="time">查表</div><div class="dot"></div>
+        <div class="body">代码 <code>issueRatingLabelForState()</code> 按<b>首条命中</b>的顺序，把（状态 × 置信度）映射成动物标签，同时 <code>wantedIssueAdvisoryLabels()</code> 派生出证据标签。<b>模型不选标签，模型选枚举，代码选标签。</b><span class="who">clawsweeper-label-selection.ts :149–204</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>04</b> &nbsp;映射矩阵：从「可复现」到标签</h2>
+    <h3 style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--lob);font-weight:700;margin:26px 0 12px">动物评级 = reproductionStatus × confidence（首条命中）</h3>
+    <div class="tablewrap">
+    <table class="matrix">
+      <thead><tr><th>reproductionStatus</th><th>confidence = high</th><th>confidence = medium</th><th>confidence = low</th></tr></thead>
+      <tbody>
+        <tr><td class="status">reproduced</td><td><span class="an"><span class="dot crab"></span>🦀 challenger crab</span></td><td><span class="an"><span class="dot her"></span>🐚 platinum hermit</span></td><td><span class="an"><span class="dot kra"></span>🧂 unranked krab</span></td></tr>
+        <tr><td class="status">source_reproducible</td><td><span class="an"><span class="dot lob"></span>🦞 diamond lobster</span></td><td><span class="an"><span class="dot her"></span>🐚 platinum hermit</span></td><td><span class="an"><span class="dot kra"></span>🧂 unranked krab</span></td></tr>
+        <tr><td class="status">not_reproduced</td><td><span class="an"><span class="dot she"></span>🦪 silver shellfish</span></td><td><span class="an"><span class="dot she"></span>🦪 silver shellfish</span></td><td><span class="an"><span class="dot she"></span>🦪 silver shellfish</span></td></tr>
+        <tr><td class="status">unclear</td><td><span class="an"><span class="dot kra"></span>🧂 unranked krab</span></td><td><span class="an"><span class="dot shr"></span>🦐 gold shrimp</span></td><td><span class="an"><span class="dot she"></span>🦪 silver shellfish</span></td></tr>
+        <tr><td class="status">not_applicable</td><td colspan="3"><span class="an"><span class="dot tid"></span>🌊 off-meta tidepool（任何置信度，先于 confidence 判断）</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="margin-top:8px;font-size:12px;color:var(--muted)">🧂 unranked krab 是兜底：<code>reproduced + low</code>、<code>source_reproducible + low</code>、<code>unclear + high</code> 这些组合在正常流程里不该出现，命不中任何规则就落到 krab。</p>
+
+    <h3 style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--lob);font-weight:700;margin:28px 0 12px">证据标签 = reproductionStatus × confidence（只有命中才打）</h3>
+    <div class="tablewrap">
+    <table class="matrix">
+      <thead><tr><th>reproductionStatus</th><th>confidence = high</th><th>confidence = medium / low</th></tr></thead>
+      <tbody>
+        <tr><td class="status">reproduced</td><td><span class="elbl"><span class="dot cr"></span>current-main-repro</span></td><td class="dash">—（不打）</td></tr>
+        <tr><td class="status">source_reproducible</td><td><span class="elbl"><span class="dot sr"></span>source-repro</span></td><td><span class="elbl"><span class="dot lr"></span>needs-live-repro</span></td></tr>
+        <tr><td class="status">not_reproduced</td><td><span class="elbl"><span class="dot nr"></span>not-repro-on-main</span></td><td class="dash">—（不打）</td></tr>
+        <tr><td class="status">unclear</td><td class="dash">—（不打）</td><td><span class="elbl"><span class="dot ni"></span>needs-info</span></td></tr>
+        <tr><td class="status">not_applicable</td><td colspan="2" class="dash">—（不打证据标签）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="margin-top:8px;font-size:12px;color:var(--muted)">证据标签比动物标签更「诚实」：<code>not_reproduced</code> 的 <code>not-repro-on-main</code> 用的是<b>绿色</b>（<code>#2DA44E</code>）——它其实是「已不复现，可关」的好消息信号，正好接上关闭路径里的 <code>not_planned</code>。</p>
+
+    <h3 style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--lob);font-weight:700;margin:28px 0 12px">代码里的首条命中顺序（逐字）</h3>
+    <div class="decs">
+      <div class="dec"><div class="ord">1</div><div class="cond"><code>type !== "issue"</code> → 不打任何评级</div><div class="an">—</div></div>
+      <div class="dec"><div class="ord">2</div><div class="cond"><code>reproductionStatus === "not_applicable"</code></div><div class="an"><span class="dot tid"></span>🌊 off-meta tidepool</div></div>
+      <div class="dec"><div class="ord">3</div><div class="cond"><code>reproduced</code> 且 <code>confidence === "high"</code></div><div class="an"><span class="dot crab"></span>🦀 challenger crab</div></div>
+      <div class="dec"><div class="ord">4</div><div class="cond"><code>source_reproducible</code> 或 <code>reproduced</code> 且 <code>high</code></div><div class="an"><span class="dot lob"></span>🦞 diamond lobster</div></div>
+      <div class="dec"><div class="ord">5</div><div class="cond"><code>source_reproducible</code> 或 <code>reproduced</code> 且 <code>medium</code></div><div class="an"><span class="dot her"></span>🐚 platinum hermit</div></div>
+      <div class="dec"><div class="ord">6</div><div class="cond"><code>unclear</code> 且 <code>medium</code></div><div class="an"><span class="dot shr"></span>🦐 gold shrimp</div></div>
+      <div class="dec"><div class="ord">7</div><div class="cond"><code>not_reproduced</code>，或 <code>unclear</code> 且 <code>low</code></div><div class="an"><span class="dot she"></span>🦪 silver shellfish</div></div>
+      <div class="dec fb"><div class="ord">8</div><div class="cond">兜底（其余任何组合）</div><div class="an"><span class="dot kra"></span>🧂 unranked krab</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>05</b> &nbsp;证据标签的逐字原话</h2>
+    <p>5 个 <code>clawsweeper:*</code> 证据标签的 label 描述（GitHub API 逐字，<code>clawsweeper-policy.ts :451–476</code>）：</p>
+    <div class="tablewrap" style="margin-top:16px">
+    <table>
+      <thead><tr><th>标签</th><th>颜色</th><th>原话（label 描述）</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="elbl"><span class="dot cr"></span>clawsweeper:current-main-repro</span></td><td class="num"><span style="color:#0A3069">#0A3069</span></td><td>ClawSweeper found a high-confidence current-main issue reproduction.</td></tr>
+        <tr><td class="lab"><span class="elbl"><span class="dot sr"></span>clawsweeper:source-repro</span></td><td class="num"><span style="color:#0A3069">#0A3069</span></td><td>ClawSweeper found a high-confidence source-level issue reproduction.</td></tr>
+        <tr><td class="lab"><span class="elbl"><span class="dot nr"></span>clawsweeper:not-repro-on-main</span></td><td class="num"><span style="color:#2DA44E">#2DA44E</span></td><td>ClawSweeper found high-confidence evidence that this issue no longer reproduces on main.</td></tr>
+        <tr><td class="lab"><span class="elbl"><span class="dot lr"></span>clawsweeper:needs-live-repro</span></td><td class="num"><span style="color:#C0A000">#FBCA04</span></td><td>ClawSweeper needs live local, crabbox, or manual validation to confirm this issue.</td></tr>
+        <tr><td class="lab"><span class="elbl"><span class="dot ni"></span>clawsweeper:needs-info</span></td><td class="num"><span style="color:#6E7781">#6E7781</span></td><td>ClawSweeper needs more reporter information before it can verify this issue.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="margin-top:10px;font-size:12px;color:var(--muted)">注意「可复现」不是一个线性的 1–5 分数，而是<b>两条轴</b>：一条是「有没有复现路径」（<code>reproduced</code> → <code>source_reproducible</code> → <code>unclear</code> → <code>not_reproduced</code>），另一条「这问题到底是不是 bug 该被评分」（<code>not_applicable</code> 单独岔出去）。<code>reproductionConfidence</code> 再给前者叠加可信度。</p>
+  </section>
+
+  <section>
+    <h2><b>06</b> &nbsp;判据与输入：模型到底拿到什么</h2>
+    <p>指导「可复现」这个维度的东西分两类：<b>判据 prompt</b>（告诉模型怎么判）和<b>输入上下文</b>（喂给模型什么料）。两者都很薄——判据只有几段文字，输入里关联项的 body 还被剥掉。</p>
+
+    <h3 style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--lob);font-weight:700;margin:26px 0 12px">判据 prompt（5 处，逐字来源）</h3>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>来源</th><th>内容</th><th>逐字原话（关键句）</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">schema :518–521</td><td>reproductionStatus 的唯二描述</td><td><code>reproduced</code> = "high-confidence current-main reproduction"；<code>source_reproducible</code> = "source shows the path without a failing run"</td></tr>
+        <tr><td class="lab">schema :537–540</td><td>reproductionAssessment 的定义</td><td>"Public answer to: Do we have a high-confidence way to reproduce the issue? With the evidence."</td></tr>
+        <tr><td class="lab">review-item.md · Review</td><td>深读总原则</td><td>"high confidence means you read enough current code, tests, docs, history… several independent checks beat the title, one <code>rg</code> hit, or one nearby file"</td></tr>
+        <tr><td class="lab">review-item-issue.md :3</td><td>只读、不必跑</td><td>"A read-only review <b>need not run the bug</b> when current source proves a small defect"</td></tr>
+        <tr><td class="lab">review-item-issue.md :8</td><td>不得声称活体复现</td><td>"<b>Claim no live reproduction</b> for source-proven work; require reproduction or a failing regression before opening a PR"</td></tr>
+        <tr><td class="lab">review-close-reasons.md · cannot_reproduce</td><td>复现判据最密的一段</td><td>"a reasonable reproduction on current <code>main</code> fails, or the report no longer matches current behavior… trace the owner, callers, dependency contract, and regression tests"</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--lob);font-weight:700;margin:28px 0 12px">输入上下文（喂给模型什么）</h3>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>输入</th><th>内容</th><th>关键处理</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">Item 本体</td><td>repo / number / kind / title / url / 时间戳 / author / authorAssociation / labels + <code>issue.body</code> 全文</td><td>报告者的复现日志、步骤、堆栈都在 body 里</td></tr>
+        <tr><td class="lab">讨论与时间线</td><td><code>comments[]</code> / <code>timeline[]</code> / <code>pullReviewComments[]</code></td><td>—</td></tr>
+        <tr><td class="lab">关联项索引</td><td><code>relatedItems</code> / <code>closingPullRequests</code> / <code>referencingMergedPullRequests</code></td><td><b>body 被剥除</b>，只留 identity / state / title / labels / link reason</td></tr>
+        <tr><td class="lab">PR 专属</td><td><code>pullRequest</code> / <code>pullFiles</code> / <code>pullCommits</code> / <code>pullChecks</code></td><td><code>pullChecks</code> 摘要成 outline（总数 + 未通过列表）</td></tr>
+        <tr><td class="lab">checkout（只读）</td><td>源码 + git 历史 + <code>AGENTS.md</code></td><td>只读，<code>run nothing that writes</code></td></tr>
+        <tr><td class="lab">注入上下文</td><td><code>securityReview</code> / <code>bulkFiler</code> / <code>previousClawSweeperReview</code></td><td>主机注入</td></tr>
+        <tr><td class="lab">工具</td><td><code>rg / sed / nl / find / git log/show/diff/blame</code> + <code>gh api</code>（REST GET）</td><td>只读 token</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="callout gold">
+      <p><b>一句话：</b>指导这个维度的「判据」= schema 两句话 + 「read enough」总原则 + <code>cannot_reproduce</code> 一段判据；「输入」= issue 全量正文 + 讨论时间线 + 剥了 body 的关联项索引 + 只读源码 checkout + <code>AGENTS.md</code>。模型据此写出带 <code>evidence</code>（repo/file/line/sha）的 <code>reproductionAssessment</code>，再压成 <code>reproductionStatus</code> + <code>reproductionConfidence</code> 两个枚举——<b>不执行代码，只做静态源码判断 + 评估报告者证据</b>。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>07</b> &nbsp;每个标签的比例与 completed 关闭占比</h2>
+    <p>5 个证据标签是<b>互斥</b>的（一条 issue 只有一个 <code>reproductionStatus</code>，至多命中一个证据标签），所以可以直接数占比。窗口 <b>2026-09-13 ~ 11-13</b>，<code>gh search/issues</code> 快照（2026-11-15）。证据标签覆盖了 <b>6,968 / 9,242 ≈ 75%</b> 的已评级 issue；其余 25% 是「不适用」（🌊 tidepool）或落在不打证据标签的档位。</p>
+    <div class="tablewrap" style="margin-top:16px">
+    <table>
+      <thead><tr><th>证据标签</th><th class="num">窗口内</th><th class="num">占比<br><span style="font-weight:400">证据标签内</span></th><th class="num">关闭率</th><th class="num">completed 关闭占比</th><th class="num">not_planned 关闭占比</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="elbl"><span class="dot sr"></span>clawsweeper:source-repro</span></td><td class="num">5,140</td><td class="num"><b>73.8%</b></td><td class="num">65.5%</td><td class="num"><b>88.4%</b></td><td class="num">11.5%</td></tr>
+        <tr><td class="lab"><span class="elbl"><span class="dot ni"></span>clawsweeper:needs-info</span></td><td class="num">1,148</td><td class="num"><b>16.5%</b></td><td class="num">67.2%</td><td class="num"><b>45.7%</b></td><td class="num"><b>54.1%</b></td></tr>
+        <tr><td class="lab"><span class="elbl"><span class="dot lr"></span>clawsweeper:needs-live-repro</span></td><td class="num">454</td><td class="num">6.5%</td><td class="num">57.7%</td><td class="num">59.9%</td><td class="num">40.1%</td></tr>
+        <tr><td class="lab"><span class="elbl"><span class="dot nr"></span>clawsweeper:not-repro-on-main</span></td><td class="num">209</td><td class="num">3.0%</td><td class="num">64.1%</td><td class="num">82.8%</td><td class="num">17.2%</td></tr>
+        <tr><td class="lab"><span class="elbl"><span class="dot cr"></span>clawsweeper:current-main-repro</span></td><td class="num">17</td><td class="num">0.2%</td><td class="num">76.5%</td><td class="num">84.6%</td><td class="num">15.4%</td></tr>
+        <tr><td class="lab" style="font-weight:700">合计</td><td class="num" style="font-weight:700">6,968</td><td class="num" style="font-weight:700">100%</td><td class="num" style="font-weight:700">65.3%</td><td class="num" style="font-weight:700">79.4%</td><td class="num" style="font-weight:700">20.6%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="callout" style="margin-top:16px">
+      <p><b>两个结论：</b>① <b><code>source-repro</code> 占绝对主导（73.8%）</b>——「源码级可复现」是这个维度的默认形态，也解释了 🦞 lobster 为何是最高频评级；而真正的「已复现」<code>current-main-repro</code> 只有 <b>17 条（0.2%）</b>，正好印证上一节：既然从不执行代码，绝大多数结论只能停在「源码级」，几乎到不了「真复现」。② <b>completed 关闭占比是一条清晰梯度</b>：<code>source-repro</code> 88.4% → <code>not-repro-on-main</code> 82.8% → <code>needs-live-repro</code> 59.9% → <code>needs-info</code> 45.7%。可复现性越强，越可能被 <code>completed</code>（已解决）关掉；反之 <code>needs-info</code>（信息不足）里超过一半（54.1%）以 <code>not_planned</code>（不修）收场。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>结论</b></h2>
+    <div class="concl">
+      <div class="c"><div class="n">01</div><p>「可复现」维度是<b>一个字段 5 个值</b>，向外投影成 <b>5 个证据标签 + 7 个动物评级</b>，不是一套并列的独立标签。</p></div>
+      <div class="c"><div class="n">02</div><p>书面判据<b>薄到只有两句话</b>：<code>reproduced</code> 和 <code>source_reproducible</code> 有描述，其余 3 个值 + 置信度三档全靠模型<b>从名字和「深度阅读」自行推断</b>。</p></div>
+      <div class="c"><div class="n">03</div><p>判定是<b>模型判枚举、代码选标签</b>的切分：模型读代码/测试/历史后填 <code>reproductionStatus</code>+<code>reproductionConfidence</code>+<code>reproductionAssessment</code>，标签由 <code>issueRatingLabelForState()</code> 首条命中确定，可复现、可审计。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：<code>openclaw/clawsweeper</code> 源码 @ commit <code>a053c71</code> —— <code>schema/clawsweeper-decision.schema.json:518–540</code>（<code>reproductionStatus</code>/<code>reproductionConfidence</code>/<code>reproductionAssessment</code> 定义）、<code>src/clawsweeper-label-selection.ts:149–204</code>（<code>issueRatingLabelForState</code> 映射 + 证据标签派生）、<code>src/clawsweeper-policy.ts:412–476</code>（标签名/颜色/描述）、<code>prompts/review-item.md</code>（评审程序与「深读」总原则）、<code>prompts/review-item-issue.md</code>（issue 专属规则）、<code>prompts/review-close-reasons.md</code>（<code>cannot_reproduce</code> 判据）、<code>src/clawsweeper-types.ts:225–239,659–681</code>（<code>Item</code>/<code>ItemContext</code> 输入结构）、<code>src/clawsweeper-prompt-context.ts</code>（关联项 body 剥除）、<code>.github/actions/setup-codex/review-permissions.toml</code>（只读权限档案）。<br>
+    口径：本报告只覆盖 <code>issue-rating</code> 的「可复现」维度（<code>reproductionStatus</code> + 派生证据标签），不含 <code>itemCategory</code>、work-lane、优先级、merge-risk、maturity 等其它评分轴。所有「推断」项均已逐字标注：<code>not_reproduced</code> / <code>unclear</code> / <code>not_applicable</code> 与 <code>reproductionConfidence</code> 三档在 schema 中<b>没有描述文本</b>，语义系从标签名、派生证据标签描述和映射函数推断。标签与计数均为快照，可随代码变更。第 07 节的证据标签分布 / 关闭率 / completed 关闭占比来自 <code>gh search/issues</code>（<code>label:"clawsweeper:*"</code>，窗口 2026-09-13 ~ 11-13，快照 2026-11-15）；「completed 关闭占比」= 已关闭中 <code>state_reason=completed</code> 的比例，对偶 <code>not_planned</code> = 未解决。
+  </footer>
+
+</div>
+</body>
+</html>

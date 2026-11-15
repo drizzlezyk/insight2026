@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw Issue 生命周期洞察 · 2026-11</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1080px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:40px; line-height:1.25; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:17px; color:#3c3f47; max-width:760px; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  .rule { height:1px; background:var(--line); margin:44px 0 0; }
+  section { margin-top:56px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 18px; }
+  h2 b { color:var(--ink); }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:26px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .kpi .n { font-size:30px; font-weight:750; letter-spacing:-.02em; }
+  .kpi .n small { font-size:14px; font-weight:600; color:var(--muted); margin-left:3px; }
+  .kpi .l { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .funnel { display:flex; flex-direction:column; gap:10px; }
+  .fr { display:grid; grid-template-columns:170px 1fr 132px; align-items:center; gap:12px; }
+  .fr .name { font-size:13.5px; color:#3a3d45; }
+  .fr .name small { display:block; color:var(--muted); font-size:11.5px; }
+  .track { background:#efe9df; border-radius:7px; height:34px; overflow:hidden; }
+  .bar { height:100%; border-radius:7px; display:flex; align-items:center; padding-left:12px;
+    color:#fff; font-weight:700; font-size:13px; transition:none; }
+  .b0 { background:linear-gradient(90deg,#2b7a78,#3d9d9a); }
+  .b1 { background:linear-gradient(90deg,#3d8a87,#5bb0ac); }
+  .b2 { background:linear-gradient(90deg,#d9763a,#e3a06a); }
+  .b3 { background:linear-gradient(90deg,#c9401f,#e06a45); }
+  .fr .val { text-align:right; font-variant-numeric:tabular-nums; font-size:14px; font-weight:700; }
+  .fr .val small { display:block; font-weight:500; color:var(--muted); font-size:11.5px; }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:22px; }
+  .sp { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; }
+  .sp .h { font-size:13px; color:var(--muted); }
+  .sp .big { font-size:26px; font-weight:750; margin:4px 0 2px; }
+  .sp .sub { font-size:12.5px; color:var(--muted); }
+  .sp .mini { margin-top:14px; display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { font-size:11.5px; background:#f2ede4; color:#4a4d55; padding:3px 9px; border-radius:999px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:26px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px 26px; }
+  .card h3 { margin:0 0 4px; font-size:16px; }
+  .card p.note { margin:0 0 18px; font-size:12.5px; color:var(--muted); }
+  .hbar { display:grid; grid-template-columns:190px 1fr 54px; gap:10px; align-items:center; margin:7px 0; font-size:12.5px; }
+  .hbar .t { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; color:#41444c;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hbar .tr { background:#f1ece3; border-radius:5px; height:20px; overflow:hidden; }
+  .hbar .ba { height:100%; border-radius:5px; background:#cfd8d6; }
+  .hbar .ba.hot { background:linear-gradient(90deg,#d9542c,#e8825b); }
+  .hbar .v { text-align:right; font-variant-numeric:tabular-nums; color:#4a4d55; }
+  .stack { display:flex; height:26px; border-radius:6px; overflow:hidden; margin:6px 0 12px; }
+  .stack div { height:100%; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#4a4d55; }
+  .legend i { width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:5px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); }
+  td { padding:11px 8px; border-bottom:1px solid #f0eae1; font-variant-numeric:tabular-nums; }
+  td.lab { font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+  .minibar { height:8px; border-radius:4px; background:var(--lob-soft); position:relative; min-width:60px; }
+  .minibar i { position:absolute; left:0; top:0; bottom:0; border-radius:4px; background:var(--lob); }
+  .tl { display:flex; flex-direction:column; gap:0; margin-top:6px; }
+  .step { display:grid; grid-template-columns:64px 22px 1fr; gap:10px; }
+  .step .time { font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:var(--muted); padding-top:2px; text-align:right; }
+  .step .dot { position:relative; }
+  .step .dot::before { content:""; position:absolute; left:7px; top:4px; width:7px; height:7px; border-radius:50%; background:var(--lob); }
+  .step .dot::after { content:""; position:absolute; left:10px; top:14px; bottom:-6px; width:1px; background:#e9ddd2; }
+  .step:last-child .dot::after { display:none; }
+  .step .body { padding-bottom:14px; font-size:13px; }
+  .step .body b { font-weight:650; }
+  .step .body .tags { margin-top:3px; }
+  .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .mech { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 16px 14px; }
+  .mech .idx { font-size:11px; color:var(--lob); font-weight:700; letter-spacing:.1em; }
+  .mech h4 { margin:4px 0 6px; font-size:14.5px; }
+  .mech p { margin:0; font-size:12px; color:#54575f; }
+  .mech .ev { margin-top:9px; font-size:11.5px; color:var(--teal); font-weight:600; }
+  h3.sub { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--lob);
+    font-weight:700; margin:34px 0 12px; }
+  .tl-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .tl-grid .wide { grid-column:1 / -1; }
+  .tcard { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px 14px; }
+  .thead { display:flex; align-items:center; gap:10px; margin-bottom:2px; }
+  .thead a { font-family:ui-monospace,Menlo,monospace; font-size:14px; font-weight:700; color:var(--ink); }
+  .thead a:hover { color:var(--lob); }
+  .tag { font-size:10.5px; font-weight:700; letter-spacing:.06em; padding:2px 8px; border-radius:999px; }
+  .tag.close { background:#f6ded6; color:#a3341a; }
+  .tag.bot { background:#dcecea; color:#1f5e5c; }
+  .tag.repro { background:#eaf0d8; color:#4d6a1f; }
+  .tag.wait { background:#efe6f5; color:#5b3b7a; }
+  .key { margin:4px 0 10px; font-size:13px; font-weight:650; color:#a3341a; }
+  .botcard .key { color:#1f5e5c; }
+  .out { margin:8px 0 0; font-size:11.5px; color:var(--muted); border-top:1px dashed var(--line); padding-top:8px; }
+  @media (max-width:640px) { .tl-grid { grid-template-columns:1fr; } }
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px 20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+  footer a { color:var(--teal); }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  @media (max-width:860px) {
+    .kpis, .cards, .concl, .split, .grid2 { grid-template-columns:1fr 1fr; }
+    .fr { grid-template-columns:120px 1fr 96px; }
+    h1 { font-size:30px; }
+  }
+  @media (max-width:640px) {
+    .wrap { padding:36px 16px 72px; }
+    .kpis, .cards { grid-template-columns:1fr 1fr; }
+    .concl, .split, .grid2 { grid-template-columns:1fr; }
+    .fr { grid-template-columns:92px 1fr 74px; gap:8px; }
+    .fr .name { font-size:12px; }
+    .fr .name small { display:none; }
+    .hbar { grid-template-columns:104px 1fr 44px; gap:8px; }
+    .hbar .t { font-size:10.5px; }
+    .track { height:28px; }
+    .bar { font-size:11.5px; padding-left:8px; }
+    h1 { font-size:26px; }
+    th, td { padding:9px 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · Issue 生命周期</div>
+  <h1>4,800 条投稿，只有 <em>18%</em> 走到“可修”<br>——其余被分钟级分诊、小时级关闭、天级挂起</h1>
+  <p class="lede">对 2026-10-15 之后创建的 4,812 条 issue 做全量标签与状态抓取。结论：这是一条“分钟级分流 + 小时级关闭 + 天级挂起”的流水线，真正稀缺的不是响应速度，而是 maintainer 的判断力。</p>
+  <div class="meta">
+    <span>样本 4,812 条 issue</span><span>窗口 2026-10-15 ~ 11-14</span><span>数据快照 2026-11-14 15:30</span><span>来源 GitHub Search / Timeline</span>
+  </div>
+
+  <section>
+    <div class="kpis">
+      <div class="kpi"><div class="n">4,812</div><div class="l">本期新开 issue</div></div>
+      <div class="kpi"><div class="n">99.1<small>%</small></div><div class="l">进入 LLM 评审</div></div>
+      <div class="kpi"><div class="n">56.1<small>%</small></div><div class="l">取得复现结论</div></div>
+      <div class="kpi"><div class="n">17.9<small>%</small></div><div class="l">判定可修复</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>01</b> &nbsp;总体漏斗 · 互斥可加总</h2>
+    <div class="funnel">
+      <div class="fr">
+        <div class="name">投稿<small>本期新开 issue</small></div>
+        <div class="track"><div class="bar b0" style="width:100%">100%</div></div>
+        <div class="val">4,812<small>100%</small></div>
+      </div>
+      <div class="fr">
+        <div class="name">进入 LLM 评审<small>ClawSweeper 评论触达</small></div>
+        <div class="track"><div class="bar b1" style="width:99.1%">99.1%</div></div>
+        <div class="val">4,769<small>99.1%</small></div>
+      </div>
+      <div class="fr">
+        <div class="name">有复现结论<small>source / current-main / not-repro</small></div>
+        <div class="track"><div class="bar b2" style="width:56.1%">56.1%</div></div>
+        <div class="val">2,700<small>56.1%</small></div>
+      </div>
+      <div class="fr">
+        <div class="name">判定可修复<small>queueable-fix</small></div>
+        <div class="track"><div class="bar b3" style="width:17.9%">17.9%</div></div>
+        <div class="val">863<small>17.9%</small></div>
+      </div>
+    </div>
+    <div class="split">
+      <div class="sp">
+        <div class="h">已关闭</div>
+        <div class="big">2,667 <small style="font-size:14px;color:var(--muted)">/ 55.4%</small></div>
+        <div class="sub">中位关闭耗时 3.7 小时 · 21.6% 在 10 分钟内 · 67.7% 在 24 小时内</div>
+        <div class="mini"><span class="chip">duplicate / implemented / not-repro 占多数</span><span class="chip">样本中 ≈55% 由 bot 关闭</span></div>
+      </div>
+      <div class="sp">
+        <div class="h">仍未决</div>
+        <div class="big">2,145 <small style="font-size:14px;color:var(--muted)">/ 44.6%</small></div>
+        <div class="sub">其中 1,384 条（64.5%）已进入“需要人”的命名队列</div>
+        <div class="mini"><span class="chip">needs-maintainer 874</span><span class="chip">needs-product 713</span><span class="chip">needs-info 235</span><span class="chip">needs-security 219</span></div>
+      </div>
+    </div>
+    <p class="note" style="font-size:12.5px;color:var(--muted);margin-top:14px">分区校验：未评审 43 + 评审无结论 2,069 + 有结论不可派单 1,837 + 可修 863 = 4,812。</p>
+  </section>
+
+  <section>
+    <h2><b>02</b> &nbsp;每条 issue 的状态是“标签向量”，不是单一状态</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>标签密度</h3>
+        <p class="note">平均 5.83 个标签 / 条（中位 6，最多 11）；85.3% 带质量评级。</p>
+        <div class="hbar"><div class="t">平均标签数</div><div class="tr"><div class="ba hot" style="width:53%"></div></div><div class="v">5.83</div></div>
+        <div class="hbar"><div class="t">带 issue-rating</div><div class="tr"><div class="ba hot" style="width:85.3%"></div></div><div class="v">85.3%</div></div>
+        <div class="hbar"><div class="t">带 needs-*（人审桶）</div><div class="tr"><div class="ba" style="width:42%"></div></div><div class="v">42%</div></div>
+        <div class="hbar"><div class="t">带 stale 提醒</div><div class="tr"><div class="ba" style="width:8.3%"></div></div><div class="v">399</div></div>
+      </div>
+      <div class="card">
+        <h3>优先级与评级</h3>
+        <p class="note">P2 是绝对主力；diamond 评级占 55%。</p>
+        <div class="stack">
+          <div style="width:5.0%;background:#8c2f1c" title="P0"></div>
+          <div style="width:17.5%;background:#c9401f" title="P1"></div>
+          <div style="width:64.3%;background:#e3a06a" title="P2"></div>
+          <div style="width:13.2%;background:#d9d2c6" title="P3"></div>
+        </div>
+        <div class="legend"><span><i style="background:#8c2f1c"></i>P0 234</span><span><i style="background:#c9401f"></i>P1 821</span><span><i style="background:#e3a06a"></i>P2 3,021</span><span><i style="background:#d9d2c6"></i>P3 620</span></div>
+        <div style="margin-top:20px">
+          <div class="hbar"><div class="t">🦞 diamond</div><div class="tr"><div class="ba" style="width:100.0%"></div></div><div class="v">2,646</div></div>
+          <div class="hbar"><div class="t">🦪 silver</div><div class="tr"><div class="ba" style="width:29.3%"></div></div><div class="v">776</div></div>
+          <div class="hbar"><div class="t">🌊 off-meta</div><div class="tr"><div class="ba" style="width:14.1%"></div></div><div class="v">372</div></div>
+          <div class="hbar"><div class="t">🐚 platinum</div><div class="tr"><div class="ba" style="width:6.9%"></div></div><div class="v">183</div></div>
+          <div class="hbar"><div class="t">🦐 gold</div><div class="tr"><div class="ba" style="width:4.7%"></div></div><div class="v">125</div></div>
+          <div class="hbar"><div class="t">🦀 challenger</div><div class="tr"><div class="ba" style="width:0.2%"></div></div><div class="v">4</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h3>最常见的状态组合</h3>
+      <p class="note">`clawsweeper:*` 标签的精确组合，代表 issue 被“编码”成什么样。</p>
+      <div class="hbar"><div class="t" title="fix-shape-clear + queueable-fix + source-repro">fix-shape-clear + queueable-fix + source-repro</div><div class="tr"><div class="ba hot" style="width:100.0%"></div></div><div class="v">847</div></div>
+      <div class="hbar"><div class="t" title="linked-pr-open + no-new-fix-pr + source-repro">linked-pr-open + no-new-fix-pr + source-repro</div><div class="tr"><div class="ba hot" style="width:66.1%"></div></div><div class="v">560</div></div>
+      <div class="hbar"><div class="t" title="needs-maintainer-review + no-new-fix-pr">M + no-new-fix-pr</div><div class="tr"><div class="ba hot" style="width:37.3%"></div></div><div class="v">316</div></div>
+      <div class="hbar"><div class="t" title="source-repro">source-repro</div><div class="tr"><div class="ba hot" style="width:32.5%"></div></div><div class="v">275</div></div>
+      <div class="hbar"><div class="t" title="needs-maintainer-review + needs-product-decision + no-new-fix-pr + source-repro">M + P + no-new-fix-pr + source-repro</div><div class="tr"><div class="ba hot" style="width:28.3%"></div></div><div class="v">240</div></div>
+      <div class="hbar"><div class="t" title="needs-info + needs-maintainer-review + no-new-fix-pr">info + M + no-new-fix-pr</div><div class="tr"><div class="ba hot" style="width:21.4%"></div></div><div class="v">181</div></div>
+      <div class="hbar"><div class="t" title="needs-info">info</div><div class="tr"><div class="ba hot" style="width:20.0%"></div></div><div class="v">169</div></div>
+      <div class="hbar"><div class="t" title="needs-maintainer-review + needs-product-decision + no-new-fix-pr">M + P + no-new-fix-pr</div><div class="tr"><div class="ba hot" style="width:15.0%"></div></div><div class="v">127</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>03</b> &nbsp;每周趋势 · 分流越来越早，关闭越来越慢</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>周（创建日）</th><th>新增</th><th>已关闭</th><th>有复现结论</th><th>可修复</th><th style="width:26%">关闭率</th></tr></thead>
+      <tbody>
+        <tr><td>10-15~10-21</td><td>1,117</td><td>837</td><td>575 <span style="color:var(--muted)">(51%)</span></td><td>180</td><td><div class="minibar"><i style="width:75%"></i></div><span style="font-size:11.5px;color:var(--muted)">75%</span></td></tr>
+        <tr><td>10-22~10-28</td><td>1,203</td><td>775</td><td>682 <span style="color:var(--muted)">(57%)</span></td><td>211</td><td><div class="minibar"><i style="width:64%"></i></div><span style="font-size:11.5px;color:var(--muted)">64%</span></td></tr>
+        <tr><td>10-29~11-04</td><td>1,101</td><td>575</td><td>659 <span style="color:var(--muted)">(60%)</span></td><td>173</td><td><div class="minibar"><i style="width:52%"></i></div><span style="font-size:11.5px;color:var(--muted)">52%</span></td></tr>
+        <tr><td>11-05~11-11</td><td>1,079</td><td>372</td><td>619 <span style="color:var(--muted)">(57%)</span></td><td>242</td><td><div class="minibar"><i style="width:34%"></i></div><span style="font-size:11.5px;color:var(--muted)">34%</span></td></tr>
+        <tr><td>11-12~11-14</td><td>312</td><td>108</td><td>165 <span style="color:var(--muted)">(53%)</span></td><td>57</td><td><div class="minibar"><i style="width:35%"></i></div><span style="font-size:11.5px;color:var(--muted)">35%</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note" style="font-size:12.5px;color:var(--muted);margin-top:12px">越新的 cohort 关闭率越低是“年龄效应”（还没轮到被处理）；复现率稳定在 51–60%，说明取证环节不随时间漂移。</p>
+  </section>
+
+  <section>
+    <h2><b>04</b> &nbsp;时间线图鉴 · 九条真实 issue 的结局</h2>
+    <p class="note" style="font-size:12.5px;color:var(--muted);margin:-8px 0 18px">全部取自本月真实事件，时间为 UTC；点击编号跳转 GitHub 原帖。</p>
+
+    <h3 class="sub">A · 直接关闭（4 种典型理由）</h3>
+    <div class="tl-grid">
+
+      <article class="tcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/198628">#198628</a><span class="tag close">已在 main 修复</span></div>
+        <p class="key">main 上已修复，6 分钟内闭环——报告的是旧版本</p>
+        <div class="tl">
+          <div class="step"><div class="time">03:39</div><div class="dot"></div><div class="body">提交：npm 更新在“胖工作区”永远失败</div></div>
+          <div class="step"><div class="time">03:42</div><div class="dot"></div><div class="body">预分类 <span class="chip">intake:bug</span></div></div>
+          <div class="step"><div class="time">03:45</div><div class="dot"></div><div class="body">对 main 复核：<b>该超时问题已在 main 与 2026.11.3 修复</b><div class="tags"><span class="chip">P2</span><span class="chip">impact:ux-friction</span></div></div></div>
+          <div class="step"><div class="time">03:46</div><div class="dot"></div><div class="body">关闭（clawsweeper）</div></div>
+        </div>
+        <p class="out">结局：closed · 6 分 18 秒</p>
+      </article>
+
+      <article class="tcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/198635">#198635</a><span class="tag close">重复 / 同根因</span></div>
+        <p class="key">与 <a href="https://github.com/openclaw/openclaw/issues/194657">#194657</a> 同根因，聚类到 canonical 后关闭</p>
+        <div class="tl">
+          <div class="step"><div class="time">04:03</div><div class="dot"></div><div class="body">提交：71,000 行重复日志</div></div>
+          <div class="step"><div class="time">04:07</div><div class="dot"></div><div class="body">预分类<div class="tags"><span class="chip">intake:bug</span><span class="chip">needs-repro</span><span class="chip">needs-environment</span></div></div></div>
+          <div class="step"><div class="time">04:14</div><div class="dot"></div><div class="body"><b>根因聚类</b>：canonical <a href="https://github.com/openclaw/openclaw/issues/194657">#194657</a>，另关联 <a href="https://github.com/openclaw/openclaw/issues/158375">#158375</a> / <a href="https://github.com/openclaw/openclaw/issues/198602">#198602</a><div class="tags"><span class="chip">P1</span><span class="chip">impact:message-loss</span></div></div></div>
+          <div class="step"><div class="time">04:15</div><div class="dot"></div><div class="body">关闭（clawsweeper）</div></div>
+        </div>
+        <p class="out">结局：closed · 11 分 37 秒</p>
+      </article>
+
+      <article class="tcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/197935">#197935</a><span class="tag close">不是 bug</span></div>
+        <p class="key">不是更新器缺陷，是 /usr 目录权限问题；机器诊断后判 not planned</p>
+        <div class="tl">
+          <div class="step"><div class="time">22:00</div><div class="dot"></div><div class="body">提交：更新失败 package-permissions<div class="tags"><span class="chip">intake:bug</span></div></div></div>
+          <div class="step"><div class="time">22:01</div><div class="dot"></div><div class="body">roboclaw 追问：请给 id -un / npm prefix 诊断输出</div></div>
+          <div class="step"><div class="time">22:06</div><div class="dot"></div><div class="body">作者补上日志：安装在 /usr/lib/node_modules</div></div>
+          <div class="step"><div class="time">22:14</div><div class="dot"></div><div class="body"><b>判定 not-repro-on-main</b>：更新器在权限检查处正确停止<div class="tags"><span class="chip">P2</span><span class="chip">silver shellfish</span></div></div></div>
+          <div class="step"><div class="time">22:58</div><div class="dot"></div><div class="body">roboclaw 解释并关闭为 not planned</div></div>
+        </div>
+        <p class="out">结局：closed (not_planned) · 58 分钟</p>
+      </article>
+
+      <article class="tcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/185547">#185547</a><span class="tag close">stale 老化</span></div>
+        <p class="key">7 天无人类活动被打 stale，复核升级为 source-repro 后由 maintainer 关闭</p>
+        <div class="tl">
+          <div class="step"><div class="time">10-27</div><div class="dot"></div><div class="body">提交：Telegram 媒体加载失败丢文本<div class="tags"><span class="chip">P2</span><span class="chip">needs-live-repro</span></div></div></div>
+          <div class="step"><div class="time">11-12 03:43</div><div class="dot"></div><div class="body">Barnacle 标记 <span class="chip">stale</span>：7 天无人类活动，再 7 天可能关闭</div></div>
+          <div class="step"><div class="time">11-12 08:35</div><div class="dot"></div><div class="body"><b>复核升级</b>：needs-live-repro → source-repro，评级 platinum → diamond</div></div>
+          <div class="step"><div class="time">11-12 11:19</div><div class="dot"></div><div class="body">由 maintainer (obviyus) 关闭</div></div>
+        </div>
+        <p class="out">结局：closed · 16 天</p>
+      </article>
+    </div>
+
+    <h3 class="sub">B · 机器闭环修复</h3>
+    <div class="tl-grid">
+      <article class="tcard wide botcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/198407">#198407</a><span class="tag bot">机器人开 PR → 自合并</span></div>
+        <p class="key">可修判定后，roboclaw 自己开 PR #198431、跑评审、合并并关闭 issue——2 小时 6 分闭环</p>
+        <div class="tl">
+          <div class="step"><div class="time">18:39</div><div class="dot"></div><div class="body">提交：Doctor / Gateway 在 link() 后崩溃</div></div>
+          <div class="step"><div class="time">18:43</div><div class="dot"></div><div class="body"><b>可修判定</b>：P1、fix-shape-clear、queueable-fix、source-repro、crash-loop、diamond<div class="tags"><span class="chip">no-stale</span></div></div></div>
+          <div class="step"><div class="time">19:42</div><div class="dot"></div><div class="body"><b>roboclaw 打开 <a href="https://github.com/openclaw/openclaw/pull/198431">PR #198431</a></b>，并在 issue 里 cross-reference</div></div>
+          <div class="step"><div class="time">19:59</div><div class="dot"></div><div class="body">PR 被 ClawSweeper 评审：P1，<span class="chip">status: ⏳ waiting on author</span></div></div>
+          <div class="step"><div class="time">20:45</div><div class="dot"></div><div class="body"><b>roboclaw 合并 PR（squash）并同时关闭 issue</b></div></div>
+        </div>
+        <p class="out">结局：merged + closed · 2 小时 6 分 · 作者与合并者都是 roboclaw-bot</p>
+      </article>
+    </div>
+
+    <h3 class="sub">C · 复现（给出可执行的证据）</h3>
+    <div class="tl-grid">
+      <article class="tcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/192753">#192753</a><span class="tag repro">current-main-repro</span></div>
+        <p class="key">在 main 上复现成功，评为 challenger crab（稀有档），挂起等修复</p>
+        <div class="tl">
+          <div class="step"><div class="time">11:35</div><div class="dot"></div><div class="body">提交：非英文 /plugins/hooks/* 全 404</div></div>
+          <div class="step"><div class="time">11:36</div><div class="dot"></div><div class="body">预分类 <span class="chip">intake:docs</span></div></div>
+          <div class="step"><div class="time">11:41</div><div class="dot"></div><div class="body"><b>复现</b>：英文页 200、其它语言 404；<div class="tags"><span class="chip">P2</span><span class="chip">current-main-repro</span><span class="chip">🦀 challenger crab</span></div></div></div>
+          <div class="step"><div class="time">之后</div><div class="dot"></div><div class="body">评审评论给出 URL、状态码与复现路径；保持 open</div></div>
+        </div>
+        <p class="out">结局：open · 已复现待修</p>
+      </article>
+    </div>
+
+    <h3 class="sub">D · 挂着等人（三种不同的“等”）</h3>
+    <div class="tl-grid">
+      <article class="tcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/198693">#198693</a><span class="tag wait">needs-info</span></div>
+        <p class="key">错误日志被脱敏，无法复现；机器不猜，挂起等作者补信息</p>
+        <div class="tl">
+          <div class="step"><div class="time">05:56</div><div class="dot"></div><div class="body">提交：全局安装失败（2026.9.4）<div class="tags"><span class="chip">intake:bug</span></div></div></div>
+          <div class="step"><div class="time">05:58</div><div class="dot"></div><div class="body"><b>评审结论：证据不足</b>，打 needs-info + silver shellfish</div></div>
+          <div class="step"><div class="time">06:02</div><div class="dot"></div><div class="body">因编辑再次触发 intake（幂等重跑），06:05 移除临时标签</div></div>
+        </div>
+        <p class="out">结局：open · 等作者</p>
+      </article>
+
+      <article class="tcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/198695">#198695</a><span class="tag wait">needs-security-review</span></div>
+        <p class="key">触及 owner 私人记忆的权限边界，自动流程主动停下，交安全审查</p>
+        <div class="tl">
+          <div class="step"><div class="time">06:00</div><div class="dot"></div><div class="body">提交：requester 失去 owner 后仍保留私有记忆</div></div>
+          <div class="step"><div class="time">06:04</div><div class="dot"></div><div class="body"><b>安全路由</b>：needs-security-review + impact:security + source-repro<div class="tags"><span class="chip">P2</span><span class="chip">🦞 diamond</span></div></div></div>
+          <div class="step"><div class="time">06:05</div><div class="dot"></div><div class="body">评论说明“source 已定位，但安全判断需要人”</div></div>
+        </div>
+        <p class="out">结局：open · 等安全审查（本月 286 条同类）</p>
+      </article>
+
+      <article class="tcard">
+        <div class="thead"><a href="https://github.com/openclaw/openclaw/issues/198705">#198705</a><span class="tag wait">needs-product-decision</span></div>
+        <p class="key">方案会推翻刚合并的契约，机器给建议但不替人拍板</p>
+        <div class="tl">
+          <div class="step"><div class="time">06:20</div><div class="dot"></div><div class="body">提交：Workboard 改 verification-only 存储</div></div>
+          <div class="step"><div class="time">06:22</div><div class="dot"></div><div class="body">预分类 <span class="chip">intake:feature</span></div></div>
+          <div class="step"><div class="time">06:25</div><div class="dot"></div><div class="body"><b>产品决策路由</b>：linked-pr-open + needs-product-decision + no-new-fix-pr + P3</div></div>
+          <div class="step"><div class="time">06:25</div><div class="dot"></div><div class="body">评论给出“建议批准 + 理由 + 下一步在 <a href="https://github.com/openclaw/openclaw/pull/198706">PR #198706</a>”</div></div>
+        </div>
+        <p class="out">结局：open · 等 maintainer</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>05</b> &nbsp;除了 bot / LLM / agent 复现，还有 8 类机制</h2>
+    <div class="cards">
+      <div class="mech"><div class="idx">MECH 01</div><h4>分类学路由</h4><p>9 类 impact · 4 级优先级 · channel/app/plugin 前缀 100+</p><div class="ev">P2 占 63%，impact:ux-friction 1,943</div></div>
+      <div class="mech"><div class="idx">MECH 02</div><h4>质量评级</h4><p>issue-rating 6 档；本月 4,106 条被评级（85.3%）</p><div class="ev">diamond 56% 关闭 vs silver 34%</div></div>
+      <div class="mech"><div class="idx">MECH 03</div><h4>状态机</h4><p>status:* 8 态 · proof:* 6 态 · intake:* 6 态</p><div class="ev">intake→完整评审→挂起/派单/关闭</div></div>
+      <div class="mech"><div class="idx">MECH 04</div><h4>关联与配对</h4><p>linked-pr-open 828 条 · paired close</p><div class="ev">已有 PR 的条目不再派修复</div></div>
+      <div class="mech"><div class="idx">MECH 05</div><h4>作者治理</h4><p>bulk-filed 319 · r: too-many-prs 30 · 贡献者信任层</p><div class="ev">>20 个 open PR 自动关</div></div>
+      <div class="mech"><div class="idx">MECH 06</div><h4>老化与豁免</h4><p>stale 399 · no-stale 864 豁免</p><div class="ev">stale 中 264 条已关闭</div></div>
+      <div class="mech"><div class="idx">MECH 07</div><h4>安全/产品闸门</h4><p>needs-security 286 · needs-product 997 · needs-maintainer 1,239</p><div class="ev">关闭率仅 23%–29%</div></div>
+      <div class="mech"><div class="idx">MECH 08</div><h4>正向发现</h4><p>fix-shape-clear 1,146 · queueable 863</p><div class="ev">给贡献者的可领取池</div></div>
+    </div>
+    <p class="note" style="font-size:12.5px;color:var(--muted);margin-top:16px">注：`r:*` 规则关闭（11 类）、`dedupe:*`、`idea-archive` 本月几乎未触发——这些是“有定义但休眠”的机制，真正干活的是 LLM 评审 + 标签路由。</p>
+  </section>
+
+  <section>
+    <h2><b>06</b> &nbsp;三条判断</h2>
+    <div class="concl">
+      <div class="c"><div class="n">01 / 收缩点在复现</div><p>99% 进评审，56% 拿结论，18% 可修。昂贵的那一步（复现）才是真正的筛子。</p></div>
+      <div class="c"><div class="n">02 / 状态即向量</div><p>平均 5.8 个标签把 issue 编码为“优先级 × 影响面 × 复现 × 路由 × 质量”，这才使按维度切片取代逐条阅读。</p></div>
+      <div class="c"><div class="n">03 / 关闭 ≠ 解决</div><p>55% 一个月内关闭，但其中一半是重复/已实现/不可复现；可修的只有 18%。别把关闭率当解决率。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    数据口径：GitHub Search 全量抓取 4,812 条（2026-10-15 起创建）；“进入评审”按 ClawSweeper 评论触达计（4,769）；复现/可修按标签计；关闭者构成来自 22 条关闭样本（≈55% bot / 45% 人工）。
+    复核链接：
+    <a href="https://github.com/openclaw/openclaw/issues?q=is%3Aissue+created%3A%3E%3D2026-10-15">全部</a> ·
+    <a href="https://github.com/openclaw/openclaw/issues?q=is%3Aissue+created%3A%3E%3D2026-10-15+is%3Aclosed">已关闭</a> ·
+    <a href="https://github.com/openclaw/openclaw/issues?q=is%3Aissue+created%3A%3E%3D2026-10-15+label%3Aclawsweeper%3Aqueueable-fix">可修复</a> ·
+    <a href="https://github.com/openclaw/openclaw/issues?q=is%3Aissue+created%3A%3E%3D2026-10-15+label%3Aclawsweeper%3Aneeds-maintainer-review">待人审</a>
+  </footer>
+</div>
+</body>
+</html>

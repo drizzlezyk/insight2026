@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawSweeper 如何自动关闭 Issue：implemented_on_main</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F7F8; --card: #FFFFFF; --ink: #16191E; --ink-2: #3A4149;
+    --muted: #6B7380; --line: #E2E6EA;
+    --accent: #0F766E; --accent-ink: #0B5D56; --accent-soft: #E5F2EF;
+    --signal: #B45309; --signal-soft: #FBF0E1;
+    --good: #157F3D; --good-soft: #E7F5EC;
+    --shadow: 0 1px 2px rgba(22,25,30,.05), 0 8px 24px rgba(22,25,30,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --paper: #121417; --card: #191C20; --ink: #E7EAEE; --ink-2: #B8BFC8;
+    --muted: #8A93A0; --line: #2A2F36; --accent: #2DD4BF; --accent-ink: #7FEDE0;
+    --accent-soft: #11312C; --signal: #F59E0B; --signal-soft: #2A2110;
+    --good: #4ADE80; --good-soft: #12291B;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4);
+    color-scheme: dark;
+  } }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px; line-height: 1.65; padding-bottom: 64px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  header { padding: 44px 0 10px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif; font-weight: 700; font-size: clamp(27px, 4.8vw, 40px); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 16px; text-wrap: balance; }
+  .lede { font-size: 17px; line-height: 1.65; color: var(--ink-2); max-width: 800px; margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+  .meta li { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 4px 10px; }
+  .meta li b { color: var(--accent-ink); font-weight: 600; }
+
+  section { padding: 36px 0 4px; }
+  .kicker { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 6px; }
+  h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: clamp(21px, 3.1vw, 27px); letter-spacing: -.015em; margin: 0 0 12px; text-wrap: balance; }
+  h3 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 600; font-size: 17px; margin: 22px 0 8px; }
+  p { margin: 0 0 14px; color: var(--ink-2); }
+  p strong, li strong { color: var(--ink); font-weight: 600; }
+  ul, ol { margin: 0 0 14px; padding-left: 1.35em; color: var(--ink-2); }
+  li { margin: 5px 0; }
+  code { font-family: "IBM Plex Mono", monospace; font-size: 12.6px; background: var(--accent-soft); color: var(--accent-ink); padding: 1px 5px; border-radius: 5px; word-break: break-word; }
+  a { color: var(--accent-ink); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
+
+  .kpis { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: 12px; margin: 24px 0 2px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .kpi .n { font-family: "Bricolage Grotesque", sans-serif; font-size: 27px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+  .kpi .n small { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+  .kpi .l { font-size: 12.5px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+  .kpi code { font-size: 12px; }
+
+  .grid2 { display: grid; grid-template-columns: 1.12fr .88fr; gap: 16px; align-items: start; margin-top: 10px; }
+  .grid2even { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .grid2 > *, .grid2even > *, .grid4 > * { min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 8px; }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card .num { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--accent-ink); letter-spacing: .1em; margin-bottom: 4px; }
+
+  .callout { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--card); border-radius: 10px; padding: 13px 16px; margin: 16px 0; font-size: 14px; color: var(--ink-2); }
+  .callout strong { color: var(--ink); }
+  .callout.warn { border-left-color: var(--signal); background: var(--signal-soft); }
+  .callout.good { border-left-color: var(--good); background: var(--good-soft); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .tablewrap { overflow-x: auto; margin: 12px 0 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 620px; }
+  .tbl th { text-align: left; font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--paper); padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .tbl td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl td:first-child { color: var(--ink); font-weight: 600; }
+  .tbl code { font-size: 12px; }
+  .tbl-keys td:first-child { white-space: nowrap; }
+  .tbl-keys td a { white-space: nowrap; }
+
+  .tl { display: flex; flex-direction: column; margin: 8px 0 0; }
+  .step { display: grid; grid-template-columns: 62px 20px 1fr; gap: 8px; }
+  .step .time { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); padding-top: 2px; text-align: right; white-space: nowrap; }
+  .step .dot { position: relative; }
+  .step .dot::before { content: ""; position: absolute; left: 6px; top: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .step.key .dot::before { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .step.end .dot::before { background: var(--good); }
+  .step .dot::after { content: ""; position: absolute; left: 9px; top: 15px; bottom: -5px; width: 1px; background: var(--line); }
+  .step:last-child .dot::after { display: none; }
+  .step .body { padding-bottom: 15px; font-size: 13.5px; color: var(--ink-2); }
+  .step .body b { color: var(--ink); font-weight: 600; }
+  .step .body .tiny { display: block; font-family: "IBM Plex Mono", monospace; font-size: 10.8px; color: var(--muted); margin-top: 2px; }
+
+  .quote { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); font-size: 13.5px; color: var(--ink-2); }
+  .quote .who { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); }
+  .quote .who b { color: var(--accent-ink); font-weight: 600; }
+  .quote p { margin: 0 0 10px; }
+  .quote p:last-child { margin-bottom: 0; }
+  .quote .marker { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--muted); word-break: break-all; line-height: 1.5; }
+  .quote .small { font-size: 12px; color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; padding: 0; list-style: none; }
+  .chips li { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-2); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+  .chips li.hot { background: var(--signal-soft); border-color: color-mix(in srgb, var(--signal) 40%, var(--line)); color: var(--signal); }
+  .chips li.ok { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 40%, var(--line)); color: var(--good); }
+
+  .flowcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 14px 8px; box-shadow: var(--shadow); margin: 10px 0 6px; overflow-x: auto; }
+  .flow-svg { display: block; width: 100%; min-width: 860px; max-width: 1040px; height: auto; margin: 0 auto; }
+  .f-node { fill: var(--card); stroke: var(--line); stroke-width: 1.3; }
+  .f-read { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  .f-gate { fill: var(--signal-soft); stroke: var(--signal); stroke-width: 1.5; }
+  .f-good { fill: var(--good-soft); stroke: var(--good); stroke-width: 1.5; }
+  .f-start { fill: var(--paper); stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+  .f-edge { stroke: var(--muted); fill: none; stroke-width: 1.35; }
+  .f-edge-main { stroke: var(--accent); fill: none; stroke-width: 1.8; }
+  .f-title { fill: var(--ink); font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 13px; }
+  .f-sub { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .f-src { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 9.5px; }
+  .f-label { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .f-mask { fill: var(--card); }
+  .f-link { cursor: pointer; text-decoration: none; }
+  .f-link:hover .f-node, .f-link:hover .f-read, .f-link:hover .f-gate,
+  .f-link:hover .f-good, .f-link:hover .f-start { stroke-width: 2.3; }
+  .f-link:hover .f-title, .f-link:hover .f-src { text-decoration: underline; }
+  .f-link:focus { outline: none; }
+  .f-link:focus-visible .f-node, .f-link:focus-visible .f-read,
+  .f-link:focus-visible .f-gate, .f-link:focus-visible .f-good,
+  .f-link:focus-visible .f-start { stroke: var(--accent); stroke-width: 2.3; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12.5px; color: var(--muted); margin: 6px 0 0; padding: 0; list-style: none; }
+  .legend li { display: flex; align-items: center; gap: 6px; margin: 0; }
+  .legend .sw { width: 13px; height: 13px; border-radius: 4px; border: 1.2px solid var(--line); display: inline-block; }
+  .legend .sw.read { background: var(--accent-soft); border-color: var(--accent); }
+  .legend .sw.gate { background: var(--signal-soft); border-color: var(--signal); }
+  .legend .sw.good { background: var(--good-soft); border-color: var(--good); }
+  figcaption, .figcap { font-size: 13px; color: var(--muted); margin: 8px 0 2px; }
+
+  .ref { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+  p.ref, p .ref, .callout .ref, figcaption .ref { white-space: normal; overflow-wrap: anywhere; }
+  .ref a { color: var(--muted); }
+  footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  footer .srcs { margin-top: 8px; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; line-height: 1.8; word-break: break-all; }
+  footer .srcs a { color: var(--muted); }
+
+  @media (max-width: 820px) {
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .grid2, .grid2even, .grid4 { grid-template-columns: 1fr; }
+    .flow-svg { min-width: 820px; }
+  }
+  @media (max-width: 480px) {
+    .kpis { grid-template-columns: 1fr; }
+    body { font-size: 15.5px; }
+  }
+  @media print {
+    body { background: #fff; }
+    .flowcard, .card, .quote, .kpi, .tablewrap { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">CLAWSWEEPER · 自动关闭 · HOW IT WORKS · 2026-11-15</p>
+    <h1>ClawSweeper 如何自动关闭一条 Issue</h1>
+    <p class="lede">以关闭原因 <code>implemented_on_main</code>（已在 main 实现）为例。评审只产出<strong>「提议 + 证据」</strong>；真正关闭发生在 Apply 通道，并在写入前重新读取 GitHub：证据、实时状态、保护标签、锁、配对关系，任何一项不成立就保持开放。</p>
+    <ul class="meta">
+      <li>源码基线 <b>d6179da</b></li>
+      <li>样本 <b>openclaw/openclaw #198628</b></li>
+      <li>关闭者 <b>clawsweeper[bot]</b></li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="n"><code>implemented_on_main</code></div>
+      <div class="l">展示文本 <code>already implemented on main</code>；issue 与 PR 都可使用，但门槛不同。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">9 <small>条</small></div>
+      <div class="l">issue 关闭原因；关闭原因本身<strong>不写标签</strong>，只有 1 条例外（不是这条）。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">6m18s</div>
+      <div class="l">#198628 从打开到关闭：03:39:53 → 03:46:11 UTC。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">26s</div>
+      <div class="l">审查评论到关闭；来自同一 item 的即時 apply，而不是等下一轮 15 分钟 cron。</div>
+    </div>
+  </div>
+
+  <section>
+    <p class="kicker">01 · 一条真实记录</p>
+    <h2>先把「流程」落到一条 issue 上</h2>
+    <p><code>openclaw/openclaw#198628</code>：npm 更新在「胖工作区」永远失败。报告者检查的版本是 <code>2026.11.1</code>；ClawSweeper 在 current <code>main</code> 与 stable <code>2026.11.3</code> 上找到了修复，于是把它作为「已在 main 实现」关闭。</p>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="num">TIMELINE · UTC</div>
+        <h3>#198628 的六个动作</h3>
+        <div class="tl">
+          <div class="step">
+            <div class="time">03:39:53</div><div class="dot"></div>
+            <div class="body"><b>cronus42 打开 issue</b><span class="tiny">初始无标签 · 报告 2026.11.1 的更新失败</span></div>
+          </div>
+          <div class="step">
+            <div class="time">03:42:18</div><div class="dot"></div>
+            <div class="body"><b>intake 预分类</b><span class="tiny">clawsweeper[bot] 加 <code>clawsweeper:intake:bug</code> · 距打开 2m25s</span></div>
+          </div>
+          <div class="step key">
+            <div class="time">03:45:07</div><div class="dot"></div>
+            <div class="body"><b>只读评审完成</b><span class="tiny">review record 的 reviewed_at · Codex 已对 current main 取证</span></div>
+          </div>
+          <div class="step">
+            <div class="time">03:45:35</div><div class="dot"></div>
+            <div class="body"><b>清空 intake 预备标签</b><span class="tiny">完整评审发布时移除 intake:*</span></div>
+          </div>
+          <div class="step">
+            <div class="time">03:45:37</div><div class="dot"></div>
+            <div class="body"><b>写入路由标签</b><span class="tiny"><code>P2</code> · <code>impact:ux-friction</code></span></div>
+          </div>
+          <div class="step key">
+            <div class="time">03:45:45</div><div class="dot"></div>
+            <div class="body"><b>发布单条持久审查评论</b><span class="tiny">“already implemented” · 含源码、commit、release 证据 · 原地可编辑</span></div>
+          </div>
+          <div class="step end">
+            <div class="time">03:46:11</div><div class="dot"></div>
+            <div class="body"><b>clawsweeper[bot] 关闭</b><span class="tiny"><code>state_reason: completed</code> · 评论后 26s · 总历时 6m18s</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quote">
+        <div class="who"><b>clawsweeper[bot]</b><span>03:45:45Z · 持久审查评论（节选）</span></div>
+        <p>Thanks for the context here. I did a careful shell check against current <code>main</code>, and this is already implemented.</p>
+        <p>The whole-inventory timeout is already fixed on main and in stable 2026.11.3; an installed 2026.11.1 updater still needs the documented recovery hop.</p>
+        <p><strong>Root-cause cluster</strong><br>Relationship: <code>same_root_cause</code><br>Canonical: <code>#187150</code><br>Members: <code>fixed_by_candidate</code> <code>#187197</code>（merged batching repair）· <code>partial_overlap</code> <code>#193962</code> · <code>adjacent_distinct</code> <code>#197094</code></p>
+        <p class="small">Proposal only: this assessment does not dispatch repair, suppress jobs, mutate sibling items, close, or merge anything.</p>
+        <p>So I’m closing this as already implemented rather than keeping a duplicate issue open.</p>
+        <p class="small">折叠区还逐条列出 current owner 的 4,096-path 分批、merged fix <code>#187197</code>、slow-storage follow-up <code>#194239</code>、regression tests、first batching release 与 stable tag 的 commit。</p>
+        <span class="marker">&lt;!-- clawsweeper-review-version item=198628 reviewed_at=2026-11-14T03:45:07.113Z sha=na source_revision=ee7ecda5… lease_owner=github-run-43552924812-1 lease_comment_id=6871152278 v=1 --&gt;<br>&lt;!-- clawsweeper-review item=198628 --&gt;</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p><strong>这条评论就是 issue 的关闭评论。</strong>ClawSweeper 对 issue 只维护一条 marker-backed 的持久评论；关闭时不再追加第二条「close receipt」，PR 才会。评论正文里的 “Proposal only” 不是客套：review lane 从不关闭，关闭由 Apply 单独完成。</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">02 · 全流程</p>
+    <h2>从事件到关闭：九个节点，两条出口</h2>
+    <p>主链是「摄入 → 只读评审 → 判定 → 发布 → Apply → 安全门 → 关闭」。判定不通过、或任一安全门失败，都走右侧的「保持开放」，并把原因写进 action ledger。</p>
+
+    <div class="flowcard">
+      <svg class="flow-svg" viewBox="0 0 1000 820" role="img" aria-labelledby="csim-title csim-desc">
+        <title id="csim-title">ClawSweeper 自动关闭 issue 的九节点流程（每节点链到自己的源码）</title>
+        <desc id="csim-desc">从 issue 事件摄入、只读评审、判定 implemented_on_main、发布持久评论，到 Apply 安全门重检并关闭的流程；每个节点可点击，跳到固定基线 d6179da 的对应源码文件与行号。</desc>
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+          </marker>
+          <marker id="arr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+
+        <!-- edges first -->
+        <line class="f-edge-main" x1="500" y1="60" x2="500" y2="82" marker-end="url(#arr-a)"/>
+        <line class="f-edge-main" x1="500" y1="164" x2="500" y2="182" marker-end="url(#arr-a)"/>
+        <line class="f-edge-main" x1="500" y1="264" x2="500" y2="284" marker-end="url(#arr-a)"/>
+        <line class="f-edge" x1="500" y1="390" x2="500" y2="410" marker-end="url(#arr)"/>
+        <line class="f-edge-main" x1="500" y1="492" x2="500" y2="510" marker-end="url(#arr-a)"/>
+        <line class="f-edge-main" x1="500" y1="592" x2="500" y2="610" marker-end="url(#arr-a)"/>
+        <line class="f-edge" x1="500" y1="692" x2="500" y2="712" marker-end="url(#arr)"/>
+        <line class="f-edge" x1="680" y1="338" x2="766" y2="338" marker-end="url(#arr)"/>
+        <path class="f-edge" d="M730,652 H872 Q880,652 880,644 V440" marker-end="url(#arr)"/>
+
+        <!-- start -->
+        <rect class="f-start" x="370" y="16" width="260" height="44" rx="22"/>
+        <text class="f-title" x="500" y="43" text-anchor="middle">Issue 打开 / 编辑 / 评论</text>
+
+        <!-- 1 -->
+        <a class="f-link" href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/.github/workflows/clawsweeper-dispatch.yml#L3-L9" target="_blank" rel="noopener" aria-label="① 事件摄入：打开 dispatch 工作流源码">
+          <rect class="f-node" x="270" y="84" width="460" height="80" rx="8"/>
+          <text class="f-title" x="500" y="110" text-anchor="middle">① 事件摄入 → 入队</text>
+          <text class="f-sub" x="500" y="129" text-anchor="middle">dispatcher（OIDC）· ExactReviewQueue · 合并最新意图</text>
+          <text class="f-src" x="500" y="147" text-anchor="middle">dispatch.yml:3-9 · exact-review-queue.ts:995</text>
+        </a>
+
+        <!-- 2 -->
+        <a class="f-link" href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L289-L301" target="_blank" rel="noopener" aria-label="② Codex 只读评审：打开 review-core 源码">
+          <rect class="f-read" x="270" y="184" width="460" height="80" rx="8"/>
+          <text class="f-title" x="500" y="210" text-anchor="middle">② Codex 只读评审</text>
+          <text class="f-sub" x="500" y="229" text-anchor="middle">current main · proposal-only · 无写权限</text>
+          <text class="f-src" x="500" y="247" text-anchor="middle">review-core.ts:289-301 · review-close-reasons.md</text>
+        </a>
+
+        <!-- 3 decision -->
+        <a class="f-link" href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-close-decision.ts#L413-L464" target="_blank" rel="noopener" aria-label="③ 判定 close reason：打开 close-decision 源码">
+          <polygon class="f-gate" points="500,286 680,338 500,390 320,338"/>
+          <text class="f-title" x="500" y="331" text-anchor="middle">③ 判定 close reason</text>
+          <text class="f-sub" x="500" y="349" text-anchor="middle">implemented_on_main · 证据齐全</text>
+          <text class="f-src" x="500" y="366" text-anchor="middle">close-decision.ts:413-464</text>
+        </a>
+
+        <!-- 4 -->
+        <a class="f-link" href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-comment-publication.ts#L245-L321" target="_blank" rel="noopener" aria-label="④ 写报告与持久评论：打开 comment-publication 源码">
+          <rect class="f-node" x="270" y="412" width="460" height="80" rx="8"/>
+          <text class="f-title" x="500" y="438" text-anchor="middle">④ 写报告 + 单条持久评论</text>
+          <text class="f-sub" x="500" y="457" text-anchor="middle">records/&lt;repo&gt;/items/&lt;n&gt;.md · proposed_close · 原地 PATCH</text>
+          <text class="f-src" x="500" y="475" text-anchor="middle">review-comment-publication.ts:245-321</text>
+        </a>
+
+        <!-- 5 -->
+        <a class="f-link" href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/.github/workflows/sweep.yml#L104-L108" target="_blank" rel="noopener" aria-label="⑤ Apply 通道：打开 sweep 工作流源码">
+          <rect class="f-node" x="270" y="512" width="460" height="80" rx="8"/>
+          <text class="f-title" x="500" y="538" text-anchor="middle">⑤ Apply 通道</text>
+          <text class="f-sub" x="500" y="557" text-anchor="middle">每 15 分钟 · 同一 item 评审后即时 apply · 重读实时状态</text>
+          <text class="f-src" x="500" y="575" text-anchor="middle">sweep.yml:104-108 · README.md:277-281</text>
+        </a>
+
+        <!-- 6 -->
+        <a class="f-link" href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-apply-close-execution.ts#L346-L761" target="_blank" rel="noopener" aria-label="⑥ 安全门重检：打开 apply-close-execution 源码">
+          <rect class="f-node" x="270" y="612" width="460" height="80" rx="8"/>
+          <text class="f-title" x="500" y="638" text-anchor="middle">⑥ 安全门重检</text>
+          <text class="f-sub" x="500" y="657" text-anchor="middle">证据 · 新鲜度 · 保护标签 · 锁 · 配对 · 租约</text>
+          <text class="f-src" x="500" y="675" text-anchor="middle">apply-close-execution.ts:346-761</text>
+        </a>
+
+        <!-- 7 end -->
+        <a class="f-link" href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-report-actions.ts#L26-L53" target="_blank" rel="noopener" aria-label="⑦ 关闭 issue：打开 report-actions 源码">
+          <rect class="f-good" x="330" y="714" width="340" height="80" rx="8"/>
+          <text class="f-title" x="500" y="740" text-anchor="middle">⑦ 关闭 issue</text>
+          <text class="f-sub" x="500" y="759" text-anchor="middle">PATCH state=closed · state_reason=completed</text>
+          <text class="f-src" x="500" y="777" text-anchor="middle">report-actions.ts:26-53</text>
+        </a>
+
+        <!-- side keep open -->
+        <a class="f-link" href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/docs/implemented-on-main-close-policy.md" target="_blank" rel="noopener" aria-label="保持开放：打开 implemented-on-main 关闭策略文档">
+          <rect class="f-good" x="770" y="288" width="205" height="148" rx="8"/>
+          <text class="f-title" x="872" y="318" text-anchor="middle">保持开放</text>
+          <text class="f-sub" x="872" y="342" text-anchor="middle">任一安全门失败</text>
+          <text class="f-sub" x="872" y="360" text-anchor="middle">记录 skip 原因</text>
+          <text class="f-sub" x="872" y="378" text-anchor="middle">报告留在 items/</text>
+          <text class="f-sub" x="872" y="394" text-anchor="middle">下轮再试 / 等重审</text>
+          <text class="f-src" x="872" y="414" text-anchor="middle">item-policy.ts:180-200</text>
+        </a>
+
+        <!-- labels with masks -->
+        <rect class="f-mask" x="508" y="394" width="94" height="16" rx="4"/>
+        <text class="f-label" x="512" y="406">是 · 证据齐全</text>
+        <rect class="f-mask" x="508" y="694" width="58" height="16" rx="4"/>
+        <text class="f-label" x="512" y="706">全部通过</text>
+        <rect class="f-mask" x="714" y="316" width="26" height="16" rx="4"/>
+        <text class="f-label" x="718" y="328">否</text>
+        <rect class="f-mask" x="792" y="536" width="76" height="16" rx="4"/>
+        <text class="f-label" x="796" y="548">任一失败</text>
+      </svg>
+    </div>
+    <ul class="legend">
+      <li><span class="sw read"></span>只读判断（Codex）</li>
+      <li><span class="sw gate"></span>关键判定</li>
+      <li><span class="sw good"></span>终局 / 安全出口</li>
+      <li><span class="sw"></span>确定性执行</li>
+    </ul>
+    <p class="figcap">每个步骤节点都可点击，跳到固定基线 <code>d6179da</code> 的源码行；主链之外还有两条出口：判定不成立（「否」）与安全门失败（「任一失败」）。误关后的人工恢复见 §06。</p>
+
+    <h3>节点 → 源码</h3>
+    <p>图中每个源码行都是链接，这里按节点汇总，并说明它对应流程里的哪一条规则。</p>
+    <div class="tablewrap">
+      <table class="tbl tbl-keys">
+        <thead><tr><th>节点</th><th>源码锚点</th><th>对应什么</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>① 事件摄入</td>
+            <td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/.github/workflows/clawsweeper-dispatch.yml#L3-L9" target="_blank" rel="noopener">dispatch.yml:3-9</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/dashboard/exact-review-queue.ts#L995" target="_blank" rel="noopener">exact-review-queue.ts:995</a></td>
+            <td>issue 事件与评论命令的入口；HMAC 签名队列、合并同一 item 的最新意图、租约。</td>
+          </tr>
+          <tr>
+            <td>② 只读评审</td>
+            <td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-core.ts#L289-L301" target="_blank" rel="noopener">review-core.ts:289-301</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/prompts/review-close-reasons.md" target="_blank" rel="noopener">review-close-reasons.md</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/docs/orchestration.md" target="_blank" rel="noopener">docs/orchestration.md</a></td>
+            <td>评审 prompt 的拼装顺序；关闭策略原文；Codex 只有只读 token，不能关闭或改标签。</td>
+          </tr>
+          <tr>
+            <td>③ 判定</td>
+            <td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-close-decision.ts#L413-L464" target="_blank" rel="noopener">close-decision.ts:413-464</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-close-decision.ts#L38-L71" target="_blank" rel="noopener">close-decision.ts:38-71</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/schema/clawsweeper-decision.schema.json" target="_blank" rel="noopener">decision.schema.json</a></td>
+            <td>源码 file+sha、<code>fixedSha</code>、<code>fixedRelease</code>/<code>fixedAt</code>、verified fixing PR 的硬校验；缺一项就拒绝关闭。</td>
+          </tr>
+          <tr>
+            <td>④ 报告 + 评论</td>
+            <td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-review-comment-publication.ts#L245-L321" target="_blank" rel="noopener">review-comment-publication.ts:245-321</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-report-comment-helpers.ts#L394-L438" target="_blank" rel="noopener">report-comment-helpers.ts:394-438</a></td>
+            <td>报告落盘为 <code>proposed_close</code>；同一 item 只维护一条 marker-backed 评论，已存在则 PATCH。</td>
+          </tr>
+          <tr>
+            <td>⑤ Apply</td>
+            <td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/.github/workflows/sweep.yml#L104-L108" target="_blank" rel="noopener">sweep.yml:104-108</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/README.md#L277-L281" target="_blank" rel="noopener">README.md:277-281</a></td>
+            <td>15 分钟 cron；同一 item 评审发布后由 publisher 立即 apply，不必等下一轮。</td>
+          </tr>
+          <tr>
+            <td>⑥ 安全门</td>
+            <td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-apply-close-execution.ts#L346-L761" target="_blank" rel="noopener">apply-close-execution.ts:346-761</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-item-policy.ts#L117-L131" target="_blank" rel="noopener">item-policy.ts:117-131</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/repair/exact-review-guard-labels.ts#L18-L35" target="_blank" rel="noopener">exact-review-guard-labels.ts:18-35</a></td>
+            <td>重检顺序（证据 → 实时状态 → 保护标签 → 锁 → 配对）；10 个保护标签；<code>maintainer</code> 是唯一例外。</td>
+          </tr>
+          <tr>
+            <td>⑦ 关闭</td>
+            <td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-report-actions.ts#L26-L53" target="_blank" rel="noopener">report-actions.ts:26-53</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-apply-close-execution.ts#L1033-L1044" target="_blank" rel="noopener">apply-close-execution.ts:1033-1044</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/README.md#L340-L343" target="_blank" rel="noopener">README.md:340-343</a></td>
+            <td>issue 的 PATCH payload 与 <code>item_close:&lt;n&gt;:issue:&lt;reason&gt;</code> 幂等键；报告归档到 <code>closed/</code> 并写 action ledger。</td>
+          </tr>
+          <tr>
+            <td>↩ 保持开放</td>
+            <td><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/src/clawsweeper-item-policy.ts#L180-L200" target="_blank" rel="noopener">item-policy.ts:180-200</a><br><a href="https://github.com/openclaw/clawsweeper/blob/d6179da56748b0a0e791c700b0c7c10e7b6c7a4c/docs/implemented-on-main-close-policy.md" target="_blank" rel="noopener">implemented-on-main-close-policy.md</a></td>
+            <td>失败时写 <code>kept_open</code> / <code>skipped_*</code> 而不是关闭；本原因没有最小年龄门槛，但也不豁免 security 与人工 hold。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">03 · 每一层在做什么</p>
+    <h2>评审、发布、Apply 是三套权限</h2>
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>阶段</th><th>谁执行</th><th>关键动作 / 产物</th><th>源码或文档</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>触发</td>
+            <td>GitHub → dispatcher</td>
+            <td>issue opened / edited / labeled，以及 issue_comment；OIDC 接入，不需要存密钥。评论命令另有预过滤。</td>
+            <td><span class="ref">.github/workflows/clawsweeper-dispatch.yml:3-9</span></td>
+          </tr>
+          <tr>
+            <td>入队</td>
+            <td>Cloudflare Durable Object</td>
+            <td><code>ExactReviewQueue</code>：HMAC 签名、合并同一 item 的最新意图、租约与 <code>leaseRevision</code>。</td>
+            <td><span class="ref">dashboard/exact-review-queue.ts:995, 2937</span></td>
+          </tr>
+          <tr>
+            <td>只读评审</td>
+            <td>Codex</td>
+            <td>读正文、讨论、关联 issue/PR 与 current <code>main</code> 源码；prompt = 共享规则 + issue 模板 + 关闭策略 + 仓库策略 + 上下文。</td>
+            <td><span class="ref">src/clawsweeper-review-core.ts:289-301</span><br><span class="ref">prompts/review-close-reasons.md</span></td>
+          </tr>
+          <tr>
+            <td>判定</td>
+            <td>Codex → schema</td>
+            <td>输出 Decision JSON：<code>closeReason</code>、<code>confidence</code>、<code>evidence</code>、<code>fixedSha</code>、<code>fixedRelease</code>/<code>fixedAt</code>、<code>closeComment</code>。schema 与宿主规则会拒绝缺证据的 close。</td>
+            <td><span class="ref">schema/clawsweeper-decision.schema.json</span><br><span class="ref">src/clawsweeper-close-decision.ts:413-464</span></td>
+          </tr>
+          <tr>
+            <td>发布</td>
+            <td>确定性代码</td>
+            <td>报告落到 <code>records/&lt;repo&gt;/items/&lt;n&gt;.md</code>；高置信度 close 变成 <code>proposed_close</code>；同步一条 marker-backed 评论，已有则 PATCH。</td>
+            <td><span class="ref">README.md:290, 310-315</span><br><span class="ref">src/clawsweeper-review-comment-publication.ts:245-321</span></td>
+          </tr>
+          <tr>
+            <td>Apply</td>
+            <td>Apply lane / exact publisher</td>
+            <td>每 15 分钟唤醒；没有「未变更的高置信度关闭提案」就快速退出。同一 item 的评审发布后，publisher 也可立即 apply，不必等 cron。</td>
+            <td><span class="ref">README.md:277-281, 345</span><br><span class="ref">.github/workflows/sweep.yml:104-108</span></td>
+          </tr>
+          <tr>
+            <td>安全门</td>
+            <td>确定性代码</td>
+            <td>重新读 GitHub：证据、report record、实时状态、标签、锁、配对、租约。失败写 <code>kept_open</code> / <code>skipped_*</code>，不写入。</td>
+            <td><span class="ref">src/clawsweeper-apply-close-execution.ts:346-761</span></td>
+          </tr>
+          <tr>
+            <td>关闭</td>
+            <td>GitHub API</td>
+            <td>issue：<code>PATCH {state:"closed", state_reason:"completed"}</code>。mutation identity 为 <code>item_close:&lt;n&gt;:issue:&lt;reason&gt;</code>。</td>
+            <td><span class="ref">src/clawsweeper-report-actions.ts:26-53</span></td>
+          </tr>
+          <tr>
+            <td>归档</td>
+            <td>报告存储</td>
+            <td>报告移到 <code>closed/&lt;n&gt;.md</code>；写 <code>action_taken: closed</code>、<code>applied_at</code>、<code>apply_checked_at</code>，并进入 action ledger。</td>
+            <td><span class="ref">README.md:340-343</span><br><span class="ref">src/clawsweeper-apply-close-execution.ts:1033-1044</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <p><strong>权限分离是这条流程的地基。</strong>Codex 在评审期只有只读 token；它不能关闭、不能建 PR、不能改标签。标签、评论、关闭都由宿主代码在 Apply 阶段执行。<span class="ref">docs/orchestration.md</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">04 · 判定标准</p>
+    <h2>「已在 main 实现」要有三段证据</h2>
+    <p>不是一句「看起来修了」。关闭策略要求同时给出：<strong>当前 main 的源码</strong>、<strong>修复提交</strong>、<strong>发布时间或 main-only 时间</strong>。缺任何一段，评审必须保持开放；宿主 schema 也会拒绝。</p>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>证据项</th><th>具体要求</th><th>缺失时</th></tr></thead>
+        <tbody>
+          <tr><td>源码等价</td><td><code>evidence[]</code> 至少一条同时带 <code>file</code> 与 <code>sha</code>；行为在 current main 的源码（必要时测试/文档）中成立。</td><td>不能提议关闭</td></tr>
+          <tr><td>修复提交</td><td><code>fixedSha</code> 必填。</td><td><code>implemented_on_main requires fixedSha</code></td></tr>
+          <tr><td>修复时间 / 版本</td><td><code>fixedRelease</code> 或 ISO 时间 <code>fixedAt</code>，至少一个；main-only 也允许，但必须由 <code>fixedAt</code> 或 release 证据支撑。</td><td><code>requires fixedRelease or fixedAt</code></td></tr>
+          <tr><td>修复 PR（可选）</td><td>若填 <code>fixedPullRequest</code>：confidence 必须 high、同仓库、已合并、来源在 GitHub 验证白名单内、URL 与编号一致、不能是正在关闭的这条 PR。</td><td>拒绝关闭</td></tr>
+          <tr><td>PR 关闭（kind=PR）</td><td>恰好 1 个同仓库 linked issue；该 PR 当前的 GitHub <code>closingIssuesReferences</code> 仍包含这个仍开放的 issue。泛化的 cross-reference（如 <code>Related to #123</code>）不算。</td><td>两者都保持开放，且不关 linked issue</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>issue 与 PR 的硬门不一样。</strong>issue 的 <code>implemented_on_main</code> 只需源码 + 提交 + 时间/版本证据，<em>不要求</em>存在一个正式 <code>Fixes</code> 链接。样本 <code>#197766</code> 的 fixing PR 正文只写 <code>Related: #169118</code>，GraphQL 的 <code>closingIssuesReferences</code> 为空，issue 仍按源码等价关闭。PR 则相反：代码相似、功能重叠、main 上有相关 commit 都不够，必须有一个 GitHub 正式关联、同仓库、已合并的 fixing PR。</p>
+    </div>
+
+    <h3>策略原文（节选）</h3>
+    <div class="quote">
+      <p><code>implemented_on_main</code>: current <code>main</code> fixes the request well enough, even without the proposed workflow, file split, or names; <strong>main-only counts</strong>. Verify the behavior in source (and tests/docs), then trace the fix from a merged <code>closingPullRequests</code> or <code>referencingMergedPullRequests</code> entry to its commit, timestamp, and first release (<code>git tag --contains &lt;sha&gt;</code>, the changelog, <code>gh api repos/&lt;owner&gt;/&lt;repo&gt;/releases</code>) or current-main-only status. Evidence: source entries with <code>file</code> and <code>sha</code>, a git blame/log/show provenance entry, and that release check; <strong>without <code>fixedSha</code> and <code>fixedRelease</code> or <code>fixedAt</code> backed by it, keep open, and invent no release facts.</strong></p>
+      <span class="marker">prompts/review-close-reasons.md · implemented_on_main 条目</span>
+    </div>
+    <p>「main-only counts」是这条原因最容易被误读的地方：修复还没进 stable 也可以关，但必须有可核验的 <code>fixedAt</code> 或 release 证据；模型不能编造版本号。样本 #198628 的评论同时给出了 merged commit、first batching release 与 stable tag 的 commit，属于证据最完整的一类。</p>
+  </section>
+
+  <section>
+    <p class="kicker">05 · Apply 安全门</p>
+    <h2>评论说 “Proposal only”，关闭在另一层发生</h2>
+    <p>Apply 只从报告里的 typed <code>review_record</code> 读 decision，不从评论散文里猜。读不出 record 就要求一次新评审（<code>skipped_changed_since_review</code>）。下面是四组重检，按执行顺序排列。</p>
+
+    <div class="grid4">
+      <div class="card">
+        <div class="num">GATE 01</div>
+        <h3>决策与证据</h3>
+        <ul>
+          <li>关闭原因在本次 apply 的启用集合内；仓库 profile 允许。</li>
+          <li><code>review_record</code> 可读；decision=close、confidence=high。</li>
+          <li><code>evidence</code> 含 file+sha；<code>fixedSha</code>；<code>fixedRelease</code> 或 <code>fixedAt</code>。</li>
+          <li>PR：GitHub 验证的、已合并的同仓库 fixing PR 仍然成立。</li>
+        </ul>
+        <p class="ref">失败 → skipped_invalid_decision / kept_open</p>
+      </div>
+      <div class="card">
+        <div class="num">GATE 02</div>
+        <h3>实时状态</h3>
+        <ul>
+          <li>item 仍 open；<code>updated_at</code> 与 review 快照一致。</li>
+          <li>issue 的 <code>implemented_on_main</code> <strong>必须有当前且精确的 durable review comment</strong>。</li>
+          <li>review 后没有新的人类评论；snapshot hash 未漂移。</li>
+          <li>锁在最后一次读取时检查，尽量缩短关闭前窗口。</li>
+        </ul>
+        <p class="ref">失败 → skipped_changed_since_review / skipped_locked_conversation</p>
+      </div>
+      <div class="card">
+        <div class="num">GATE 03</div>
+        <h3>保护与授权</h3>
+        <ul>
+          <li>10 个 close-protected 标签；security 类<strong>永不</strong>被本原因豁免。</li>
+          <li>维护者作者 / <code>maintainer</code> 标签：只有 <code>implemented_on_main</code>（和 oversized PR）例外。</li>
+          <li>产品决策类原因（<code>unsponsored_feature_request</code> 等）永不由 apply 执行。</li>
+          <li>same-author issue/PR 配对仍开放时跳过。</li>
+        </ul>
+        <p class="ref">失败 → skipped_protected_label / kept_open</p>
+      </div>
+      <div class="card">
+        <div class="num">GATE 04</div>
+        <h3>配对与幂等</h3>
+        <ul>
+          <li>同作者配对：另一侧仍 open 则不关。</li>
+          <li>仍有 open closing PR 时不关。</li>
+          <li>PR 配对 issue：独立 review + 独立 durable comment + 当前 <code>closingIssuesReferences</code> 关系。</li>
+          <li>mutation lease、close 配额、<code>idempotencyIdentity</code> 去重。</li>
+        </ul>
+        <p class="ref">失败 → skipped_same_author_pair / skipped_open_closing_pr</p>
+      </div>
+    </div>
+
+    <h3>关闭保护标签（本原因只豁免其中 1 个）</h3>
+    <ul class="chips">
+      <li class="hot">maintainer</li>
+      <li>security</li>
+      <li>beta-blocker</li>
+      <li>release-blocker</li>
+      <li>area: security</li>
+      <li>impact:security</li>
+      <li>security-review-required</li>
+      <li>security-sensitive-changed</li>
+      <li>merge-risk: 🚨 security-boundary</li>
+      <li>clawsweeper:needs-security-review</li>
+    </ul>
+    <p><code>implemented_on_main</code> 的唯一标签例外是 <code>maintainer</code>；这也不豁免 security、manual hold、lock、未决的人类判断、新鲜度或任何实现证据。源码：<span class="ref">src/clawsweeper-item-policy.ts:117-131</span> · <span class="ref">src/repair/exact-review-guard-labels.ts:18-35</span> · 文档：<span class="ref">docs/implemented-on-main-close-policy.md</span></p>
+
+    <div class="callout">
+      <p><strong>它不是远端事务。</strong>GitHub 可以在最后一次读取之后变化，配对关闭的两次 mutation 也可能独立失败。实现上把「issue 记录先归档、父 PR 后关闭」固定下来，并用独立 lease 保护配对 issue；但代码文档明确不承诺跨两个 item 的原子性。<span class="ref">docs/implemented-on-main-close-policy.md</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">06 · 产物与边界</p>
+    <h2>关闭时到底写了什么，什么情况下不写</h2>
+
+    <div class="grid2even">
+      <div class="card">
+        <h3>评论的固定骨架</h3>
+        <ol>
+          <li>固定开场：<code>Thanks for the context here. I did a careful shell check against current main, and this is already implemented.</code></li>
+          <li>一句 verdict / rationale。</li>
+          <li>若有高置信度 fixing PR：<code>I found the merged PR that appears to have closed this: [#N: title](url).</code></li>
+          <li>可选的 root-cause cluster / canonical / duplicate 路径。</li>
+          <li><code>&lt;details&gt;</code> 折叠区：best solution、两个 review questions、security review、AGENTS.md、最多 6 条 “What I checked”、related people、Codex notes。</li>
+          <li>固定收尾：<code>So I’m closing this as already implemented rather than keeping a duplicate issue open.</code>，后接 version marker 与 item marker。</li>
+        </ol>
+        <p class="ref">src/clawsweeper-report-comment-helpers.ts:394-395, 437-438, 573-660</p>
+      </div>
+
+      <div class="card">
+        <h3>标签：关闭原因不写标签</h3>
+        <ul>
+          <li><code>P2</code> / <code>impact:*</code> 等是评审的路由标签，不是关闭原因。</li>
+          <li><code>implemented_on_main</code> 不产生任何专属标签；原因写在报告 front matter 的 <code>close_reason</code> 与 typed <code>review_record</code> 里。</li>
+          <li>GitHub 侧唯一的机器信号是 <code>state_reason: completed</code>（实现类原因）；其他原因写 <code>not_planned</code>。</li>
+          <li>生态里看到的 <code>close:already-fixed</code> 来自另一个 bot（claw-marshal）；<code>linked-pr-open</code> 可以同时存在，但它不是关闭原因标签。</li>
+        </ul>
+        <p class="ref">src/clawsweeper-close-reasons.ts:25-30 · src/clawsweeper-report-actions.ts:26-53</p>
+      </div>
+    </div>
+
+    <h3>哪些情况会保持开放</h3>
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>触发条件</th><th>结果 / 记录</th></tr></thead>
+        <tbody>
+          <tr><td>review 后 issue 被编辑、被评论，或 snapshot 变化</td><td><code>skipped_changed_since_review</code>；等重审或下轮</td></tr>
+          <tr><td>review 后维护者锁了对话</td><td><code>skipped_locked_conversation</code>；最后读锁，避免竞态</td></tr>
+          <tr><td>存在 security / beta-blocker / release-blocker 等保护标签</td><td><code>skipped_protected_label</code>；<code>maintainer</code> 是唯一例外</td></tr>
+          <tr><td>PR 没有正式 linked issue，或关系不完整 / 跨仓库 / 手动关联</td><td><code>kept_open</code>；链接的 issue 也不会被关</td></tr>
+          <tr><td>同作者配对另一侧仍 open，或仍有 open closing PR</td><td><code>skipped_same_author_pair</code> / <code>skipped_open_closing_pr</code></td></tr>
+          <tr><td>item 已经关闭</td><td><code>skipped_already_closed</code>；不会重复 PATCH</td></tr>
+          <tr><td>报告 record 读不出、证据缺失或字段矛盾</td><td><code>skipped_invalid_decision</code> / <code>skipped_changed_since_review</code>；要求 fresh review</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>一个需要知道的边界：<code>@clawsweeper stop</code> 不直接等于「阻止本原因关闭」。</strong>它做的是加 <code>clawsweeper:human-review</code>、移除 automerge/autofix/merge-ready，然后回复。但 <code>human-review</code> 不在 close-protected 集合里，PR auto-close-exempt 也只覆盖另外几种 PR 原因；按当前公开代码，它本身不会阻断 issue 的 <code>implemented_on_main</code>。它可能因为进入 <code>source_content_revision</code> 哈希而触发一次 fresh review，但这条间接效果未在真实 issue 上验证。<span class="ref">src/repair/comment-router.ts:639-656</span> · <span class="ref">src/clawsweeper-apply-guard-activity.ts:192-215</span></p>
+    </div>
+
+    <p><strong>误关之后怎么恢复：</strong>人工重新打开 issue 后，已归档的报告会回到 <code>items/</code> 作为 stale 重新进入审查；编辑正文或评论会形成新的审查意图。ClawSweeper 不会因为一句评论就自动重新打开 issue——恢复动作仍然由人或新一轮评审完成。<span class="ref">README.md:116-118, 340-343</span></p>
+  </section>
+
+  <section>
+    <p class="kicker">07 · 可复用的设计</p>
+    <h2>五条能迁移到其他仓库的规则</h2>
+    <div class="grid2even">
+      <div class="card">
+        <h3>1 · AI 只提议，写操作在确定性层</h3>
+        <p>评审模型不持有写权限；关闭、标签、评论都由 Apply 执行。这样即使模型判断错了，也还有一层可审计的拒绝。</p>
+        <h3>2 · 证据是 schema，不是散文</h3>
+        <p><code>fixedSha</code>、<code>fixedRelease</code>/<code>fixedAt</code>、file+sha 的 evidence 都是字段；缺字段直接拒绝，不靠“评论里看起来提到了”。</p>
+        <h3>3 · 在 mutation 边界重读</h3>
+        <p>评审时的状态不算数。Apply 重新读 issue、标签、锁、配对关系；锁放在最后读，尽量缩短竞态窗口。</p>
+      </div>
+      <div class="card">
+        <h3>4 · 例外必须窄且可命名</h3>
+        <p>只有 <code>implemented_on_main</code> 能绕过 maintainer 身份 / <code>maintainer</code> 标签；security 永远不绕过。例外是一个具名原因，不是“维护者可以特批”。</p>
+        <h3>5 · 关闭原因不要伪装成标签</h3>
+        <p>标签是路由，不是审计记录。要知道为什么关，读持久评论的固定句式、报告 front matter 与 <code>state_reason</code>；不要去找一个并不存在的 <code>close:*</code> 标签。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">08 · 样本</p>
+    <h2>三张可复核的公开 issue</h2>
+    <p>源码锚点已并入上图的「节点 → 源码」索引，固定在 <code>d6179da</code>；这里只保留真实案例，用来核对流程不是纸面设计。完整取证过程见 <a href="../clawsweeper-close-fixed-in-main-research.md">研究笔记</a>。</p>
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>样本</th><th>能证明什么</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/openclaw/openclaw/issues/198628">openclaw/openclaw#198628</a></td><td>主样本：03:39:53 打开 → 03:45:45 审查评论 → 03:46:11 关闭，6m18s；<code>state_reason: completed</code>。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/openclaw/issues/197766">openclaw/openclaw#197766</a></td><td>7m56s 关闭；fixing PR 正文只有 <code>Related:</code>、没有正式 <code>Fixes</code>，说明 issue 关闭只依赖源码等价证据。</td></tr>
+          <tr><td><a href="https://github.com/openclaw/openclaw/issues/199533">openclaw/openclaw#199533</a></td><td>8m07s 关闭，评论到关闭 22s；由 bot 自动生成的 update report 触发。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap" style="padding:0;">
+      快照 2026-11-15 · 源码基线 <span class="src">openclaw/clawsweeper@d6179da</span> · 样本仓库 <span class="src">openclaw/openclaw</span>。<br>
+      口径：关闭原因以报告 front matter / typed <code>review_record</code> 为准；公开 issue 上可见的 token 只有 <code>state_reason</code> 与评论固定句式。真实案例的 <code>review_record.closeReason</code> 字面值未公开，属于模板 + kind 限制的联合推断。
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

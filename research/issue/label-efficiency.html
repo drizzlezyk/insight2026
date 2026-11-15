@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw Issue · 标签体系到底怎么帮维护者提效</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1100px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:31px; line-height:1.28; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:16px; color:#3c3f47; max-width:880px; }
+  .lede code, p code, li code, td code, th code, .cap code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#f1ece3; padding:1px 6px; border-radius:5px; color:#3a3d45; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  section { margin-top:52px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 8px; }
+  h2 b { color:var(--ink); }
+  .secdesc { font-size:14px; color:#54575f; margin:0 0 18px; max-width:880px; }
+  .callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:12px; padding:16px 22px; margin:20px 0 0; }
+  .callout p { margin:0; font-size:14px; color:#3c3f47; }
+  .callout p b { color:var(--ink); }
+  .callout.warn { border-left-color:var(--lob); }
+  .callout.gold { border-left-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px 8px; border-bottom:1px solid #f0eae1; vertical-align:top; }
+  td.lab { font-family:ui-monospace,Menlo,monospace; white-space:nowrap; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.desc { color:#3c3f47; min-width:260px; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .lbl { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .lbl .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .chip { font-size:11px; background:#f2ede4; color:#4a4d55; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.g { background:#e7f2e8; color:#1f6b2f; }
+  .chip.r { background:var(--lob-soft); color:#a33a1d; }
+  .chip.b { background:#e4ebf1; color:#2b5876; }
+  /* horizontal bar for time-to-close */
+  .bar { display:block; height:9px; background:var(--teal); border-radius:6px; min-width:2px; }
+  .bar.slow { background:var(--lob); }
+  .bar.mid { background:var(--gold); }
+  .barrow td { vertical-align:middle; }
+  .funnel { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .fbox { background:var(--card); border:1px solid var(--line); border-radius:13px; padding:18px 20px; }
+  .fbox.fast { border-top:4px solid var(--teal); }
+  .fbox.slow { border-top:4px solid var(--lob); }
+  .fbox h3 { margin:0 0 4px; font-size:14px; }
+  .fbox .sub { font-size:12px; color:var(--muted); margin:0 0 12px; }
+  .fbox ul { margin:0; padding-left:18px; font-size:13px; color:#3c3f47; }
+  .fbox ul li { margin:6px 0; }
+  .fbox .big { font-size:26px; font-weight:700; color:var(--teal); letter-spacing:-.01em; }
+  .fbox.slow .big { color:var(--lob); }
+  .layer { display:grid; grid-template-columns:46px 1fr; gap:14px; margin:0 0 12px; }
+  .layer .ln { width:46px; height:46px; border-radius:12px; color:#fff; font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .layer.mech .ln { background:var(--teal); }
+  .layer.mech .tag { background:var(--teal-soft); color:var(--teal); }
+  .layer.filter .ln { background:var(--gold); }
+  .layer.filter .tag { background:#f3e7c8; color:#8a6b14; }
+  .layer.human .ln { background:var(--lob); }
+  .layer.human .tag { background:var(--lob-soft); color:#a33a1d; }
+  .layer .lb { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:15px 20px; }
+  .layer .lt { font-size:14px; font-weight:700; margin:0 0 6px; }
+  .layer .lt .tag { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:2px 8px; border-radius:999px; margin-left:9px; vertical-align:1px; }
+  .layer .ld { font-size:13px; color:#3c3f47; margin:0; line-height:1.6; }
+  .layer .ld ul { margin:7px 0 0; padding-left:18px; }
+  .layer .ld li { margin:4px 0; }
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px 20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); line-height:1.8; }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  @media (max-width:900px) { .concl { grid-template-columns:1fr 1fr; } .funnel { grid-template-columns:1fr; } }
+  @media (max-width:640px) { .wrap { padding:36px 16px 72px; } .concl { grid-template-columns:1fr; } .layer { grid-template-columns:1fr; } .layer .ln { width:100%; height:auto; padding:8px 0; } h1 { font-size:24px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · 效率追问</div>
+  <h1>标签体系到底怎么帮维护者提效：<b><em>不是完成率，是时间与注意力</em></b></h1>
+  <p class="lede">你说得对——<b>光看 completed 占比，很多维度确实拉不开差距</b>。但「完成率」从一开始就量错了东西：<code>not_planned</code> 常常是正确的过滤（机器人把烂 issue 挡掉，维护者零耗时），<code>completed</code> 也未必是维护者干的活（可能是作者自己的 PR）。真正的效率藏在两条轴上：<b>一件事多久被了结（时间）</b>，以及<b>了结它的是人还是机器人（注意力）</b>。下面就用窗口内真实 issue 逐条看。</p>
+  <div class="meta">
+    <span>时间窗口 <code>2026-09-13..11-13</code></span>
+    <span>已关闭 issue 基线 <code>7,595</code></span>
+    <span>中位数 = 创建→关闭的天数</span>
+    <span>样本每标签 ≤300 条</span>
+  </div>
+
+  <!-- 01 先看 completed 到底差多少 -->
+  <section>
+    <h2><b>01 · 先看 completed% 到底差多少</b> 你的直觉对了一半</h2>
+    <p class="secdesc">把每个维度内部各标签的 completed 占比取个「极差」（最高 − 最低），就能看清哪几维真的扁平、哪几维其实分得很开。窗口内所有已关闭 issue 的 completed 占比。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>维度</th><th class="num">最低 completed</th><th class="num">最高 completed</th><th class="num">极差</th><th>读取</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">路由（7 标签）</td><td class="num">36.4% <span class="chip">needs-product-decision</span></td><td class="num">98.5% <span class="chip">queueable-fix</span></td><td class="num"><b>62pt</b></td><td class="desc"><span class="chip g">分得很开</span> 这是真正的「修不修」分水岭</td></tr>
+        <tr><td class="lab">特殊（5 标签）</td><td class="num">15.1% <span class="chip">stale</span></td><td class="num">98.6% <span class="chip">no-stale</span></td><td class="num"><b>83pt</b></td><td class="desc"><span class="chip g">分得很开</span> 但 stale/no-stale 是镜像对，近乎同义反复</td></tr>
+        <tr><td class="lab">优先级（4 标签）</td><td class="num">54.5% <span class="chip">P3</span></td><td class="num">79.6% <span class="chip">P1</span></td><td class="num">25pt</td><td class="desc"><span class="chip r">较扁平</span> 你的观察在这里成立</td></tr>
+        <tr><td class="lab">影响（9 标签）</td><td class="num">56.8% <span class="chip">ux-release-blocker</span></td><td class="num">79.4% <span class="chip">data-loss</span></td><td class="num">23pt</td><td class="desc"><span class="chip r">最扁平</span> 你的观察在这里最成立</td></tr>
+        <tr><td class="lab">成熟度（1 标签）</td><td class="num">—</td><td class="num">68.6%</td><td class="num">—</td><td class="desc">单标签，无内部差异可言</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn"><p><b>结论先摆这里</b>：completed% 真正能区分问题的是<b>路由</b>（「修不修」）和<b>特殊</b>（「过期不过期」）。而<b>优先级</b>与<b>影响</b>两维确实如你所说，completed% 几乎不区分——因为这两维的职责本来就不是回答「修不修」，而是回答<b>「先修哪个」</b>。效率不在「完成率」里，在下面两条轴里。</p></div>
+  </section>
+
+  <!-- 02 时间轴 -->
+  <section>
+    <h2><b>02 · 效率轴一：时间</b> 路由标签把中位关闭时间拉开 60 倍</h2>
+    <p class="secdesc">这是最关键的一张图。同样是「已关闭」，路由标签把 issue 分成了「几小时了结」和「一个月才了结」两个世界。中位数（median，天）来自创建时间到关闭时间。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>路由标签</th><th class="num">已关闭</th><th class="num">中位关闭时间</th><th>时间条</th><th>读取</th></tr></thead>
+      <tbody>
+        <tr class="barrow"><td class="lab"><span class="lbl"><span class="dot" style="background:#2b7a78"></span>queueable-fix</span></td><td class="num">1,167</td><td class="num">0.5 天</td><td><span class="bar" style="width:3%"></span></td><td class="desc">「能直接修」→ 半天内了结</td></tr>
+        <tr class="barrow"><td class="lab"><span class="lbl"><span class="dot" style="background:#2b7a78"></span>fix-shape-clear</span></td><td class="num">1,307</td><td class="num">0.6 天</td><td><span class="bar" style="width:3%"></span></td><td class="desc">「修法明确」→ 一样快</td></tr>
+        <tr class="barrow"><td class="lab"><span class="lbl"><span class="dot" style="background:#2b7a78"></span>linked-pr-open</span></td><td class="num">1,295</td><td class="num">1.6 天</td><td><span class="bar" style="width:8%"></span></td><td class="desc">「PR 已在」→ 等合并</td></tr>
+        <tr class="barrow"><td class="lab"><span class="lbl"><span class="dot" style="background:#c99a2e"></span>needs-security-review</span></td><td class="num">267</td><td class="num">4.7 天</td><td><span class="bar mid" style="width:22%"></span></td><td class="desc">「要安全评审」→ 多一层审查</td></tr>
+        <tr class="barrow"><td class="lab"><span class="lbl"><span class="dot" style="background:#c99a2e"></span>no-new-fix-pr</span></td><td class="num">3,024</td><td class="num">11.8 天</td><td><span class="bar mid" style="width:55%"></span></td><td class="desc">「没新 PR」→ 挂起等</td></tr>
+        <tr class="barrow"><td class="lab"><span class="lbl"><span class="dot" style="background:#d94f2b"></span>needs-product-decision</span></td><td class="num">985</td><td class="num">25.8 天</td><td><span class="bar slow" style="width:88%"></span></td><td class="desc">「要产品拍板」→ 等决策</td></tr>
+        <tr class="barrow"><td class="lab"><span class="lbl"><span class="dot" style="background:#d94f2b"></span>needs-maintainer-review</span></td><td class="num">1,205</td><td class="num">29.4 天</td><td><span class="bar slow" style="width:100%"></span></td><td class="desc">「要维护者细看」→ 最慢</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><p><b>这就是提效的第一层</b>：同一批 issue，机器人先给每个贴好「该多快处理」的标签。维护者看到 <code>queueable-fix</code> 就知道<b>现在就能修、半天就能关</b>；看到 <code>needs-product-decision</code> 就知道<b>这件事卡在决策、急也没用</b>。标签没有改变「修不修」，它改变的是<b>维护者的时间被分配到了对的队列</b>——紧急可修的先做，等决策的让它先挂着，而不是靠人肉把 7,595 条从头读一遍再排优先级。</p></div>
+  </section>
+
+  <!-- 03 注意力轴 -->
+  <section>
+    <h2><b>03 · 效率轴二：谁在干活</b> 快车道人修，慢车道机器人收尾</h2>
+    <p class="secdesc">看「关闭者」是谁，效率的真相就出来了：<b>机器人（barnacle / clawsweeper）吸收了等待和清理成本，把人留给真正要写代码的 issue</b>。关闭者按 closed_by 归类。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th class="num">维护者/他人</th><th class="num">作者自关</th><th class="num">barnacle</th><th class="num">clawsweeper</th><th>读取</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#2b7a78"></span>fix-shape-clear</span></td><td class="num"><b>84%</b></td><td class="num">14%</td><td class="num">1%</td><td class="num">1%</td><td class="desc"><span class="chip g">真人真修</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#2b7a78"></span>queueable-fix</span></td><td class="num"><b>83%</b></td><td class="num">16%</td><td class="num">—</td><td class="num">1%</td><td class="desc"><span class="chip g">真人真修</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#2b7a78"></span>no-new-fix-pr</span></td><td class="num"><b>71%</b></td><td class="num">29%</td><td class="num">—</td><td class="num">1%</td><td class="desc">人修为主，作者自己补 PR 也多</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#c99a2e"></span>linked-pr-open</span></td><td class="num"><b>65%</b></td><td class="num">28%</td><td class="num">5%</td><td class="num">1%</td><td class="desc">等 PR 合并，作者占近三成</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#c99a2e"></span>needs-maintainer-review</span></td><td class="num"><b>59%</b></td><td class="num">8%</td><td class="num">33%</td><td class="num">—</td><td class="desc">人审为主，三成交给 barnacle 收尾</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#d94f2b"></span>needs-product-decision</span></td><td class="num">34%</td><td class="num">13%</td><td class="num"><b>53%</b></td><td class="num">—</td><td class="desc"><span class="chip r">机器人过半收尾</span> 人只碰三分之一</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#d94f2b"></span>stale</span></td><td class="num">14%</td><td class="num">5%</td><td class="num"><b>75%</b></td><td class="num">6%</td><td class="desc"><span class="chip r">机器人清场</span> 过期清理几乎不占人</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout gold"><p><b>这就是提效的第二层</b>：看 <code>needs-product-decision</code>——它的 completed 占比只有 36.4%（表 01 里最低），但这不是「失败」，而是<b>机器人替维护者扛下了 53% 的收尾</b>：issue 挂着等决策，等不到就由 barnacle 自动关掉，维护者全程只碰了三分之一。反过来 <code>queueable-fix</code> 的 98.5% completed 也不是「机器人的功劳」，而是<b>机器人把「修法已经清晰」的活筛出来，让维护者花最短时间真修掉</b>。标签体系做的不是「提高完成率」，而是<b>把每个 issue 路由到最便宜的那个关闭者</b>。</p></div>
+  </section>
+
+  <!-- 04 两条车道 -->
+  <section>
+    <h2><b>04 · 合起来：两条车道</b> 一条 0.5 天，一条 30 天</h2>
+    <p class="secdesc">把「时间」和「谁在干活」叠在一起，标签体系在窗口内真实地造出了两条车道。</p>
+    <div class="funnel">
+      <div class="fbox fast">
+        <h3>快车道 · 现在就能修</h3>
+        <p class="sub">queueable-fix · fix-shape-clear · linked-pr-open · no-stale</p>
+        <div class="big">中位 0.5–1.6 天</div>
+        <ul>
+          <li>机器人已确认「修法清晰 / PR 已开」</li>
+          <li>维护者 / 他人关闭占 <b>65–84%</b>——真人真修</li>
+          <li>completed 占比 <b>86–99%</b>——筛出来的基本都修掉了</li>
+          <li>本质：<b>机器人先把诊断做完，人只写修复</b></li>
+        </ul>
+      </div>
+      <div class="fbox slow">
+        <h3>慢车道 · 先挂着等</h3>
+        <p class="sub">needs-product-decision · needs-maintainer-review · stale</p>
+        <div class="big">中位 26–44 天</div>
+        <ul>
+          <li>机器人判定「卡在决策 / 要细审 / 已过期」</li>
+          <li>barnacle 关闭占 <b>33–75%</b>——机器人在等、在收尾</li>
+          <li>维护者只碰 <b>14–59%</b>——人把时间留给快车道</li>
+          <li>本质：<b>机器人吸收等待成本，人不陪跑</b></li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout"><p><b>一句话</b>：这套标签体系不提高「完成率」，它提高的是<b>「维护者时间花在哪」的命中率</b>。7,595 条关闭的 issue 里，被明确标记「能直接修」的那批半天就关、且几乎都是人修的；被标记「卡决策/过期」的那批拖上一个月、但大半是机器人自己关的。人从头到尾只把注意力投在<b>值得修</b>的那一小撮上。</p></div>
+  </section>
+
+  <!-- 05 priority 的隐藏排序 -->
+  <section>
+    <h2><b>05 · 优先级没在 completed% 上区分，是在「先后」上区分</b></h2>
+    <p class="secdesc">P0–P3 的 completed 占比确实扁平（54.5%–79.6%），但它们的中位关闭时间排出了一个<b>反直觉但自洽</b>的顺序。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>优先级</th><th>含义</th><th class="num">completed</th><th class="num">中位关闭</th><th>读取</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8C959F"></span>P3</span></td><td>低风险清理/文档/打磨</td><td class="num">54.5%</td><td class="num">0.2 天</td><td class="desc">「做不做都行」→ 最快拍板，多为 not_planned</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>P2</span></td><td>普通 bug/改进</td><td class="num">66.6%</td><td class="num">0.5 天</td><td class="desc">常规活，半天了结</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>P1</span></td><td>紧急回归/现网坏掉</td><td class="num">79.6%</td><td class="num">1.0 天</td><td class="desc">completed 最高——真回归必须修，且修得快</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>P0</span></td><td>数据丢失/安全绕过/崩溃循环</td><td class="num">58.0%</td><td class="num">8.8 天</td><td class="desc"><span class="chip r">最慢</span> 紧急但难，要小心修+验证</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><p><b>优先级标签的真实价值</b>：它不预测「修不修」，它给出<b>处理顺序和预期节奏</b>。<code>P1</code>（现网回归）completed 最高、一天就修完——因为这类必须修、路径清晰；<code>P0</code>（数据丢失/安全）反而最慢，因为「紧急」不等于「简单」，恰恰需要小心修、充分验证。这解释了为什么 completed% 在优先级维度拉不开：<b>它的分工就是排序，不是判生死</b>。</p></div>
+  </section>
+
+  <!-- 06 impact 的扁平 -->
+  <section>
+    <h2><b>06 · 影响维度最扁平，但时间照样分得开</b></h2>
+    <p class="secdesc">impact 是 completed% 最扁平的一维（23pt），但中位关闭时间从 0.7 天到 10.9 天，仍然拉开 15 倍。impact 标签管的是「坏的是哪块」，间接决定了「谁来修、要多久」。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>影响标签</th><th class="num">completed</th><th class="num">中位关闭</th><th>读取</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#b60205"></span>data-loss</span></td><td class="num">79.4%</td><td class="num">0.7 天</td><td class="desc">数据丢失：completed 最高、修得最快——最不敢拖</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#b60205"></span>crash-loop</span></td><td class="num">76.2%</td><td class="num">0.7 天</td><td class="desc">崩溃循环：同样快、同样必须修</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#c99a2e"></span>ux-friction</span></td><td class="num">66.6%</td><td class="num">1.8 天</td><td class="desc">体验摩擦：量大、多数能被快速处理</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#c99a2e"></span>security</span></td><td class="num">66.1%</td><td class="num">4.2 天</td><td class="desc">安全：多一层评审，慢一截</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#d94f2b"></span>ux-release-blocker</span></td><td class="num">56.8%</td><td class="num">10.9 天</td><td class="desc"><span class="chip r">最慢</span> 发布阻塞需要跨面协调，completed 也最低</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><p><b>影响维度的效率</b>：它不回答「修不修」，回答<b>「坏在哪、谁来管、要多久」</b>。<code>data-loss</code>/<code>crash-loop</code> 被标出后走快车道（0.7 天、completed 79%/76%），<code>ux-release-blocker</code> 被标出后知道要跨面协调（10.9 天）。同样的 23pt 扁平 completed% 背后，是 15 倍的时间差——标签在帮维护者<b>按「影响面」预判投入</b>。</p></div>
+  </section>
+
+  <!-- 07 工作路径 -->
+  <section>
+    <h2><b>07 · 维护者的实际工作路径</b> 一条三层漏斗，人只落三个动作</h2>
+    <p class="secdesc">前面证明的是「效率藏在哪里」；这一节把机制还原成维护者每天真实的处理路径。核心认知：<b>维护者不读 issue 流</b>——机器人把「读」这件事整个扛掉了，人只落在三个必须人做的动作上。来源：<code>README.md</code>（review lane / apply lane / 调度器）、<code>prompts/review-item.md</code>、<code>docs/work-lane.md</code>、<code>src/decision-packets.ts</code>。</p>
+
+    <div class="layer mech">
+      <div class="ln">01</div>
+      <div class="lb">
+        <div class="lt">机器人全自动<span class="tag">维护者零参与</span></div>
+        <div class="ld">issue 一进，调度器按热度排期：最新/活跃的每小时一查（最新边缘 5 分钟一次），30 天内的每天一查，更老的每周一查。Codex（<code>gpt-6.1-sol</code>）只拿 <code>gh api</code> GET 权限做只读审查，产出三样：结构化决策 JSON（复现/优先级/影响/work lane/是否要产品决策）、一条 marker 打标原地编辑的公开评论、一批 advisory 标签。<b>每 15 分钟 apply 一次</b>，只关「未变动、高置信、策略允许」的提案（<code>implemented_on_main</code>、<code>cannot_reproduce</code>、<code>duplicate_or_superseded</code>、<code>stale_insufficient_info</code> 等），每次 checkpoint 最多 40 条，关前重拉现场状态核对。排期、审查、贴标签、写评论、关低价值 issue——全部不占维护者。</div>
+      </div>
+    </div>
+
+    <div class="layer filter">
+      <div class="ln">02</div>
+      <div class="lb">
+        <div class="lt">标签是收件箱过滤器<span class="tag">维护者的视图</span></div>
+        <div class="ld">维护者面对的不是 11,000 条 issue，而是按标签过滤后的几个视图，每条都归好了队：</div>
+        <ul>
+          <li><code>queueable-fix</code> / <code>fix-shape-clear</code> → 修法已写好（<code>workPrompt</code> 连涉及文件、验证命令、什么不能改都给了），<b>等人/让人动手写 PR</b></li>
+          <li><code>needs-product-decision</code> → 卡产品方向，<b>要人拍板</b>，同时生成 decision packet（问题+选项+推荐+可能负责人）</li>
+          <li><code>needs-security-review</code> → 安全敏感，<b>要人判断</b>；<code>needs-maintainer-review</code> → 重要但要人来定优先级/方向</li>
+          <li><code>good first issue</code> → 已验证的小 bug，社区可接；复现证据 / impact / priority → 给「先修哪个」提供上下文</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="layer human">
+      <div class="ln">03</div>
+      <div class="lb">
+        <div class="lt">维护者只做机器人做不了的四件事<span class="tag">人的决策层</span></div>
+        <ul>
+          <li><b>写修复 PR</b>（<code>queueable-fix</code> 车道）：机器人能诊断、能写计划，但不能改代码——人照着 workPrompt 写那个聚焦 PR</li>
+          <li><b>拍板 decision packet</b>：产品方向、安全边界、证据够不够、进不进某版本、合并风险——是机器人的<b>建议</b>不是<b>批准</b>，最终要维护者裁</li>
+          <li><b>发命令干预</b>：<code>@clawsweeper review</code> / <code>re-review</code> / <code>explain</code> / <code>stop</code>（冻结，贴 <code>clawsweeper:human-review</code>）</li>
+          <li><b>兜底保护</b>：维护者自己写的 issue 默认不关（除非证明 main 上已实现）；<code>security</code> / <code>release-blocker</code> / <code>maintainer</code> 硬保护标签绝不自动关</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout"><p><b>这条路径落到窗口数据上是自洽的</b>：<code>queueable-fix</code> 83% 由维护者关闭（人在写修复）→ <code>needs-product-decision</code> 53% 由 barnacle 关闭（机器人扛掉了「等决策」的收尾）→ <code>stale</code> 75% 由 barnacle 关闭（机器人清场）。维护者不再走「读 issue → 排优先级 → 复现 → 判断 → 关/修」的全流程，而是「标签过滤 → 只碰机器筛出来的三类（写代码、拍板、人工判断）」，剩下九成流水线由 Codex + barnacle 扛掉。</p></div>
+  </section>
+
+  <!-- 结论 -->
+  <section>
+    <h2><b>结论</b> 标签体系是「分流机」，不是「完成率优化器」</h2>
+    <div class="concl">
+      <div class="c"><div class="n">1 · 量错了指标</div><p>completed 占比不区分优先级/影响，是正常的——那两维的职责是排序，不是判生死。效率指标应是「中位关闭时间」和「关闭者身份」。</p></div>
+      <div class="c"><div class="n">2 · 时间拉开 60 倍</div><p>路由标签把中位关闭时间从 <code>queueable-fix</code> 的 0.5 天拉到 <code>needs-maintainer-review</code> 的 29.4 天——机器人在替你排「先做哪个」。</p></div>
+      <div class="c"><div class="n">3 · 人只碰值得修的</div><p>快车道 65–84% 由人真修；慢车道 33–75% 由 barnacle 收尾。标签把每个 issue 路由到<b>最便宜的关闭者</b>，人把注意力留给真 bug。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：GitHub 搜索/列表 API，仓库 <code>openclaw/openclaw</code>，窗口 <code>created:2026-09-13..2026-11-13</code>。completed/not_planned 与关闭者按 <code>state_reason</code> / <code>closed_by</code> 归类；中位关闭时间 = 每标签 ≤300 条样本的创建→关闭天数中位数；「维护者/他人」= 非作者、非机器人的关闭者。中文解读为作者注记。<br>
+    生成于 2026-11-15 · 配套：<a href="clawsweeper-label-taxonomy.html">全维度分类法</a> · <a href="routing-labels.html">路由</a> · <a href="priority-labels.html">优先级</a> · <a href="impact-labels.html">影响</a> · <a href="maturity-labels.html">成熟度</a> · <a href="special-labels.html">特殊</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw Issue「特殊/附加」维度 · 非评分的零散标签</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1100px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:32px; line-height:1.28; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:16px; color:#3c3f47; max-width:880px; }
+  .lede code, p code, li code, td code, th code, .cap code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#f1ece3; padding:1px 6px; border-radius:5px; color:#3a3d45; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  section { margin-top:52px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 8px; }
+  h2 b { color:var(--ink); }
+  .secdesc { font-size:14px; color:#54575f; margin:0 0 18px; max-width:880px; }
+  .callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:12px; padding:16px 22px; margin:20px 0 0; }
+  .callout p { margin:0; font-size:14px; color:#3c3f47; }
+  .callout p b { color:var(--ink); }
+  .callout.warn { border-left-color:var(--lob); }
+  .callout.gold { border-left-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px 8px; border-bottom:1px solid #f0eae1; vertical-align:top; }
+  td.lab { font-family:ui-monospace,Menlo,monospace; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.desc { color:#3c3f47; min-width:300px; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .lbl { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .lbl .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .chip { font-size:11px; background:#f2ede4; color:#4a4d55; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.g { background:#e7f2e8; color:#1f6b2f; }
+  .chip.y { background:#f7ecce; color:#8a6a1c; }
+  .chip.r { background:var(--lob-soft); color:#a3341a; }
+  .prompt { background:#20222a; color:#e8e4dc; border-radius:12px; padding:18px 20px; font-size:13px; line-height:1.7; }
+  .prompt code { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:#e8835d; }
+  .prompt .h { font-size:11px; letter-spacing:.1em; color:#9aa0a6; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .mech { display:flex; flex-direction:column; gap:10px; }
+  .m { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .m .t { font-size:13.5px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .m .d { font-size:13px; color:#54575f; margin-top:6px; }
+  .m .d code { font-size:11.5px; }
+  .cond { margin-top:8px; font-size:12px; color:var(--muted); line-height:1.7; }
+  .cond b { color:var(--ink); }
+  .cond code { font-size:11px; background:#f1ece3; padding:1px 5px; border-radius:4px; }
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px 20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); line-height:1.8; }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  @media (max-width:900px) { .concl { grid-template-columns:1fr 1fr; } }
+  @media (max-width:640px) {
+    .wrap { padding:36px 16px 72px; }
+    .concl { grid-template-columns:1fr; }
+    h1 { font-size:24px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · Issue 特殊/附加标签</div>
+  <h1>特殊维度：<b><em>不参与评分</em></b>的零散标签</h1>
+  <p class="lede">前面四个维度都在「打分 / 分类 / 定去向」，这一组标签则各自独立触发、彼此无关：<code>good first issue</code> 招新手、<code>stale</code>/<code>no-stale</code> 管陈腐、<code>bulk-filed</code> 标记批量提报、<code>idea-archive</code> 归档被搁置的想法。它们共同点是<b>都不是评分维度</b>，而是治理与运营的辅助标记。</p>
+  <div class="meta">
+    <span>源码 commit <code>a053c71</code></span>
+    <span><code>src/clawsweeper-label-selection.ts</code></span>
+    <span><code>src/repair/exact-review-guard-labels.ts</code></span>
+    <span>时间窗口 <code>2026-09-13..11-13</code></span>
+  </div>
+
+  <!-- 01 -->
+  <section>
+    <h2><b>01 · 这个维度有几种</b> 5 个 issue 标签（+1 个 PR 专用）</h2>
+    <p class="secdesc">严格属于 issue 侧的特殊标签有 5 个。另有一个 <code>feature: ✨ showcase</code> 名字像 issue、但代码里 <code>shouldApplyFeatureShowcaseLabel()</code> 要求 <code>isPullRequest</code>，所以<b>它只贴 PR</b>——放在这里一并说明。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th><th>作用域</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#7057FF"></span>good first issue</span></td><td class="hex">7057FF</td><td class="desc">Good for newcomers</td><td><span class="chip g">issue</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#9aa0a6"></span>stale</span></td><td class="hex">—</td><td class="desc">陈腐标记（GitHub 原生语义）</td><td><span class="chip g">issue</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#9aa0a6"></span>no-stale</span></td><td class="hex">—</td><td class="desc">陈腐豁免（保护 queueable-fix 不被 stale）</td><td><span class="chip g">issue</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#6E7781"></span>clawsweeper:bulk-filed</span></td><td class="hex">6E7781</td><td class="desc">ClawSweeper detected a high recent issue-filing volume from this author.</td><td><span class="chip g">issue</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8250DF"></span>clawsweeper:idea-archive</span></td><td class="hex">8250DF</td><td class="desc">Parked feature idea awaiting a maintainer decision.</td><td><span class="chip g">issue</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#A371F7"></span>feature: ✨ showcase</span></td><td class="hex">A371F7</td><td class="desc">ClawSweeper spotlight: unusually compelling feature idea for maintainer attention.</td><td><span class="chip r">PR 专用</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 03 触发机制 -->
+  <section>
+    <h2><b>02 · 触发机制</b> 5 个标签，5 套独立的贴法</h2>
+    <p class="secdesc">与其它维度「一个字段驱动一堆标签」不同，这 5 个标签<b>各有各的触发来源</b>，互不共享一套决策逻辑。</p>
+    <div class="mech">
+      <div class="m">
+        <div class="t"><span class="dot" style="width:10px;height:10px;border-radius:3px;background:#7057FF"></span>good first issue · 代码硬门槛</div>
+        <div class="d">由 <code>isGoodFirstIssue()</code> 判定，不是模型直接填的。它要求一条 issue 同时满足 <b>约 14 个条件</b>，是全局最严的标签。</div>
+        <div class="cond"><b>核心条件</b>：<code>type=issue</code> + <code>itemCategory=bug</code> + <code>reproductionStatus=reproduced</code> + <code>reproductionConfidence=high</code> + 三个 <code>requires*</code> 全 false + <code>implementationComplexity=small</code> + <code>autoImplementationCandidate=strict_bug</code> + <code>securityReviewStatus≠needs_attention</code> + <code>workCandidate=queue_fix_pr</code> 且 candidate/high + 有 <code>workPrompt</code> 与 <code>workValidation</code> + 未 opt-out / 未 lock + 非 bulk-filed + 无安全标签 + 无 <code>impact:security</code> + 无保护标签 + 无 open 关联 PR。</div>
+      </div>
+      <div class="m">
+        <div class="t"><span class="dot" style="width:10px;height:10px;border-radius:3px;background:#9aa0a6"></span>stale / no-stale · 陈腐工作流 + 保护</div>
+        <div class="d"><code>stale</code> 由 GitHub 陈腐工作流在 issue 长期无活动时自动打上；<code>no-stale</code> 是反向保护——当一条 issue 是 <code>queue_fix_pr</code> 候选（<code>issueAdvisoryStateNeedsStaleProtection()</code>），代码主动贴 <code>no-stale</code> 防止它被陈腐流程误关。</div>
+      </div>
+      <div class="m">
+        <div class="t"><span class="dot" style="width:10px;height:10px;border-radius:3px;background:#6E7781"></span>clawsweeper:bulk-filed · 批量提报检测</div>
+        <div class="d">宿主侧检测到<b>同一作者近期高频提 issue</b>（阈值 <code>DEFAULT_BULK_FILER_THRESHOLD=10</code> 条 / <code>WINDOW_DAYS=7</code> 天）时，注入 <code>bulkFiler.detected=true</code>，代码据此贴标签。</div>
+      </div>
+      <div class="m">
+        <div class="t"><span class="dot" style="width:10px;height:10px;border-radius:3px;background:#8250DF"></span>clawsweeper:idea-archive · 关闭时归档</div>
+        <div class="d">在 issue 以 <code>unsponsored_feature_request</code> 关闭时，<code>clawsweeper-apply-close-execution.ts</code> 顺手贴上，把「无赞助的 feature 想法」归档给维护者日后翻看。</div>
+      </div>
+      <div class="m">
+        <div class="t"><span class="dot" style="width:10px;height:10px;border-radius:3px;background:#A371F7"></span>feature: ✨ showcase · PR 专用</div>
+        <div class="d"><code>shouldApplyFeatureShowcaseLabel()</code> 要求 <code>isPullRequest</code> 且 <code>showcase.status=showcase</code>，因此<b>不出现在 issue 上</b>（本次窗口 issue 搜索命中 0，印证了这一点）。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 prompt -->
+  <section>
+    <h2><b>03 · 关键 prompt 与输入</b></h2>
+    <p class="secdesc">这一组标签的「书面判据」最零散：good-first-issue 几乎纯代码判定，bulk-filed 只在 issue prompt 里一句带过，idea-archive 的判据藏在关闭原因文档里。</p>
+    <div class="prompt">
+      <div class="h">prompts/review-item-issue.md · bulkFiler</div>
+      <code>bulkFiler.detected</code>: extra duplicate scrutiny, terse public prose, and no proof-nudge. A likely duplicate is <code>duplicate_or_superseded</code>; bulk filing alone is no close reason.
+    </div>
+    <div class="prompt" style="margin-top:12px">
+      <div class="h">prompts/review-item.md · good-first-issue 资格</div>
+      <code>requiresNewFeature</code>, <code>requiresNewConfigOption</code>, and <code>requiresProductDecision</code> are independent; any true value removes strict-bug advisory and good-first-issue eligibility.
+    </div>
+    <div class="prompt" style="margin-top:12px">
+      <div class="h">prompts/review-close-reasons.md · unsponsored_feature_request（idea-archive 的触发）</div>
+      … an issue older than 90 days requesting a feature that awaits a maintainer product decision: <code>itemCategory</code> <code>feature</code>; <code>requiresProductDecision</code> true … no maintainer engagement … no human comment in 60 days, no linked open PR. … The comment parks a reversible idea, not a rejection …
+    </div>
+  </section>
+
+  <!-- 06 数据 -->
+  <section>
+    <h2><b>04 · 每个标签的数量 + completed 关闭占比</b></h2>
+    <p class="secdesc">时间窗口 <code>2026-09-13..11-13</code>。这些标签可叠加且性质各异，不计算「维度占比」，直接看绝对量与关闭去向。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th class="num">总数</th><th class="num">关闭率</th><th class="num">completed</th><th class="num">not_planned</th><th>读取</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#9aa0a6"></span>stale</span></td><td class="num">1814</td><td class="num">70.7%</td><td class="num">15.1%</td><td class="num">84.9%</td><td class="desc"><span class="chip r">「搁置坟场」：85% 是 not_planned</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#9aa0a6"></span>no-stale</span></td><td class="num">1571</td><td class="num">75.0%</td><td class="num">98.6%</td><td class="num">1.4%</td><td class="desc"><span class="chip g">保护的修复候选，几乎全 completed</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#6E7781"></span>bulk-filed</span></td><td class="num">797</td><td class="num">66.0%</td><td class="num">64.4%</td><td class="num">35.6%</td><td class="desc"><span class="chip y">批量提报，三成半搁置</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#7057FF"></span>good first issue</span></td><td class="num">2</td><td class="num">—</td><td class="num">1</td><td class="num">0</td><td class="desc"><span class="chip y">14 条件几乎没人满足</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8250DF"></span>idea-archive</span></td><td class="num">0</td><td class="num">—</td><td class="num">0</td><td class="num">0</td><td class="desc"><span class="chip y">窗口内未触发（标签很新）</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#A371F7"></span>feature: ✨ showcase</span></td><td class="num">0</td><td class="num">—</td><td class="num">0</td><td class="num">0</td><td class="desc"><span class="chip y">PR 专用，issue 上应为 0</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><p><b>一眼结论</b>：最扎眼的是 <code>stale</code> 与 <code>no-stale</code> 这对镜像——<code>stale</code> 的关闭里有 <b>84.9% 是 not_planned</b>（陈腐 = 被放弃），而 <code>no-stale</code> 的关闭里 <b>98.6% 是 completed</b>（被保护的修复候选最终真被修掉）。两者加起来正好讲清 ClawSweeper 的治理意图：<b>用 no-stale 把「值得修的」从「该陈腐的」里挑出来保护。</b> <code>good first issue</code> 窗口内只有 2 条，说明 14 条硬门槛把「新手友好」压到了近乎不存在。</p></div>
+  </section>
+
+  <!-- 结论 -->
+  <section>
+    <h2><b>结论</b> 特殊标签是「治理辅助」，不是评分</h2>
+    <div class="concl">
+      <div class="c"><div class="n">1 · 5 套独立触发</div><p>不像其它维度「一个字段驱动」，这 5 个标签各有各的触发源：代码门槛、陈腐工作流、批量检测、关闭归档。</p></div>
+      <div class="c"><div class="n">2 · stale / no-stale 是一对镜像</div><p>一个标记放弃（85% not_planned），一个保护修复候选（99% completed），合起来是治理的核心逻辑。</p></div>
+      <div class="c"><div class="n">3 · good-first-issue 近乎绝迹</div><p>14 个同时满足的硬条件，让「新手友好」在窗口内只剩 2 条。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：openclaw/clawsweeper @ <code>a053c71</code> —— <code>src/clawsweeper-label-selection.ts</code>（<code>isGoodFirstIssue</code> / stale 保护）、<code>src/clawsweeper-label-policy.ts</code>（<code>shouldApplyFeatureShowcaseLabel</code>）、<code>src/clawsweeper-apply-close-execution.ts</code>（idea-archive）、<code>src/repair/exact-review-guard-labels.ts</code>（<code>BULK_FILED_LABEL</code>）、<code>prompts/review-item-issue.md</code>、<code>prompts/review-close-reasons.md</code>。数量与关闭占比来自 GitHub 搜索 API，窗口 <code>created:2026-09-13..2026-11-13</code>。中文解读为作者注记。<br>
+    生成于 2026-11-15 · 配套：<a href="clawsweeper-label-taxonomy.html">全维度分类法</a> · <a href="routing-labels.html">路由</a> · <a href="priority-labels.html">优先级</a> · <a href="impact-labels.html">影响</a> · <a href="maturity-labels.html">成熟度</a>
+  </footer>
+
+</div>
+</body>
+</html>

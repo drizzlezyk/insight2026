@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw Issue 评分机制 · ClawSweeper issue-rating 流水线</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1080px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:38px; line-height:1.28; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:17px; color:#3c3f47; max-width:860px; }
+  .lede code, p code, li code, td code, th code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#f1ece3; padding:1px 6px; border-radius:5px; color:#3a3d45; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  section { margin-top:56px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 18px; }
+  h2 b { color:var(--ink); }
+  h3.sub { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--lob); font-weight:700; margin:34px 0 12px; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:26px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .kpi .n { font-size:30px; font-weight:750; letter-spacing:-.02em; }
+  .kpi .n small { font-size:14px; font-weight:600; color:var(--muted); margin-left:3px; }
+  .kpi .l { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .kpi .s { font-size:11.5px; color:#9a8f7e; margin-top:5px; }
+  .callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:12px; padding:18px 22px; margin:24px 0 0; }
+  .callout p { margin:0; font-size:15px; color:#3c3f47; }
+  .callout p b { color:var(--ink); }
+  .callout.warn { border-left-color:var(--lob); }
+  .callout.gold { border-left-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); }
+  td { padding:11px 8px; border-bottom:1px solid #f0eae1; vertical-align:top; }
+  td.lab, td code { font-family:ui-monospace,Menlo,monospace; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.closer { font-size:12px; line-height:1.5; min-width:120px; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  /* animal chips — actual GitHub label colors */
+  .an { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .an .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .dot.crab { background:#1F883D; } .dot.lob { background:#0969DA; } .dot.her { background:#0F766E; }
+  .dot.shr { background:#B7791F; } .dot.she { background:#7A828E; } .dot.kra { background:#8C2F39; } .dot.tid { background:#6E7781; }
+  .chip { font-size:11px; background:#f2ede4; color:#4a4d55; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.t { background:var(--teal-soft); color:#1f5e5c; }
+  .chip.r { background:var(--lob-soft); color:#a3341a; }
+  /* matrix */
+  .matrix td { text-align:center; }
+  .matrix td.status { text-align:left; font-family:ui-monospace,Menlo,monospace; font-size:12px; font-weight:600; }
+  .matrix th { text-align:center; }
+  .matrix th:first-child { text-align:left; }
+  /* decision list (code first-match order) */
+  .decs { display:flex; flex-direction:column; gap:8px; margin:6px 0 0; }
+  .dec { display:grid; grid-template-columns:24px 1fr auto; gap:12px; align-items:center;
+    background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 15px; }
+  .dec .ord { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; text-align:center; font-weight:700; }
+  .dec .cond { font-size:13px; color:#3a3d45; }
+  .dec .cond code { font-size:11.5px; }
+  .dec .an { justify-self:end; }
+  .dec.fb .cond { color:var(--muted); }
+  /* timeline */
+  .tl { display:flex; flex-direction:column; gap:0; margin-top:6px; }
+  .step { display:grid; grid-template-columns:64px 22px 1fr; gap:10px; }
+  .step .time { font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:var(--muted); padding-top:2px; text-align:right; }
+  .step .dot { position:relative; }
+  .step .dot::before { content:""; position:absolute; left:7px; top:5px; width:8px; height:8px; border-radius:50%; background:var(--lob); }
+  .step .dot::after { content:""; position:absolute; left:10px; top:16px; bottom:-6px; width:1px; background:#e9ddd2; }
+  .step:last-child .dot::after { display:none; }
+  .step .body { padding-bottom:16px; font-size:13.5px; color:#3c3f47; }
+  .step .body b { color:var(--ink); font-weight:650; }
+  .step .body .who { display:block; font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .step .body .tags { margin-top:3px; }
+  /* reproduction semantics */
+  .repro { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+  .rc { background:var(--card); border:1px solid var(--line); border-radius:13px; padding:15px 15px 13px; }
+  .rc .k { font-family:ui-monospace,Menlo,monospace; font-size:11.5px; font-weight:700; color:var(--teal); word-break:break-all; }
+  .rc .d { font-size:12px; color:#54575f; margin-top:6px; line-height:1.5; }
+  .rc .map { margin-top:9px; font-size:11px; color:var(--muted); border-top:1px dashed var(--line); padding-top:7px; }
+  .rc .map b { color:var(--ink); font-weight:650; }
+  .rc.na .k { color:var(--gold); }
+  .rc.inf .k { color:var(--lob); }
+  .rc .inf-tag { font-size:10px; font-weight:700; letter-spacing:.04em; padding:1px 6px; border-radius:4px; background:#f1ece3; color:var(--muted); margin-left:4px; vertical-align:1px; }
+  .rc.inf .inf-tag { background:var(--lob-soft); color:#a3341a; }
+  /* conclusion */
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px 20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .axis { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .axis h4 { margin:0 0 6px; font-size:15px; }
+  .axis h4 code { font-size:13px; }
+  .axis p { margin:0; font-size:13px; color:#54575f; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); line-height:1.8; }
+  footer a { color:var(--teal); }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  @media (max-width:900px) { .kpis, .repro, .concl { grid-template-columns:1fr 1fr; } }
+  @media (max-width:640px) {
+    .wrap { padding:36px 16px 72px; }
+    .kpis, .repro, .concl, .grid2 { grid-template-columns:1fr; }
+    h1 { font-size:25px; }
+    .step { grid-template-columns:52px 18px 1fr; }
+    .dec { grid-template-columns:20px 1fr; }
+    .dec .an { grid-column:1 / -1; justify-self:start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · Issue 评分机制</div>
+  <h1><code style="font-size:.7em">issue-rating:</code> 是 7 个动物标签，不是分数<br>——「复现状态 × 置信度」的一次<em>确定性查表</em></h1>
+  <p class="lede">ClawSweeper 给每条 issue 打一个「可信度」评级。但关键事实是：<b>它不是一个 1–6 的分数，也没有字母档位</b>——那个动物名（🦞 龙虾、🦐 虾、🦀 蟹）不是模型拍脑袋选的，而是两个结构化字段（<code>reproductionStatus</code> × <code>reproductionConfidence</code>）经过代码里写死的函数落出来的。这篇文章把「issue 打开 → 评级标签上墙」的每一步拆开，并附上每个评级在窗口内的关闭率与关闭中位时间。</p>
+  <div class="meta">
+    <span>代码基线 clawsweeper @ a053c71</span><span>统计窗口 2026-09-13 ~ 11-13</span><span>窗口内 11,147 条 issue</span><span>来源 源码 + GitHub Search API</span>
+  </div>
+
+  <section>
+    <div class="kpis">
+      <div class="kpi"><div class="n">82.9<small>%</small></div><div class="l">窗口内 issue 拿到 <code>issue-rating:</code></div><div class="s">9,242 / 11,147</div></div>
+      <div class="kpi"><div class="n">7.7<small>min</small></div><div class="l">开 issue → 首个评级标签（中位）</div><div class="s">20 样本，19 条 ≤ 15 min</div></div>
+      <div class="kpi"><div class="n">7</div><div class="l">个 <code>issue-rating:</code> 动物标签</div><div class="s">无字母档位、无 /6 分数</div></div>
+      <div class="kpi"><div class="n">55.6<small>%</small></div><div class="l">🦞 diamond lobster 占比</div><div class="s">5,137 / 9,242</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>核心</b> &nbsp;评级评的是什么</h2>
+    <div class="callout">
+      <p><code>issue-rating:</code> 评的是「<b>报告可验证度</b>」——这条 bug 报告的证据有多硬，而不是问题有多严重。严重度是 <code>P0–P3</code>，产品面是 <code>impact:*</code>，证据强度才是 <code>issue-rating:</code>。三个轴彼此正交：同一个 issue 可以同时是 <code>P1</code> + <code>impact:auth-provider</code> + <code>issue-rating: 🦞</code>，各说各的，不构成一个总分。</p>
+    </div>
+    <div class="callout warn" style="margin-top:12px">
+      <p><b>两个易混点，先讲清：</b>① issue 的评级<b>没有字母档位、没有 /6 分数</b>——那套 S/A/B/C/D/F/NA + 分数的尺是 PR 的 <code>rating:</code>；issue 纯粹是 7 个动物标签。② issue 的 <code>issue-rating:</code> 和 PR 的 <code>rating:</code> 借用了同一组动物名但含义与排序都不同：PR 评「可合并准备度」，issue 评「报告可验证度」。引用时不要混用。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>01</b> &nbsp;评分 = 两个字段，一次查表</h2>
+    <p>模型在整个评审里，只对「复现」这件事输出两个结构化字段，其余都是代码在算：</p>
+    <div class="grid2">
+      <div class="axis">
+        <h4><code>reproductionStatus</code> · 5 值</h4>
+        <p><code>reproduced</code> / <code>source_reproducible</code> / <code>not_reproduced</code> / <code>unclear</code> / <code>not_applicable</code> —— 回答「这条报告能不能被证实」。</p>
+      </div>
+      <div class="axis">
+        <h4><code>reproductionConfidence</code> · 3 值</h4>
+        <p><code>high</code> / <code>medium</code> / <code>low</code> —— 模型对自己上面那个判断有多确定。</p>
+      </div>
+    </div>
+    <p style="margin-top:18px">然后函数 <code>issueRatingLabelForState</code>（<code>clawsweeper-label-selection.ts:149–181</code>）做一次<b>有序匹配</b>，把 15 种组合压缩成 7 个标签。完整矩阵如下（这是代码实际评估的全部组合）：</p>
+
+    <h3 class="sub">15 组合 → 7 标签（完整矩阵）</h3>
+    <div class="tablewrap">
+    <table class="matrix">
+      <thead><tr><th>reproductionStatus ＼ confidence</th><th>high</th><th>medium</th><th>low</th></tr></thead>
+      <tbody>
+        <tr><td class="status">reproduced</td><td><span class="an"><span class="dot crab"></span>challenger crab</span></td><td><span class="an"><span class="dot her"></span>platinum hermit</span></td><td><span class="an"><span class="dot kra"></span>unranked krab</span></td></tr>
+        <tr><td class="status">source_reproducible</td><td><span class="an"><span class="dot lob"></span>diamond lobster</span></td><td><span class="an"><span class="dot her"></span>platinum hermit</span></td><td><span class="an"><span class="dot kra"></span>unranked krab</span></td></tr>
+        <tr><td class="status">not_reproduced</td><td colspan="3"><span class="an"><span class="dot she"></span>silver shellfish</span>（任何置信度）</td></tr>
+        <tr><td class="status">unclear</td><td><span class="an"><span class="dot kra"></span>unranked krab</span></td><td><span class="an"><span class="dot shr"></span>gold shrimp</span></td><td><span class="an"><span class="dot she"></span>silver shellfish</span></td></tr>
+        <tr><td class="status">not_applicable</td><td colspan="3"><span class="an"><span class="dot tid"></span>off-meta tidepool</span>（任何置信度）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 class="sub">代码的命中顺序 · 第一命中即返回</h3>
+    <div class="decs">
+      <div class="dec"><div class="ord">1</div><div class="cond"><code>reproductionStatus = not_applicable</code></div><div class="an"><span class="dot tid"></span>off-meta tidepool</div></div>
+      <div class="dec"><div class="ord">2</div><div class="cond"><code>reproduced</code> 且 <code>confidence = high</code></div><div class="an"><span class="dot crab"></span>challenger crab</div></div>
+      <div class="dec"><div class="ord">3</div><div class="cond"><code>source_reproducible</code> 且 <code>confidence = high</code> <span style="color:var(--muted)">（函数里还写了「或 reproduced」，但第 2 条已先返回，该分支是死代码）</span></div><div class="an"><span class="dot lob"></span>diamond lobster</div></div>
+      <div class="dec"><div class="ord">4</div><div class="cond"><code>source_reproducible</code> 或 <code>reproduced</code>，且 <code>confidence = medium</code></div><div class="an"><span class="dot her"></span>platinum hermit</div></div>
+      <div class="dec"><div class="ord">5</div><div class="cond"><code>unclear</code> 且 <code>confidence = medium</code></div><div class="an"><span class="dot shr"></span>gold shrimp</div></div>
+      <div class="dec"><div class="ord">6</div><div class="cond"><code>not_reproduced</code>，或（<code>unclear</code> 且 <code>confidence = low</code>）</div><div class="an"><span class="dot she"></span>silver shellfish</div></div>
+      <div class="dec fb"><div class="ord">7</div><div class="cond">以上都不匹配（兜底：<code>reproduced/low</code>、<code>source_reproducible/low</code>、<code>unclear/high</code>）</div><div class="an"><span class="dot kra"></span>unranked krab</div></div>
+    </div>
+
+    <div class="callout gold" style="margin-top:16px">
+      <p><b>动物名是查表结果，不是模型自由选择。</b>同一对（复现状态，置信度）永远落同一个标签——所以这套评分可复现、可审计、可写单测。它不像一个「让模型给 1–5 星」的黑盒，而更像一个确定性分类器。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>02</b> &nbsp;端到端流程：从打开到上墙</h2>
+    <p>评级标签不是一次写成的。它经历「预备分流 → 完整评审 → 确定性选标签 → 发布同步 → 路由」五个阶段。</p>
+    <div class="tl">
+      <div class="step">
+        <div class="time">0s</div><div class="dot"></div>
+        <div class="body"><b>issue 打开</b>。GitHub 表单瞬间打好 <code>bug</code> / <code>enhancement</code> / <code>docs</code>（纯表单选择，无模型参与）。</div>
+      </div>
+      <div class="step">
+        <div class="time">~分钟</div><div class="dot"></div>
+        <div class="body"><b>intake 预备分流</b>（小模型 <code>gpt-6-luna</code>）。只读标题与正文（≤ 12 KB 预算、20 秒超时、32 KB 响应上限、<b>无重试</b>），回答三个问题：<code>category</code>（bug / feature / docs / support）、<code>reproduction</code>（缺不缺触发步骤）、<code>environment</code>（缺不缺版本环境）。产出 <code>clawsweeper:intake:*</code> 系列。
+          <span class="who">这些是<b>预备标签</b>——完整评审发布时第一行就清空，从不直接参与评级。</span></div>
+      </div>
+      <div class="step">
+        <div class="time">~分钟</div><div class="dot"></div>
+        <div class="body"><b>完整评审</b>（Codex，模型上报为 <code>"internal"</code>，只读，返回一个符合 decision schema 的 JSON）。在约 90 个字段里，评级相关的只有两个：<code>reproductionStatus</code> 与 <code>reproductionConfidence</code>。
+          <span class="who">这就是「评分」的真正发生点——之后全是确定性代码。</span></div>
+      </div>
+      <div class="step">
+        <div class="time">发布</div><div class="dot"></div>
+        <div class="body"><b>确定性选标签 + 发布同步</b>。<code>issueRatingLabelForState</code> 把两个字段映射成唯一一个 <code>issue-rating:</code> 标签；<code>syncIssueAdvisoryLabels</code>（<code>clawsweeper-label-operations.ts:237–315</code>）只增删它拥有的组：<code>clawsweeper:*</code>、<code>issue-rating:*</code>，以及 <code>good first issue</code> / <code>no-stale</code> / <code>stale</code> 联动。
+          <span class="who">只在 issue 仍 open、评审完整且当前、且非关闭提案时写入；<b>失败 / 过期的报告被跳过，不写评级</b>。</span></div>
+      </div>
+      <div class="step">
+        <div class="time">路由</div><div class="dot"></div>
+        <div class="body"><b>路由与响应</b>。评级本身是信息性的；真正决定去向的是 work-lane 标签（<code>queueable-fix</code> / <code>needs-maintainer-review</code> / <code>needs-product-decision</code> / <code>needs-security-review</code> / <code>linked-pr-open</code>）。同一份评审还会发公开评论，并可能按关闭理由关掉 issue。</div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:8px">
+      <p>一个可验证推论：<b>任何仍带 <code>clawsweeper:intake:*</code> 的 issue，都还没完成一次完整评审</b>。实测 100 个近期开放 issue 中只有 1 个仍带 intake 标签。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>03</b> &nbsp;7 个标签：原话、关闭率、关闭者与已解决关闭占比</h2>
+    <p>每档的英文原话是 ClawSweeper 的 label 描述（GitHub API 逐字）。「<b>关闭率</b>」= 已关闭 / 窗口内总数（快照，任何关闭理由，≠ 已修复）；「<b>关闭中位时间</b>」= 已关闭 issue 从创建到关闭的时长中位；「<b>主要关闭者</b>」= 谁点的关闭按钮（全量）；「<b>已解决关闭占比</b>」= 已关闭中 <code>state_reason=completed</code> 的比例（completed = 已解决 / 有修复落地；对偶 <code>not_planned</code> = 未解决：无法复现 / 不修 / 重复）。窗口 <b>2026-09-13 ~ 11-13</b>，按证据强度从强到弱排列。</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>标签</th><th>原话（label 描述）</th><th class="num">窗口内</th><th class="num">关闭率</th><th class="num">关闭中位时间</th><th>主要关闭者 <span style="font-weight:400;color:var(--muted)">全量</span></th><th class="num">已解决关闭占比 <span style="font-weight:400;color:var(--muted)">全量</span></th><th class="num">PR 合入比例 <span style="font-weight:400;color:var(--muted)">抽样·全量加权</span></th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="an"><span class="dot crab"></span>challenger crab</span></td><td>Exceptional issue quality: high-confidence current-main reproduction and actionable evidence.</td><td class="num">18</td><td class="num">77.8%</td><td class="num">32.3h（≈1.3天）</td><td class="closer"><b>维护者/他人 57%</b> · 作者 21%</td><td class="num"><b>85.7%</b><br><span style="color:var(--muted);font-size:11px">未解决 14.3%</span></td><td class="num"><b>85.7%</b><br><span style="color:var(--muted);font-size:11px">completed 内 83%</span></td></tr>
+        <tr><td class="lab"><span class="an"><span class="dot lob"></span>diamond lobster</span></td><td>Very strong issue quality with high-confidence source-level or clear reproduction.</td><td class="num">5,137</td><td class="num">65.5%</td><td class="num">3.7h</td><td class="closer"><b>维护者/他人 64%</b> · 作者 24%</td><td class="num"><b>88.4%</b><br><span style="color:var(--muted);font-size:11px">未解决 11.6%</span></td><td class="num"><b>88.8%</b><br><span style="color:var(--muted);font-size:11px">completed 内 96%</span></td></tr>
+        <tr><td class="lab"><span class="an"><span class="dot her"></span>platinum hermit</span></td><td>Good issue quality with a plausible reproduction path needing some confirmation.</td><td class="num">457</td><td class="num">57.3%</td><td class="num">34.1h（≈1.4天）</td><td class="closer"><b>维护者/他人 47%</b> · barnacle 34%</td><td class="num"><b>59.9%</b><br><span style="color:var(--muted);font-size:11px">未解决 40.1%</span></td><td class="num"><b>56.0%</b><br><span style="color:var(--muted);font-size:11px">completed 内 80%</span></td></tr>
+        <tr><td class="lab"><span class="an"><span class="dot shr"></span>gold shrimp</span></td><td>Decent issue quality, but reproduction details are still incomplete.</td><td class="num">381</td><td class="num">54.1%</td><td class="num">41.4h（≈1.7天）</td><td class="closer"><b>维护者/他人 43%</b> · barnacle 38%</td><td class="num"><b>46.6%</b><br><span style="color:var(--muted);font-size:11px">未解决 53.4%</span></td><td class="num"><b>48.0%</b><br><span style="color:var(--muted);font-size:11px">completed 内 80%</span></td></tr>
+        <tr><td class="lab"><span class="an"><span class="dot she"></span>silver shellfish</span></td><td>Thin issue quality; more reproduction proof or environment detail is needed.</td><td class="num">2,134</td><td class="num">59.6%</td><td class="num">14.5h</td><td class="closer"><b>维护者/他人 56%</b> · barnacle 20% · clawsweeper 16%</td><td class="num"><b>52.6%</b><br><span style="color:var(--muted);font-size:11px">未解决 47.4%</span></td><td class="num"><b>28.4%</b><br><span style="color:var(--muted);font-size:11px">completed 内 36%</span></td></tr>
+        <tr><td class="lab"><span class="an"><span class="dot kra"></span>unranked krab</span></td><td>Issue quality is currently too unclear to act on safely.</td><td class="num">0</td><td class="num">—</td><td class="num">—</td><td class="closer" style="color:var(--muted)">—</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr><td class="lab"><span class="an"><span class="dot tid"></span>off-meta tidepool</span></td><td>Issue quality rating does not apply to this item.</td><td class="num">1,115</td><td class="num">54.5%</td><td class="num">40.1h（≈1.7天）</td><td class="closer"><b>作者自关 45%</b> · barnacle 46%</td><td class="num"><b>47.4%</b><br><span style="color:var(--muted);font-size:11px">未解决 52.6%</span></td><td class="num"><b>44.9%</b><br><span style="color:var(--muted);font-size:11px">completed 内 80%</span></td></tr>
+        <tr><td class="lab" style="font-weight:700">合计</td><td style="color:var(--muted)">窗口内 82.9% 拿到评级（9,242 / 11,147）</td><td class="num" style="font-weight:700">9,242</td><td class="num" style="font-weight:700">61.9%</td><td class="num">—</td><td class="closer" style="color:var(--muted)">—</td><td class="num" style="font-weight:700">73.3%</td><td class="num" style="font-weight:700">≈67.7%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note" style="font-size:12px;color:var(--muted);margin-top:10px">关闭中位时间抽样：每档取按创建时间倒序最多 100 条已关闭 issue（🦀 challenger crab 仅 14 条），计算 created→closed 时长中位。存在两个方向性偏差：按「最近创建」排序会低估「活得久」的 issue；窗口右端（临近 11-13）的 issue 可观察的关闭时长更短（右删失）。<br>主要关闭者 / 已解决关闭占比均为全量（<code>gh api</code> list + Search API，2026-11-15）；「维护者/他人」= 关闭者既非作者也非机器人（无法进一步区分维护者与第三方贡献者）。「已解决」= <code>state_reason=completed</code>，「未解决」= <code>not_planned</code>（无法复现 / 不修 / 重复）。<b>PR 合入的机制事实：</b>openclaw 的 issue 关闭几乎从不带 PR commit——关闭事件上的 <code>commit_id</code> 抽样约 0–3%，说明它不用 PR 的 <code>Fixes #n</code> 自动关闭，而是 bot / 维护者 / 作者把 issue 单独标记成 completed 或 not_planned；timeline 交叉引用抽样显示 completed 多有对应 PR（🦞 100%、🦀 83%、🦐 76%、🦪 52%、🌊 96%），但「交叉引用」偏松（PR 提及即算，含未合并 PR）。表末「PR 合入比例」是<b>精确口径</b>：把每条 issue 的交叉引用 PR 逐个验证 <code>merged</code> 字段（每档抽样 completed 25 条 + not_planned 15 条），再按全量 completed/not_planned 数量加权。结果呈陡降 🦞 88.8% → 🦪 28.4%；注意 🦪 silver shellfish 的 completed 里仅 36% 真有已合并 PR——薄报告常被「已处理」关掉，而非代码修复。</p>
+    <div class="callout" style="margin-top:16px">
+      <p><b>单一关闭率看不清，拆开「谁关 + 怎么关」才有梯度：</b>高置信档（🦞 88.4%、🦀 85.7%）由<b>维护者/他人</b>关闭（🦞 维护者 64% + 作者 24%），且绝大多数是 <code>completed</code>（已解决，有修复落地）。越往下走，两条线同时转：<code>completed</code> 占比跌到 🦐 46.6%、🌊 47.4%，关闭者也从「维护者」换成「作者自关 / barnacle bot」（🌊 作者 45% + barnacle 46%，维护者仅 8%）。也就是说：<b>高评级 = 有人修、修好了才关；低评级 / off-meta = 没人修，作者或机器人按「无法复现 / 不修 / 过期」关掉</b>。一处修正：「修好了」不是 PR 的 <code>Fixes #n</code> 自动关 issue——关闭几乎从不带 PR commit（关闭事件 <code>commit_id</code> 抽样 ≈ 0–3%），而是修复落地后由 bot / 维护者再把 issue 单独标记成 <code>completed</code>。<b>PR 合入比例也同步陡降：🦞 88.8% → 🦪 28.4%</b>——高评级 issue 大多真有代码合入，低评级 / 薄报告即使被标 completed，也常没有对应的已合并 PR。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>04</b> &nbsp;<code>reproductionStatus</code> 的语义：评分的真正依据</h2>
+    <p>评分的根，是模型对「能不能证实这条报告」的判断。五个取值代表五档证据强度，并各自联动一个证据标签：</p>
+    <div class="repro">
+      <div class="rc">
+        <div class="k">reproduced</div>
+        <div class="d">在 current-main 上<b>真实复现</b>了报告的故障。最高证据。<b>（schema 有明确描述）</b></div>
+        <div class="map">→ <b>🦀</b> · <code>current-main-repro</code></div>
+      </div>
+      <div class="rc">
+        <div class="k">source_reproducible</div>
+        <div class="d"><b>源码级可复现</b>：读代码确认 bug 可达，但没实际跑。<b>（schema 有明确描述）</b></div>
+        <div class="map">→ <b>🦞 / 🐚</b> · <code>source-repro</code></div>
+      </div>
+      <div class="rc inf">
+        <div class="k">unclear<span class="inf-tag">推断</span></div>
+        <div class="d"><b>无法判定</b>：证据不足，说不清能不能复现。</div>
+        <div class="map">→ <b>🦐 / 🦪</b> · <code>needs-info</code></div>
+      </div>
+      <div class="rc inf">
+        <div class="k">not_reproduced<span class="inf-tag">推断</span></div>
+        <div class="d"><b>尝试复现失败</b>，或在 main 上复现不了。</div>
+        <div class="map">→ <b>🦪</b> · <code>not-repro-on-main</code></div>
+      </div>
+      <div class="rc inf">
+        <div class="k">not_applicable<span class="inf-tag">推断</span></div>
+        <div class="d"><b>不适用</b>：不是可验证的 bug（如 feature request）。</div>
+        <div class="map">→ <b>🌊</b> · <code>off-meta tidepool</code></div>
+      </div>
+    </div>
+    <p style="margin-top:16px">置信度 <code>confidence</code> 是第二维：同样「源码可复现」，模型很确定就给 🦞 lobster，没那么确定就降 🐚 hermit。所以<b>评分 = 证据类型 + 置信度</b>，两者缺一不可。</p>
+    <div class="callout warn" style="margin-top:14px">
+      <p><b>诚实标注：</b>schema 只给 <code>reproduced</code> 和 <code>source_reproducible</code> 写了描述（「high-confidence current-main reproduction」「source shows the path without a failing run」）。<code>not_reproduced</code>、<code>unclear</code>、<code>not_applicable</code> 的含义是从标签名、<code>docs/work-lane.md</code> 和映射函数<b>推断</b>出来的，没有逐字的 rubric 原文。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>05</b> &nbsp;评级不做什么</h2>
+    <div class="grid2">
+      <div class="axis">
+        <h4>不路由</h4>
+        <p>真正决定 issue 去向的是 5 个 work-lane 标签：<code>queueable-fix</code>（自动修）、<code>linked-pr-open</code>（已有人修）、<code>needs-maintainer-review</code>、<code>needs-product-decision</code>、<code>needs-security-review</code>。评级只回答「真不真」，不回答「谁来修、修不修」。</p>
+      </div>
+      <div class="axis">
+        <h4>不预测速度</h4>
+        <p>评级与「关得快」方向相反：🦞 lobster 关闭中位 3.7h，而 🦀 crab 要 32.3h、🦐 shrimp 要 41.4h。它衡量的是证据强度，不是紧急度——关闭快慢更多取决于证据类型是否「好消化」。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>06</b> &nbsp;时间与门槛</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>指标</th><th>值</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">开 issue → 首个评级</td><td class="num"><b>7.7 min</b>（中位）</td><td>20 个样本，19 条 ≤ 15 min，1 条 64.7 min</td></tr>
+        <tr><td class="lab">拿到 <code>issue-rating:</code></td><td class="num"><b>82.9%</b></td><td>窗口内 9,242 / 11,147；其余 17% 无评级（未完成完整评审、过早关闭或评审失败）</td></tr>
+        <tr><td class="lab">intake</td><td class="num">无重试</td><td>≤ 12 KB / 20 s 超时 / 32 KB 响应；超限、拒绝、超时 → 不打任何标签</td></tr>
+        <tr><td class="lab">完整评审失败</td><td class="num"><b>重试 ≤ 2 次</b></td><td>默认 max_attempts=2，45 min 冷却，批量上限 5；耗尽 → 转 <code>needs human review</code></td></tr>
+        <tr><td class="lab">发布同步</td><td class="num"><b>≤ 12 次 / 24 h</b></td><td>GitHub 瞬时故障重试；永久失败两次确认后死信</td></tr>
+        <tr><td class="lab">advisory 同步条件</td><td class="num">4 条同时成立</td><td>open · issue · 非关闭提案 · 报告完整且当前</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>结论</b></h2>
+    <div class="concl">
+      <div class="c"><div class="n">01</div><p>评级是<b>证据类型分类</b>，不是稀缺度排名。🦞 占 55.6% 因为「源码可复现 + 高置信」是静态分析的常见产物。</p></div>
+      <div class="c"><div class="n">02</div><p>评分靠<b>确定性查表</b>，不靠模型自由裁量——模型只出两个字段，动物名由代码映射，可复现、可审计、可写单测。</p></div>
+      <div class="c"><div class="n">03</div><p>评级回答了「<b>真不真</b>」，但「修不修、谁来修」由去向量（work-lane）决定。读 issue 先看五个 work-lane，再看 P 和评级。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：<code>openclaw/clawsweeper</code> 源码 @ commit <code>a053c71</code>（<code>clawsweeper-label-selection.ts:149–181</code>、<code>clawsweeper-label-operations.ts:237–315</code>、<code>schema/clawsweeper-decision.schema.json</code>、<code>docs/work-lane.md</code>、<code>docs/intake-triage.md</code>）与 <code>openclaw/openclaw</code> 的 GitHub Search API（2026-11-15 抓取）。<br>
+    口径：统计窗口 2026-09-13 ~ 2026-11-13（issue 创建时间），窗口内共 11,147 条 issue（open 3,561 / closed 7,586）；「关闭率」= 已关闭 / 窗口内带该标签总数（快照）；「关闭中位时间」= 已关闭 issue 的 created→closed 时长中位，样本为每档按创建倒序最多 100 条；「主要关闭者」= 关闭者身份分布（全量，「维护者/他人」含维护者与第三方贡献者，不可再分）；「已解决关闭占比」= 已关闭中 <code>state_reason=completed</code> 的比例（全量，completed=已解决，not_planned=未解决）。openclaw 关闭几乎不带 PR commit（关闭事件 <code>commit_id</code> 抽样约 0–3%），即不用 PR 的 <code>Fixes #n</code> 自动关闭；「PR 合入比例」= 每条 issue 的交叉引用 PR 逐个验证 <code>merged</code> 字段（每档抽样 completed 25 条 + not_planned 15 条），按全量 completed/not_planned 数量加权。<br>
+    局限：① issue 的 <code>issue-rating:</code> 与 PR 的 <code>rating:</code> 同名不同义，不可混用；② <code>not_reproduced</code> / <code>unclear</code> / <code>not_applicable</code> 的语义系推断（schema 只描述前两值）；③ 关闭中位时间存在抽样与右删失偏差，且标签/计数均为快照，可随代码变更。
+  </footer>
+
+</div>
+</body>
+</html>

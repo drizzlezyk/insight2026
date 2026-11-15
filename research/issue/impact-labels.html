@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw Issue「影响」维度 · ClawSweeper 按什么损害类型给 issue 分类</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1100px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:32px; line-height:1.28; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:16px; color:#3c3f47; max-width:880px; }
+  .lede code, p code, li code, td code, th code, .cap code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#f1ece3; padding:1px 6px; border-radius:5px; color:#3a3d45; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  section { margin-top:52px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 8px; }
+  h2 b { color:var(--ink); }
+  .secdesc { font-size:14px; color:#54575f; margin:0 0 18px; max-width:880px; }
+  .callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:12px; padding:16px 22px; margin:20px 0 0; }
+  .callout p { margin:0; font-size:14px; color:#3c3f47; }
+  .callout p b { color:var(--ink); }
+  .callout.warn { border-left-color:var(--lob); }
+  .callout.gold { border-left-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px 8px; border-bottom:1px solid #f0eae1; vertical-align:top; }
+  td.lab { font-family:ui-monospace,Menlo,monospace; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.desc { color:#3c3f47; min-width:300px; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .lbl { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .lbl .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .chip { font-size:11px; background:#f2ede4; color:#4a4d55; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.g { background:#e7f2e8; color:#1f6b2f; }
+  .chip.y { background:#f7ecce; color:#8a6a1c; }
+  .chip.r { background:var(--lob-soft); color:#a3341a; }
+  .conduit { display:grid; grid-template-columns:1fr 40px 1fr; gap:10px; align-items:center; margin:0 0 18px; }
+  .conduit .box { background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 15px; font-size:12.5px; }
+  .conduit .box .h { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:4px; }
+  .conduit .box code { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--ink); font-weight:600; }
+  .conduit .arrow { text-align:center; color:var(--lob); font-weight:700; }
+  .prompt { background:#20222a; color:#e8e4dc; border-radius:12px; padding:18px 20px; font-size:13px; line-height:1.7; }
+  .prompt code { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:#e8835d; }
+  .prompt .h { font-size:11px; letter-spacing:.1em; color:#9aa0a6; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px 20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); line-height:1.8; }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  @media (max-width:900px) { .concl { grid-template-columns:1fr 1fr; } .conduit { grid-template-columns:1fr; } .conduit .arrow { transform:rotate(90deg); } }
+  @media (max-width:640px) {
+    .wrap { padding:36px 16px 72px; }
+    .concl { grid-template-columns:1fr; }
+    h1 { font-size:24px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · Issue 影响分类</div>
+  <h1>影响维度：ClawSweeper 按<b><em>损害类型</em></b>给 issue 分类</h1>
+  <p class="lede">「优先级」回答「多紧急」，而「影响」回答「<b>伤到的是什么</b>」——数据、安全、崩溃、消息、会话状态、认证、UX。与优先级「单选」不同，影响是<b>多选</b>：一条 issue 最多带 3 个 <code>impact:*</code> 标签。这个维度<b>只作用于 issue</b>，模型填一个 <code>impactLabels</code> 数组，代码按固定顺序贴上去。</p>
+  <div class="meta">
+    <span>源码 commit <code>a053c71</code></span>
+    <span><code>src/clawsweeper-label-selection.ts</code></span>
+    <span><code>schema/clawsweeper-decision.schema.json</code></span>
+    <span>时间窗口 <code>2026-09-13..11-13</code></span>
+  </div>
+
+  <!-- 01 -->
+  <section>
+    <h2><b>01 · 这个维度有几种</b> 9 个标签，一条最多 3 个</h2>
+    <p class="secdesc">9 种「损害类型」。颜色分四档：红 = 数据/安全/UX 阻断（最严重），橙 = 崩溃/消息，黄 = 会话/认证，灰蓝 = 其它。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述（英文原话）</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:data-loss</span></td><td class="hex">B60205</td><td class="desc">This issue is about lost, corrupted, or silently dropped user/session/config data.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:security</span></td><td class="hex">B60205</td><td class="desc">This issue is about security boundaries, credentials, authz, sandboxing, or sensitive data.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:ux-release-blocker</span></td><td class="hex">B60205</td><td class="desc">A non-technical user is blocked without terminal, logs, config, or support.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>impact:crash-loop</span></td><td class="hex">D93F0B</td><td class="desc">This issue is about crashes, hangs, restart loops, or process-level availability.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>impact:message-loss</span></td><td class="hex">D93F0B</td><td class="desc">This issue is about lost, duplicated, misrouted, or suppressed channel messages.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#F9D65C"></span>impact:session-state</span></td><td class="hex">F9D65C</td><td class="desc">This issue is about session, memory, transcript, context, or agent state drift.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#F9D65C"></span>impact:auth-provider</span></td><td class="hex">F9D65C</td><td class="desc">This issue is about auth, provider routing, model choice, or SecretRef resolution.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>impact:ux-friction</span></td><td class="hex">FBCA04</td><td class="desc">User-facing flow adds avoidable confusion or support burden without fully blocking progress.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#C5DEF5"></span>impact:other</span></td><td class="hex">C5DEF5</td><td class="desc">This issue has meaningful maintainer-visible impact outside the owned taxonomy.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><p><b>关键约束</b>：schema 明确写着 <code>Issue-only, at most 3</code>——只贴 issue，且一条最多 3 个。代码里 <code>nextImpactLabels(labels, isPullRequest ? [] : decision.impactLabels)</code> 对 PR 直接传空数组，所以 impact 标签<b>绝不会出现在 PR 上</b>。</p></div>
+  </section>
+
+  <!-- 02 判据 -->
+  <section>
+    <h2><b>02 · 书面判据</b> 9 条描述一次给全</h2>
+    <p class="secdesc">影响维度的 schema 判据写得<b>最完整</b>——每个 <code>impact:*</code> 都有独立的一句话定义。模型按「这条 issue 说的是哪类损害」逐条匹配。</p>
+    <div class="prompt">
+      <div class="h">schema/clawsweeper-decision.schema.json · impactLabels</div>
+      Issue-only, at most 3. <code>impact:data-loss</code>: This issue is about lost, corrupted, or silently dropped user/session/config data. <code>impact:security</code>: … security boundaries, credentials, authz, sandboxing, or sensitive data. <code>impact:crash-loop</code>: … crashes, hangs, restart loops, or process-level availability. <code>impact:message-loss</code>: … lost, duplicated, misrouted, or suppressed channel messages. <code>impact:session-state</code>: … session, memory, transcript, context, or agent state drift. <code>impact:auth-provider</code>: … auth, provider routing, model choice, or SecretRef resolution. <code>impact:ux-release-blocker</code>: A non-technical user is blocked without terminal, logs, config, or support. <code>impact:ux-friction</code>: User-facing flow adds avoidable confusion or support burden without fully blocking progress. <code>impact:other</code>: … meaningful maintainer-visible impact outside the owned taxonomy.
+    </div>
+  </section>
+
+  <!-- 03 流程 -->
+  <section>
+    <h2><b>03 · 判定流程</b> 多选数组，按固定顺序贴</h2>
+    <p class="secdesc">与优先级的一比一不同，模型填的是<b>数组</b> <code>impactLabels</code>（最多 3 项）。代码 <code>nextImpactLabels()</code> 先清掉旧 impact 标签，再按 <code>IMPACT_LABELS</code> 的定义顺序遍历，把命中的依次加回去——所以最终标签顺序是<b>固定的</b>（data-loss → security → … → other），不代表模型给的权重。</p>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <h2><b>04 · 驱动字段 → 贴标签代码</b></h2>
+    <div class="conduit">
+      <div class="box"><div class="h">schema 决策字段（数组，≤3）</div><code>impactLabels</code> · Issue-only</div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="h">遍历贴标签</div><code>nextImpactLabels()</code> · clawsweeper-label-selection.ts:84</div>
+    </div>
+  </section>
+
+  <!-- 05 prompt -->
+  <section>
+    <h2><b>05 · 关键 prompt 与输入</b></h2>
+    <p class="secdesc">定影响的核心规则在 <code>review-item.md</code> 第 51 行，与优先级共用一段。关键约束：UX 阻断优先、能用具体标签就别用 <code>other</code>、证据支持到哪就说到哪、每个标签只解释一次。</p>
+    <div class="prompt">
+      <div class="h">prompts/review-item.md · Labels (impact 相关句)</div>
+      … Prefer <code>impact:ux-release-blocker</code> over <code>impact:ux-friction</code> when the same evidence supports both and a specific label over <code>other</code>, claim no more certainty than the evidence, and justify each selected label once.
+    </div>
+    <p class="secdesc" style="margin-top:16px"><b>输入</b>：判断影响看的是 issue 正文描述的<b>用户可感知后果</b>。模型不运行代码，只从「丢了什么、崩了什么、卡住了谁」的文字证据里归类。</p>
+  </section>
+
+  <!-- 06 比例 -->
+  <section>
+    <h2><b>06 · 每个标签的比例 + completed 关闭占比</b></h2>
+    <p class="secdesc">时间窗口 <code>2026-09-13..11-13</code>。因为影响可叠加（≤3），各标签数之和（12066）<b>大于</b>唯一 issue 数。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th class="num">总数</th><th class="num">占比</th><th class="num">关闭率</th><th class="num">completed</th><th class="num">not_planned</th><th>读取</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>impact:ux-friction</span></td><td class="num">3548</td><td class="num">29.4%</td><td class="num">65.0%</td><td class="num">66.6%</td><td class="num">33.4%</td><td class="desc"><span class="chip y">最大一桶：UX 摩擦</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#C5DEF5"></span>impact:other</span></td><td class="num">1906</td><td class="num">15.8%</td><td class="num">72.1%</td><td class="num">73.3%</td><td class="num">26.7%</td><td class="desc"><span class="chip g">兜底类别</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#F9D65C"></span>impact:session-state</span></td><td class="num">1584</td><td class="num">13.1%</td><td class="num">66.0%</td><td class="num">67.9%</td><td class="num">32.1%</td><td class="desc"><span class="chip y">会话/记忆状态</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:ux-release-blocker</span></td><td class="num">1346</td><td class="num">11.2%</td><td class="num">86.1%</td><td class="num">56.8%</td><td class="num">43.2%</td><td class="desc"><span class="chip r">关得最快，但近半「不做了」</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>impact:message-loss</span></td><td class="num">993</td><td class="num">8.2%</td><td class="num">59.0%</td><td class="num">69.3%</td><td class="num">30.5%</td><td class="desc"><span class="chip y">消息丢失/误投</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#F9D65C"></span>impact:auth-provider</span></td><td class="num">928</td><td class="num">7.7%</td><td class="num">64.9%</td><td class="num">61.0%</td><td class="num">38.9%</td><td class="desc"><span class="chip y">completed 最低的非安全类</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:security</span></td><td class="num">848</td><td class="num">7.0%</td><td class="num">32.0%</td><td class="num">66.1%</td><td class="num">33.6%</td><td class="desc"><span class="chip r">关闭率最低，安全项挂得久</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>impact:crash-loop</span></td><td class="num">701</td><td class="num">5.8%</td><td class="num">64.8%</td><td class="num">76.2%</td><td class="num">23.8%</td><td class="desc"><span class="chip g">崩溃循环基本修掉</span></td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:data-loss</span></td><td class="num">212</td><td class="num">1.8%</td><td class="num">61.8%</td><td class="num">79.4%</td><td class="num">20.6%</td><td class="desc"><span class="chip g">最少见，但 completed 最高</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><p><b>一眼结论</b>：三个「红档」标签行为分化明显——<code>data-loss</code> 罕见但 completed 最高（79.4%，真丢数据几乎必修）；<code>security</code> 关闭率最低（32.0%，长期挂着）；<code>ux-release-blocker</code> 关闭率最高（86.1%）但 completed 最低（56.8%），因为大量「非技术用户被卡」最终被判定为外部问题/不可行，以 <code>not_planned</code> 收尾。</p></div>
+  </section>
+
+  <!-- 结论 -->
+  <section>
+    <h2><b>结论</b> 影响 = 「伤的是什么」的多选分类</h2>
+    <div class="concl">
+      <div class="c"><div class="n">1 · 与优先级正交</div><p>优先级问「多急」，影响问「伤哪」。同一条 P2 可能是崩溃循环，也可能是 UX 摩擦。</p></div>
+      <div class="c"><div class="n">2 · 多选，最多 3 个</div><p>一条 issue 可同时带多个 impact 标签，颜色红橙黄灰四档反映严重度梯度。</p></div>
+      <div class="c"><div class="n">3 · 三个红档命运各异</div><p>data-loss 几乎必修、security 长期挂起、ux-release-blocker 快速关闭但常是 not_planned。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：openclaw/clawsweeper @ <code>a053c71</code> —— <code>src/clawsweeper-label-selection.ts</code>（<code>nextImpactLabels</code>）、<code>src/clawsweeper-policy.ts</code>（<code>IMPACT_LABELS</code>）、<code>schema/clawsweeper-decision.schema.json</code>（<code>impactLabels</code>）、<code>prompts/review-item.md</code>（Labels）。比例与关闭占比来自 GitHub 搜索 API，窗口 <code>created:2026-09-13..2026-11-13</code>。中文解读为作者注记。<br>
+    生成于 2026-11-15 · 配套：<a href="clawsweeper-label-taxonomy.html">全维度分类法</a> · <a href="routing-labels.html">路由</a> · <a href="priority-labels.html">优先级</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClawSweeper 处理 Issue 的标签 · 全维度分类法</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1100px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:34px; line-height:1.28; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:16px; color:#3c3f47; max-width:880px; }
+  .lede code, p code, li code, td code, th code, .cap code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#f1ece3; padding:1px 6px; border-radius:5px; color:#3a3d45; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  section { margin-top:56px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 8px; }
+  h2 b { color:var(--ink); }
+  .secnum { display:inline-block; font-size:12px; color:var(--lob); font-weight:700; letter-spacing:.08em; margin-right:8px; }
+  .secdesc { font-size:14px; color:#54575f; margin:0 0 18px; max-width:860px; }
+  .callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:12px; padding:16px 22px; margin:20px 0 0; }
+  .callout p { margin:0; font-size:14px; color:#3c3f47; }
+  .callout p b { color:var(--ink); }
+  .callout.warn { border-left-color:var(--lob); }
+  .callout.gold { border-left-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px 8px; border-bottom:1px solid #f0eae1; vertical-align:top; }
+  td.lab { font-family:ui-monospace,Menlo,monospace; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.hex { font-family:ui-monospace,Menlo,monospace; color:var(--muted); white-space:nowrap; }
+  td.desc { color:#3c3f47; min-width:280px; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .lbl { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .lbl .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .chip { font-size:11px; background:#f2ede4; color:#4a4d55; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.i { background:var(--teal-soft); color:#1f5e5c; }
+  .chip.p { background:var(--lob-soft); color:#a3341a; }
+  .chip.b { background:#efe6d4; color:#8a6a1c; }
+  /* dimension overview */
+  .dims { display:grid; grid-template-columns:repeat(3,1fr); gap:13px; }
+  .dim { background:var(--card); border:1px solid var(--line); border-radius:13px; padding:15px 16px; }
+  .dim .t { font-size:13.5px; font-weight:700; }
+  .dim .t .n { font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--lob); margin-right:7px; }
+  .dim .cnt { font-size:12px; color:var(--muted); margin-top:3px; }
+  .dim .cnt b { color:var(--ink); font-variant-numeric:tabular-nums; }
+  .dim .scope { margin-top:9px; display:flex; gap:6px; flex-wrap:wrap; }
+  .dim .who { font-size:11.5px; color:#54575f; margin-top:8px; font-family:ui-monospace,Menlo,monospace; }
+  /* conduit: schema field -> code */
+  .conduit { display:grid; grid-template-columns:1fr 40px 1fr; gap:10px; align-items:center; margin:0 0 18px; }
+  .conduit .box { background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 15px; font-size:12.5px; }
+  .conduit .box .h { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:4px; }
+  .conduit .box code { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--ink); font-weight:600; }
+  .conduit .arrow { text-align:center; color:var(--lob); font-weight:700; }
+  /* conclusion */
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px 20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); line-height:1.8; }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  @media (max-width:900px) { .dims, .concl { grid-template-columns:1fr 1fr; } .conduit { grid-template-columns:1fr; } .conduit .arrow { transform:rotate(90deg); } }
+  @media (max-width:640px) {
+    .wrap { padding:36px 16px 72px; }
+    .dims, .concl { grid-template-columns:1fr; }
+    h1 { font-size:24px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · ClawSweeper 标签分类法</div>
+  <h1>ClawSweeper 处理 issue 的标签，<b><em>所有维度</em></b>一张地图</h1>
+  <p class="lede">此前两份报告只挖了 <code>issue-rating</code>（动物评级）与「可复现」证据标签两个维度。这里把 ClawSweeper 能贴上的标签<b>按维度收全</b>：每条标签给出逐字原话、颜色、由 schema 哪个字段驱动、由哪段代码贴上去——以及它到底<b>只作用于 issue、只作用于 PR，还是两者都管。</b></p>
+  <div class="meta">
+    <span>源码 commit <code>a053c71</code></span>
+    <span><code>src/clawsweeper-policy.ts</code></span>
+    <span><code>src/repair/exact-review-guard-labels.ts</code></span>
+    <span><code>schema/clawsweeper-decision.schema.json</code></span>
+  </div>
+
+  <!-- ============ 全景 ============ -->
+  <section>
+    <h2><b>00 · 全景</b> 九个维度，issue 与 PR 各占一半</h2>
+    <p class="secdesc">ClawSweeper 的标签体系分成三大块：<b>issue 侧</b>（评级 / 复现证据 / 路由 / 优先级 / 影响 / 成熟度 / 特殊标签）、<b>PR 侧</b>（评级 / 合并风险 / 证明 / 状态）、以及横跨两者的<b>治理保护标签</b>。唯一「两者都贴」的普通维度是优先级 <code>P0–P3</code>；影响与成熟度<b>只贴 issue</b>，合并风险、证明、PR 评级与 PR 状态<b>只贴 PR</b>。</p>
+    <div class="dims">
+      <div class="dim"><div class="t"><span class="n">01</span>issue-rating 动物评级</div><div class="cnt"><b>7</b> 个标签</div><div class="scope"><span class="chip i">issue</span></div><div class="who">reproductionStatus × confidence → issueRatingLabelForState()</div></div>
+      <div class="dim"><div class="t"><span class="n">02</span>复现证据</div><div class="cnt"><b>5</b> 个标签</div><div class="scope"><span class="chip i">issue</span></div><div class="who">同源字段 → clawsweeper-label-selection.ts:191</div></div>
+      <div class="dim"><div class="t"><span class="n">03</span>路由 / 工作道</div><div class="cnt"><b>7</b> 个标签</div><div class="scope"><span class="chip i">issue</span></div><div class="who">workCandidate / workConfidence → nextIssueAdvisoryLabels()</div></div>
+      <div class="dim"><div class="t"><span class="n">04</span>优先级 P0–P3</div><div class="cnt"><b>4</b> 个标签</div><div class="scope"><span class="chip b">issue + PR</span></div><div class="who">triagePriority → nextPriorityLabels()</div></div>
+      <div class="dim"><div class="t"><span class="n">05</span>影响 impact:*</div><div class="cnt"><b>9</b> 个标签</div><div class="scope"><span class="chip i">issue</span></div><div class="who">impactLabels → nextImpactLabels()</div></div>
+      <div class="dim"><div class="t"><span class="n">06</span>成熟度 maturity</div><div class="cnt"><b>1</b> 个标签</div><div class="scope"><span class="chip i">issue</span></div><div class="who">maturityLabels → nextMaturityLabels()</div></div>
+      <div class="dim"><div class="t"><span class="n">07</span>特殊 / 附加</div><div class="cnt"><b>6</b> 个标签</div><div class="scope"><span class="chip i">issue</span></div><div class="who">good-first-issue / stale / bulk-filed / showcase / idea-archive</div></div>
+      <div class="dim"><div class="t"><span class="n">08</span>PR 专用（4 子维度）</div><div class="cnt"><b>评级 7 + 风险 8 + 证明 + 状态 8</b></div><div class="scope"><span class="chip p">PR</span></div><div class="who">nextPrRatingLabels / nextMergeRiskLabels / proof / status</div></div>
+      <div class="dim"><div class="t"><span class="n">09</span>治理 / 保护</div><div class="cnt"><b>close-protected / exempt / 自动化控制</b></div><div class="scope"><span class="chip b">两者</span></div><div class="who">exact-review-guard-labels.ts</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 01 issue-rating ============ -->
+  <section>
+    <h2><b>01 · issue-rating</b> 动物评级（7 个，issue 专用）</h2>
+    <p class="secdesc">这是最「外露」的维度。但它不是模型直接填写的：模型先给 <code>reproductionStatus</code>（5 选 1）与 <code>reproductionConfidence</code>（3 选 1），代码再<b>按顺序首匹配</b>查表成动物标签。因此动物标签是「复现状态 × 置信度」的<b>派生结果</b>，不是独立判断。</p>
+    <div class="conduit">
+      <div class="box"><div class="h">schema 字段</div><code>reproductionStatus</code> + <code>reproductionConfidence</code></div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="h">贴标签代码</div><code>issueRatingLabelForState()</code> · clawsweeper-label-selection.ts:149</div>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述（英文原话）</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#1F883D"></span>issue-rating: 🦀 challenger crab</span></td><td class="hex">1F883D</td><td class="desc">Exceptional issue quality: high-confidence current-main reproduction and actionable evidence.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0969DA"></span>issue-rating: 🦞 diamond lobster</span></td><td class="hex">0969DA</td><td class="desc">Very strong issue quality with high-confidence source-level or clear reproduction.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0F766E"></span>issue-rating: 🐚 platinum hermit</span></td><td class="hex">0F766E</td><td class="desc">Good issue quality with a plausible reproduction path needing some confirmation.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B7791F"></span>issue-rating: 🦐 gold shrimp</span></td><td class="hex">B7791F</td><td class="desc">Decent issue quality, but reproduction details are still incomplete.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#7A828E"></span>issue-rating: 🦪 silver shellfish</span></td><td class="hex">7A828E</td><td class="desc">Thin issue quality; more reproduction proof or environment detail is needed.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8C2F39"></span>issue-rating: 🧂 unranked krab</span></td><td class="hex">8C2F39</td><td class="desc">Issue quality is currently too unclear to act on safely.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#6E7781"></span>issue-rating: 🌊 off-meta tidepool</span></td><td class="hex">6E7781</td><td class="desc">Issue quality rating does not apply to this item.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 02 复现证据 ============ -->
+  <section>
+    <h2><b>02 · 复现证据</b> clawsweeper:* 证据标签（5 个，issue 专用）</h2>
+    <p class="secdesc">与动物评级同源，但更「瘦」：只有两个状态值（<code>reproduced</code> / <code>source_reproducible</code>）在 schema 里有书面定义，其余是代码里的补充。注意 <code>not-repro-on-main</code> 的语义是「<b>在主线上已不复现</b> = 大概率已修好」，而非「无法复现」——这解释了它为什么关闭率高。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0A3069"></span>clawsweeper:current-main-repro</span></td><td class="hex">0A3069</td><td class="desc">ClawSweeper found a high-confidence current-main issue reproduction.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0A3069"></span>clawsweeper:source-repro</span></td><td class="hex">0A3069</td><td class="desc">ClawSweeper found a high-confidence source-level issue reproduction.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#2DA44E"></span>clawsweeper:not-repro-on-main</span></td><td class="hex">2DA44E</td><td class="desc">ClawSweeper found high-confidence evidence that this issue no longer reproduces on main.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>clawsweeper:needs-live-repro</span></td><td class="hex">FBCA04</td><td class="desc">ClawSweeper needs live local, crabbox, or manual validation to confirm this issue.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#6E7781"></span>clawsweeper:needs-info</span></td><td class="hex">6E7781</td><td class="desc">ClawSweeper needs more reporter information before it can verify this issue.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 03 路由 ============ -->
+  <section>
+    <h2><b>03 · 路由 / 工作道</b> clawsweeper:* 建议标签（7 个，issue 专用）</h2>
+    <p class="secdesc">这组标签回答「这条 issue 下一步去哪」：是已有 PR 在修、不该再排新修复 PR、值得排队自动修、修法已经清晰，还是要先等人做产品 / 安全 / 维护者决策。由 <code>workCandidate</code>、<code>workConfidence</code>、<code>itemCategory</code> 等字段驱动，统一在 <code>nextIssueAdvisoryLabels()</code> 里贴上。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#57606A"></span>clawsweeper:linked-pr-open</span></td><td class="hex">57606A</td><td class="desc">ClawSweeper found an open linked pull request for this issue.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8C959F"></span>clawsweeper:no-new-fix-pr</span></td><td class="hex">8C959F</td><td class="desc">ClawSweeper does not recommend queueing a new automated fix PR for this issue.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0E8A16"></span>clawsweeper:queueable-fix</span></td><td class="hex">0E8A16</td><td class="desc">ClawSweeper marked this issue as an existing queue_fix_pr work candidate.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#1A7F37"></span>clawsweeper:fix-shape-clear</span></td><td class="hex">1A7F37</td><td class="desc">ClawSweeper found a clear likely implementation shape for this issue.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>clawsweeper:needs-maintainer-review</span></td><td class="hex">FBCA04</td><td class="desc">ClawSweeper marked this issue as needing maintainer review before automation.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>clawsweeper:needs-product-decision</span></td><td class="hex">FBCA04</td><td class="desc">ClawSweeper marked this issue as needing a product or behavior decision.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>clawsweeper:needs-security-review</span></td><td class="hex">B60205</td><td class="desc">ClawSweeper marked this issue as needing security-sensitive review.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 04 优先级 ============ -->
+  <section>
+    <h2><b>04 · 优先级</b> P0–P3（4 个，issue 与 PR 都贴）</h2>
+    <p class="secdesc">唯一一个普通维度里<b>同时作用于 issue 和 PR</b>。由 <code>triagePriority</code> 字段驱动，<code>nextPriorityLabels()</code> 贴上——而分诊优先级本身又是从影响 / 复现 / 类别推导出来的，所以 P 标签是一层「聚合后的紧急度」。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>P0</span></td><td class="hex">B60205</td><td class="desc">Emergency: data loss, security bypass, crash loop, or unusable core runtime.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>P1</span></td><td class="hex">D93F0B</td><td class="desc">Urgent regression or broken agent/channel workflow affecting real users now.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>P2</span></td><td class="hex">FBCA04</td><td class="desc">Normal priority bug or improvement with limited blast radius.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8C959F"></span>P3</span></td><td class="hex">8C959F</td><td class="desc">Low-risk cleanup, docs, polish, ergonomics, or speculative feature.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 05 影响 ============ -->
+  <section>
+    <h2><b>05 · 影响</b> impact:*（9 个，issue 专用）</h2>
+    <p class="secdesc">按「损害类型」而非严重度划分——数据丢失、安全、崩溃循环、消息丢失、会话状态、认证、UX 阻断、UX 摩擦、其它。由 <code>impactLabels</code> 字段驱动，<code>nextImpactLabels()</code> 贴上，代码里对 PR 直接传空数组 <code>[]</code>，所以<b>绝不会出现在 PR 上</b>。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:data-loss</span></td><td class="hex">B60205</td><td class="desc">This issue is about lost, corrupted, or silently dropped user/session/config data.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:security</span></td><td class="hex">B60205</td><td class="desc">This issue is about security boundaries, credentials, authz, sandboxing, or sensitive data.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>impact:crash-loop</span></td><td class="hex">D93F0B</td><td class="desc">This issue is about crashes, hangs, restart loops, or process-level availability.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>impact:message-loss</span></td><td class="hex">D93F0B</td><td class="desc">This issue is about lost, duplicated, misrouted, or suppressed channel messages.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#F9D65C"></span>impact:session-state</span></td><td class="hex">F9D65C</td><td class="desc">This issue is about session, memory, transcript, context, or agent state drift.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#F9D65C"></span>impact:auth-provider</span></td><td class="hex">F9D65C</td><td class="desc">This issue is about auth, provider routing, model choice, or SecretRef resolution.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>impact:ux-release-blocker</span></td><td class="hex">B60205</td><td class="desc">A non-technical user is blocked without terminal, logs, config, or support.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>impact:ux-friction</span></td><td class="hex">FBCA04</td><td class="desc">User-facing flow adds avoidable confusion or support burden without fully blocking progress.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#C5DEF5"></span>impact:other</span></td><td class="hex">C5DEF5</td><td class="desc">This issue has meaningful maintainer-visible impact outside the owned taxonomy.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 06 成熟度 ============ -->
+  <section>
+    <h2><b>06 · 成熟度</b> maturity:*（1 个，issue 专用）</h2>
+    <p class="secdesc">目前只定义了唯一一个值 <code>maturity:stable</code>，表示「坏掉的是既有行为，且主要属于 M4/M5 评分卡表面」。由 <code>maturityLabels</code> 字段驱动，同样 issue 专用。这个维度基本是给「成熟功能回归」打标记用的。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#1F883D"></span>maturity:stable</span></td><td class="hex">1F883D</td><td class="desc">Broken existing behavior primarily owned by an M4/M5 scorecard surface.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 07 特殊 ============ -->
+  <section>
+    <h2><b>07 · 特殊 / 附加</b> 6 个非评分标签（issue 专用）</h2>
+    <p class="secdesc">不参与评级，各自独立触发：<code>good first issue</code> 面向新手；<code>stale</code> / <code>no-stale</code> 是陈腐标记与其豁免；<code>clawsweeper:bulk-filed</code> 是检测到同一作者近期高频提 issue；<code>feature: ✨ showcase</code> 与 <code>clawsweeper:idea-archive</code> 是给维护者的「想法盘点」。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#7057FF"></span>good first issue</span></td><td class="hex">7057FF</td><td class="desc">Good for newcomers</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#6E7781"></span>clawsweeper:bulk-filed</span></td><td class="hex">6E7781</td><td class="desc">ClawSweeper detected a high recent issue-filing volume from this author.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#A371F7"></span>feature: ✨ showcase</span></td><td class="hex">A371F7</td><td class="desc">ClawSweeper spotlight: unusually compelling feature idea for maintainer attention.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8250DF"></span>clawsweeper:idea-archive</span></td><td class="hex">8250DF</td><td class="desc">Parked feature idea awaiting a maintainer decision.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#9aa0a6"></span>stale</span></td><td class="hex">—</td><td class="desc">陈腐标记（GitHub 原生语义，非 ClawSweeper 自造定义）</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#9aa0a6"></span>no-stale</span></td><td class="hex">—</td><td class="desc">陈腐标记豁免（保护特定 issue 不被自动标 stale）</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 08 PR 专用 ============ -->
+  <section>
+    <h2><b>08 · PR 专用</b> 评级 / 合并风险 / 证明 / 状态</h2>
+    <p class="secdesc">PR 侧是另一套平行体系，与 issue 的动物评级共享同一组名字但语义不同（「readiness」而非「quality」）。合并风险 8 个、证明 4 个、状态 8 个。这四个子维度全部<b>只贴 PR</b>。</p>
+
+    <h2 style="margin-top:26px"><b>08a · PR 评级</b> rating:*（7 个）</h2>
+    <p class="secdesc">由 <code>nextPrRatingLabels()</code>（clawsweeper-label-presentation.ts:116）贴，S/A/B/C/D/F/NA 七档，衡量「准备好合并的程度」，而非 issue 的「质量」。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#1F883D"></span>rating: 🦀 challenger crab</span></td><td class="hex">1F883D</td><td class="desc">Exceptional PR readiness: strong proof, clean patch, and convincing validation.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0969DA"></span>rating: 🦞 diamond lobster</span></td><td class="hex">0969DA</td><td class="desc">Very strong PR readiness with only minor maintainer review expected.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0F766E"></span>rating: 🐚 platinum hermit</span></td><td class="hex">0F766E</td><td class="desc">Good normal PR readiness with ordinary maintainer review expected.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B7791F"></span>rating: 🦐 gold shrimp</span></td><td class="hex">B7791F</td><td class="desc">Decent PR readiness signal, but merge confidence is limited.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#7A828E"></span>rating: 🦪 silver shellfish</span></td><td class="hex">7A828E</td><td class="desc">Thin PR readiness signal; proof, validation, or implementation needs work.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8C2F39"></span>rating: 🧂 unranked krab</span></td><td class="hex">8C2F39</td><td class="desc">Not merge-ready due to missing proof or serious correctness/safety concerns.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#6E7781"></span>rating: 🌊 off-meta tidepool</span></td><td class="hex">6E7781</td><td class="desc">PR readiness rating does not apply to this item.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 style="margin-top:26px"><b>08b · 合并风险</b> merge-risk: 🚨（8 个）</h2>
+    <p class="secdesc">由 <code>nextMergeRiskLabels()</code>（line 113）贴，由 <code>mergeRiskLabels</code> 字段驱动。每条都是「合并这个 PR 可能破坏 X」的否定式风险陈述。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D1242F"></span>merge-risk: 🚨 compatibility</span></td><td class="hex">D1242F</td><td class="desc">Merging this PR could break existing users, config, migrations, defaults, or upgrades.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D1242F"></span>merge-risk: 🚨 message-delivery</span></td><td class="hex">D1242F</td><td class="desc">Merging this PR could drop, duplicate, misroute, suppress, or wrongly target messages.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#F97316"></span>merge-risk: 🚨 session-state</span></td><td class="hex">F97316</td><td class="desc">Merging this PR could lose, corrupt, stale, or mis-associate session or agent state.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#F97316"></span>merge-risk: 🚨 auth-provider</span></td><td class="hex">F97316</td><td class="desc">Merging this PR could break OAuth, tokens, provider routing, model choice, or credentials.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>merge-risk: 🚨 security-boundary</span></td><td class="hex">B60205</td><td class="desc">Merging this PR could weaken sandboxing, authorization, credentials, or sensitive data.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>merge-risk: 🚨 availability</span></td><td class="hex">D93F0B</td><td class="desc">Merging this PR could cause crashes, hangs, restart loops, stalls, or process outages.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>merge-risk: 🚨 automation</span></td><td class="hex">FBCA04</td><td class="desc">Merging this PR could break CI, automerge, proof capture, label sync, or automation.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#C5DEF5"></span>merge-risk: 🚨 other</span></td><td class="hex">C5DEF5</td><td class="desc">Merging this PR has meaningful risk outside the owned taxonomy.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 style="margin-top:26px"><b>08c · 证明</b> proof:*（4 个）</h2>
+    <p class="secdesc">围绕「贡献者真实行为证明（real-behavior proof）」。截图 / 视频是证据媒体，<code>proof: sufficient</code> 是判定达标，<code>proof: override</code> 是维护者强制放行。由 <code>nextRealBehaviorProofMediaLabels()</code>（line 115）贴媒体标签。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0969DA"></span>proof: 📸 screenshot</span></td><td class="hex">0969DA</td><td class="desc">Contributor real behavior proof includes screenshot evidence.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8250DF"></span>proof: 🎥 video</span></td><td class="hex">8250DF</td><td class="desc">Contributor real behavior proof includes video or recording evidence.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#1A7F37"></span>proof: sufficient</span></td><td class="hex">1A7F37</td><td class="desc">Contributor real behavior proof is sufficient.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#9aa0a6"></span>proof: override</span></td><td class="hex">—</td><td class="desc">维护者强制覆盖证明要求（PROOF_OVERRIDE_LABEL）</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 style="margin-top:26px"><b>08d · PR 状态</b> status:*（8 个）</h2>
+    <p class="secdesc">反映「这条 PR 在 ClawSweeper 流程里卡在哪」。首个 <code>automerge armed</code> 已退役（保留只为替换旧标签），其余是活跃状态。状态同步由 status-sync 逻辑维护，而非决策字段直接写。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>颜色</th><th>逐字描述</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0E8A16"></span>status: 🚀 automerge armed</span></td><td class="hex">0E8A16</td><td class="desc">This PR is in ClawSweeper's automerge lane.（已退役）</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#8250DF"></span>status: 🔁 re-review loop</span></td><td class="hex">8250DF</td><td class="desc">A fresh ClawSweeper review was explicitly requested after the latest review.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#0969DA"></span>status: 🛠️ actively grinding</span></td><td class="hex">0969DA</td><td class="desc">The PR author has acted after the latest ClawSweeper review and work remains.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>status: 📣 needs proof</span></td><td class="hex">D93F0B</td><td class="desc">The PR needs real behavior proof before ClawSweeper can clear the contributor ask.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>status: needs maintainer proof decision</span></td><td class="hex">D93F0B</td><td class="desc">A ClawSweeper-authored PR needs a maintainer proof capture or override decision.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>status: ⏳ waiting on author</span></td><td class="hex">FBCA04</td><td class="desc">ClawSweeper has contributor-facing work open and is waiting for author action.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>status: ⏳ waiting on maintainer</span></td><td class="hex">FBCA04</td><td class="desc">Only explicit maintainer approvals or decisions remain; merge is still blocked.</td></tr>
+        <tr><td class="lab"><span class="lbl"><span class="dot" style="background:#2DA44E"></span>status: 👀 ready for maintainer look</span></td><td class="hex">2DA44E</td><td class="desc">ClawSweeper has no concrete contributor-facing blocker left for this PR.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 09 治理 ============ -->
+  <section>
+    <h2><b>09 · 治理 / 保护</b> 关闭保护、自动关闭豁免、自动化控制</h2>
+    <p class="secdesc">这些不是「贴上去的洞察」，而是<b>门禁</b>——阻止 ClawSweeper 自动关闭或自动合并某条 item。全部定义在 <code>src/repair/exact-review-guard-labels.ts</code>。作用域跨 issue 与 PR。</p>
+
+    <h2 style="margin-top:24px"><b>09a · 关闭保护</b> CLOSE_PROTECTED_LABEL_NAMES（10 个）</h2>
+    <p class="secdesc">只要 item 上出现下面任一标签，ClawSweeper 就不允许自动关闭它——安全、发布阻断、维护者标记等。</p>
+    <div class="callout warn"><p>security · beta-blocker · release-blocker · maintainer · area: security · impact:security · security-review-required · security-sensitive-changed · merge-risk: 🚨 security-boundary · clawsweeper:needs-security-review</p></div>
+
+    <h2 style="margin-top:24px"><b>09b · 自动合并阻断</b> AUTOMERGE_BLOCKING_LABEL_NAMES（追加 7 个）</h2>
+    <p class="secdesc">在关闭保护基础上，再追加一批阻止自动合并的标签。</p>
+    <div class="callout warn"><p>clawsweeper:autofix · clawsweeper:human-review · clawsweeper:manual-only · clawsweeper:autogenerated · clawsweeper:merge-ready · clawsweeper:needs-maintainer-review · clawsweeper:needs-product-decision</p></div>
+
+    <h2 style="margin-top:24px"><b>09c · PR 自动关闭豁免</b> PR_AUTO_CLOSE_EXEMPT_LABEL_NAMES（4 个）</h2>
+    <p class="secdesc">这些标签意味着「这条 PR 由人 / 特定自动化模式在管」，不能自动关闭。</p>
+    <div class="callout gold"><p>clawsweeper:human-review · clawsweeper:manual-only · clawsweeper:automerge · clawsweeper:autofix</p></div>
+
+    <h2 style="margin-top:24px"><b>09d · 自动化控制</b>（8 个）</h2>
+    <p class="secdesc">控制 ClawSweeper 对单条 item 采取哪种自动化模式的标签，多数跨 issue / PR 复用。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>标签</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><span class="lbl">clawsweeper:automerge</span></td><td class="desc">进入自动合并车道</td></tr>
+        <tr><td class="lab"><span class="lbl">clawsweeper:autofix</span></td><td class="desc">允许自动修复 PR</td></tr>
+        <tr><td class="lab"><span class="lbl">clawsweeper:human-review</span></td><td class="desc">强制人工复核</td></tr>
+        <tr><td class="lab"><span class="lbl">clawsweeper:manual-only</span></td><td class="desc">完全手动，自动化不介入</td></tr>
+        <tr><td class="lab"><span class="lbl">clawsweeper:autogenerated</span></td><td class="desc">标记为机器生成</td></tr>
+        <tr><td class="lab"><span class="lbl">clawsweeper:merge-ready</span></td><td class="desc">标记可合并</td></tr>
+        <tr><td class="lab"><span class="lbl">clawsweeper:needs-maintainer-review</span></td><td class="desc">需要维护者复核</td></tr>
+        <tr><td class="lab"><span class="lbl">size: accepted-large</span></td><td class="desc">维护者接受超过审查尺寸上限的 PR</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 结论 ============ -->
+  <section>
+    <h2><b>结论</b> 三层结构：评级是派生，路由是决策，治理是门禁</h2>
+    <div class="concl">
+      <div class="c"><div class="n">1 · 评级标签是派生结果</div><p><code>issue-rating</code> 与证据标签不是模型直接填的，而是「复现状态 × 置信度」<b>查表映射</b>的产物。想理解它，得回到 schema 里那两个原始字段。</p></div>
+      <div class="c"><div class="n">2 · issue 与 PR 是两套平行体系</div><p>同名动物标签在 issue 上判「quality」、在 PR 上判「readiness」。影响 / 成熟度只贴 issue，合并风险 / 证明 / PR 状态只贴 PR，只有 <code>P0–P3</code> 两边都贴。</p></div>
+      <div class="c"><div class="n">3 · 治理标签不是洞察，是门禁</div><p><code>security</code>、<code>clawsweeper:human-review</code> 这类标签不描述 item，而是<b>阻止</b> ClawSweeper 自动关闭或合并——是安全阀，不是评分。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：openclaw/clawsweeper @ <code>a053c71</code> 的 <code>src/clawsweeper-policy.ts</code>（全部标签定义）、<code>src/repair/exact-review-guard-labels.ts</code>（治理保护）、<code>schema/clawsweeper-decision.schema.json</code>（决策字段）、<code>src/clawsweeper-label-presentation.ts</code> 与 <code>src/clawsweeper-label-selection.ts</code>（贴标签调用点）。标签描述为源码逐字引用，仅 <code>stale</code>/<code>no-stale</code>/<code>proof: override</code> 的语义为补充说明（源码未提供这些标签的 description 字段）。中文解读为作者注记，非源码原文。<br>
+    生成于 2026-11-15 · 配套报告：<a href="issue-scoring.html">issue-scoring.html</a> · <a href="reproduction-status.html">reproduction-status.html</a>
+  </footer>
+
+</div>
+</body>
+</html>
