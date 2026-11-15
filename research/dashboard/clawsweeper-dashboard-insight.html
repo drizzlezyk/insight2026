@@ -1,0 +1,2166 @@
+<title>ClawSweeper 维护者观察台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Design plan
+   Color: cool paper + pine ink + telemetry blue; amber reserved for guardrails and caveats.
+   Type: IBM Plex Sans for display/body; IBM Plex Mono for labels and data; Noto Sans SC for CJK.
+   Layout: an observability field note — hairline rails, instrument panels, one strong OBSERVE/ACT boundary board.
+*/
+:root {
+  color-scheme: light;
+  --paper: #f2f5f1;
+  --surface: #fbfcf9;
+  --surface-2: #e8ede8;
+  --surface-3: #dfe6df;
+  --ink: #111816;
+  --ink-2: #45514b;
+  --muted: #738079;
+  --line: #d5ded6;
+  --line-strong: #b2bfb6;
+  --accent: #125a4c;
+  --accent-2: #2a78d6;
+  --series-1: #2a78d6;
+  --series-1-soft: #86b6ef;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --good: #0c7a43;
+  --warn: #a9631b;
+  --warn-fill: #fab219;
+  --bad: #a33a2b;
+  --chart-grid: #dfe6df;
+  --chart-axis: #a9b6ad;
+  --wash: #e3eee8;
+  --font-sans: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --shadow: 0 1px 0 rgba(17, 24, 22, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0c1210;
+    --surface: #131b18;
+    --surface-2: #1b2621;
+    --surface-3: #24332c;
+    --ink: #edf3ef;
+    --ink-2: #b4c1b9;
+    --muted: #87968d;
+    --line: #27342e;
+    --line-strong: #3a4a41;
+    --accent: #74c2ae;
+    --accent-2: #3987e5;
+    --series-1: #3987e5;
+    --series-1-soft: #86b6ef;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --good: #57c98a;
+    --warn: #e0a45e;
+    --warn-fill: #c98500;
+    --bad: #e07a6d;
+    --chart-grid: #24322b;
+    --chart-axis: #4a5a51;
+    --wash: #16241e;
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0c1210;
+  --surface: #131b18;
+  --surface-2: #1b2621;
+  --surface-3: #24332c;
+  --ink: #edf3ef;
+  --ink-2: #b4c1b9;
+  --muted: #87968d;
+  --line: #27342e;
+  --line-strong: #3a4a41;
+  --accent: #74c2ae;
+  --accent-2: #3987e5;
+  --series-1: #3987e5;
+  --series-1-soft: #86b6ef;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --good: #57c98a;
+  --warn: #e0a45e;
+  --warn-fill: #c98500;
+  --bad: #e07a6d;
+  --chart-grid: #24322b;
+  --chart-axis: #4a5a51;
+  --wash: #16241e;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.75;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--wash); color: var(--ink); }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+h1, h2, h3, p, ul, ol, figure { margin: 0; }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+ul, ol { padding: 0; }
+img, svg { max-width: 100%; }
+button, a { -webkit-tap-highlight-color: transparent; }
+
+.page { max-width: 1180px; margin: 0 auto; }
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.num { font-variant-numeric: tabular-nums; }
+.nowrap { white-space: nowrap; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.brand::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  display: inline-block;
+}
+.brand span { color: var(--muted); }
+.stamp {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-align: right;
+}
+
+/* ---------- hero ---------- */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.85fr);
+  gap: clamp(28px, 5vw, 64px);
+  align-items: start;
+  padding-block: clamp(40px, 6vw, 76px) clamp(32px, 4vw, 48px);
+}
+.hero-copy { min-width: 0; }
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.eyebrow::before {
+  content: "";
+  width: 28px;
+  border-top: 1px solid var(--accent);
+}
+.hero h1 {
+  font-size: clamp(2.1rem, 3.4vw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  max-width: 26ch;
+}
+.hero h1 .quiet { color: var(--ink-2); }
+.hero .lede {
+  margin-top: 24px;
+  max-width: 58ch;
+  font-size: clamp(1rem, 1.2vw, 1.12rem);
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+.hero .lede strong { color: var(--ink); font-weight: 600; }
+
+.boundary {
+  position: relative;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-top: 6px;
+}
+.boundary::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+.boundary > * { position: relative; z-index: 1; }
+.boundary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.boundary-panel { padding-block: 18px; }
+.boundary-panel h2 {
+  margin-top: 4px;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.boundary-panel p {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.boundary-panel .small { font-size: 0.78rem; color: var(--muted); }
+.boundary-arrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+}
+.boundary-arrow::before {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--line-strong);
+}
+.boundary-arrow::after {
+  content: "ACT ↓";
+  color: var(--warn);
+}
+.boundary-panel.act { padding-bottom: 12px; }
+.boundary-foot {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--warn);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.chip::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  display: inline-block;
+}
+.chip-read { color: var(--accent); }
+.chip-ops { color: var(--muted); }
+.chip-shared { color: var(--series-1); }
+.chip-maint { color: var(--accent); }
+.chip-public { color: var(--ink-2); }
+
+/* ---------- KPI row ---------- */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin-top: clamp(28px, 4vw, 44px);
+}
+.kpi {
+  background: var(--surface);
+  padding: 18px 18px 16px;
+  min-width: 0;
+}
+.kpi-value {
+  font-size: clamp(1.9rem, 3.2vw, 2.7rem);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-label {
+  margin-top: 10px;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.kpi-note {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+/* ---------- verdict ---------- */
+.verdict {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
+  margin-top: clamp(32px, 4vw, 48px);
+}
+.verdict-item {
+  padding: 20px 22px 24px 0;
+  border-right: 1px solid var(--line);
+  min-width: 0;
+}
+.verdict-item:last-child { border-right: 0; padding-right: 0; }
+.verdict-item:nth-child(2) { padding-left: 22px; }
+.verdict-item:nth-child(3) { padding-left: 22px; }
+.verdict-mark {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.verdict-mark::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  background: currentColor;
+  vertical-align: 1px;
+}
+.verdict-mark.yes { color: var(--good); }
+.verdict-mark.not { color: var(--warn); }
+.verdict-mark.next { color: var(--series-1); }
+.verdict-item p {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.verdict-item p strong { color: var(--ink); font-weight: 600; }
+
+/* ---------- sections ---------- */
+.section {
+  padding-block: clamp(44px, 6vw, 72px);
+  border-top: 1px solid var(--line);
+}
+.section-head {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: clamp(20px, 4vw, 48px);
+  margin-bottom: clamp(26px, 4vw, 40px);
+}
+.section-kicker {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding-top: 7px;
+}
+.section-kicker::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.section-head h2 {
+  font-size: clamp(1.55rem, 2.6vw, 2.2rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  max-width: 40ch;
+}
+.section-intro {
+  margin-top: 14px;
+  max-width: 66ch;
+  font-size: 0.98rem;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+.section-intro strong { color: var(--ink); font-weight: 600; }
+
+.callout {
+  border-left: 2px solid var(--accent);
+  padding: 2px 0 2px 16px;
+  margin-top: 22px;
+  max-width: 70ch;
+  font-size: 0.92rem;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+.callout strong { color: var(--ink); font-weight: 600; }
+.caveat {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warn);
+  background: var(--surface);
+  padding: 14px 16px;
+  max-width: 78ch;
+  font-size: 0.84rem;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.caveat .mono { color: var(--warn); display: block; margin-bottom: 4px; }
+
+/* ---------- flow ---------- */
+.flow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-strong);
+}
+.flow-step {
+  position: relative;
+  padding: 20px 18px 0 0;
+  min-width: 0;
+}
+.flow-step::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+}
+.flow-step:not(:last-child) { border-right: 1px solid var(--line); }
+.flow-step:not(:first-child) { padding-left: 18px; }
+.flow-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.flow-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.flow-tag {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.flow-step h3 {
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+.flow-step p {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+/* ---------- page map ---------- */
+.pagemap {
+  border: 1px solid var(--line);
+  background: var(--line);
+  display: grid;
+  gap: 1px;
+}
+.pagemap-row {
+  display: grid;
+  grid-template-columns: 1.05fr 1.55fr 0.9fr 1.5fr;
+  gap: 18px;
+  align-items: start;
+  background: var(--surface);
+  padding: 18px;
+}
+.pagemap-q { display: flex; gap: 12px; align-items: flex-start; }
+.q-index {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  padding-top: 4px;
+}
+.pagemap-q h3 {
+  font-size: 0.98rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.pagemap-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 2px;
+}
+.page-chip {
+  display: inline-block;
+  border: 1px solid var(--line);
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.03em;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.pagemap-role { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+.pagemap-note {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+  padding-top: 2px;
+}
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+}
+.role-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 14px;
+  min-width: 0;
+}
+.role-num {
+  font-size: 1.7rem;
+  line-height: 1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.role-name {
+  margin-top: 8px;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+.role-card p {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.55;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- work lanes ---------- */
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.lane {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 18px;
+  min-width: 0;
+}
+.lane-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lane-id {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+  border: 1px solid var(--line-strong);
+  padding: 1px 6px;
+}
+.lane-label {
+  font-size: 0.98rem;
+  font-weight: 600;
+  flex: 1;
+}
+.lane-pct {
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.lane-pct small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-align: right;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.lane-desc {
+  margin-top: 10px;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.lane-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 12px;
+}
+.lane-tags span {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- chart panels ---------- */
+.chart-panel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 20px;
+  margin-top: 18px;
+  min-width: 0;
+}
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.chart-head h3 {
+  margin-top: 4px;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.chart-head p {
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.bars { display: grid; gap: 12px; }
+.bar-row {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) 64px;
+  gap: 12px;
+  align-items: center;
+}
+.bar-label {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.bar-label .bar-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.bar-track {
+  position: relative;
+  height: 14px;
+  background: var(--surface-2);
+  border-left: 1px solid var(--chart-axis);
+  overflow: visible;
+}
+.bar-track::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dotted var(--chart-axis);
+  opacity: 0.7;
+}
+.bar-fill {
+  position: relative;
+  height: 100%;
+  min-width: 2px;
+  background: var(--series-1);
+  border-radius: 0 4px 4px 0;
+  transition: filter 0.2s ease;
+}
+.bar-fill:hover { filter: brightness(1.08); }
+.bar-fill.gap { background: var(--muted); }
+.bar-fill.warn { background: var(--warn); }
+.bar-fill.muted { background: var(--muted); }
+.bar-value {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.chart-note {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.76rem;
+  line-height: 1.65;
+  color: var(--muted);
+}
+.chart-note strong { color: var(--ink-2); font-weight: 500; }
+.group-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 10px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.group-label:first-of-type { margin-top: 0; }
+.group-label::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+.group-label.fix { color: var(--accent); }
+.group-label.fix::after { border-top-color: var(--line-strong); }
+
+/* ---------- data tables ---------- */
+details.data-table {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+details.data-table summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  list-style: none;
+}
+details.data-table summary::-webkit-details-marker { display: none; }
+details.data-table summary::before { content: "+ "; }
+details.data-table[open] summary::before { content: "− "; }
+.table-scroll { overflow-x: auto; margin-top: 10px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+th, td {
+  text-align: left;
+  padding: 7px 10px 7px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+th {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- leverage ---------- */
+.leverage-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.plot-panel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 20px;
+  min-width: 0;
+}
+.plot-panel h3 {
+  margin-top: 4px;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.plot-panel .plot-sub {
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  color: var(--muted);
+}
+.plot-wrap {
+  position: relative;
+  height: 320px;
+  margin: 30px 10px 36px 40px;
+  border-left: 1px solid var(--chart-axis);
+  border-bottom: 1px solid var(--chart-axis);
+}
+.plot-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--chart-grid) 1px, transparent 1px),
+    linear-gradient(to top, var(--chart-grid) 1px, transparent 1px);
+  background-size: 20% 25%, 20% 25%;
+}
+.zone {
+  position: absolute;
+  left: 0;
+  bottom: 60%;
+  width: 60%;
+  height: 40%;
+  background: var(--wash);
+  border: 1px dashed var(--line-strong);
+}
+.zone-label {
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.baseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 52%;
+  border-top: 1px dashed var(--chart-axis);
+}
+.baseline span {
+  position: absolute;
+  right: 0;
+  top: -18px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+  background: var(--surface);
+  padding-left: 5px;
+}
+.dot {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--dot-color);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--dot-color);
+  transform: translate(-50%, 50%);
+  z-index: 2;
+}
+.dot-label {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.dot-label strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.dot-label span {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+.dot-label.left {
+  left: auto;
+  right: 18px;
+  text-align: right;
+}
+.tick-x, .tick-y {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tick-x { bottom: -22px; transform: translateX(-50%); }
+.tick-y { left: -36px; transform: translateY(50%); }
+.plot-axis-x {
+  position: absolute;
+  right: 0;
+  bottom: -38px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+}
+.plot-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+.key-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+.plot-mobile { display: none; }
+.leverage-cards { display: grid; gap: 14px; align-content: start; }
+.lever-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 18px;
+  min-width: 0;
+}
+.lever-card .mono { color: var(--accent); }
+.lever-value {
+  margin-top: 6px;
+  font-size: 2.4rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.lever-card p {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.lever-meta {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- cohort ---------- */
+.cohort-panel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 22px;
+  margin-top: 18px;
+}
+.cohort-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.cohort-top h3 {
+  margin-top: 4px;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.cohort-delta {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--good);
+  font-variant-numeric: tabular-nums;
+}
+.cohort-delta span {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  font-weight: 400;
+}
+.dumbbell-track {
+  position: relative;
+  height: 64px;
+  margin: 34px 0 28px;
+}
+.dumbbell-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--line-strong);
+}
+.db-line {
+  position: absolute;
+  left: 37.05%;
+  width: 45.22%;
+  top: 50%;
+  border-top: 3px solid var(--accent);
+  transform: translateY(-50%);
+}
+.db-dot {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 3px solid var(--surface);
+  z-index: 2;
+}
+.db-before { background: var(--series-1-soft); box-shadow: 0 0 0 1px var(--series-1-soft); }
+.db-after { background: var(--series-1); box-shadow: 0 0 0 1px var(--series-1); }
+.db-tag {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink);
+}
+.db-before .db-tag { top: 22px; color: var(--ink-2); }
+.db-after .db-tag { bottom: 22px; }
+.cohort-meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.cohort-meta strong {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cohort-meta span {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- limits ---------- */
+.limits {
+  border-top: 1px solid var(--line-strong);
+}
+.limit-row {
+  display: grid;
+  grid-template-columns: 48px 150px minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: start;
+}
+.limit-id {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--warn);
+  padding-top: 3px;
+}
+.limit-title {
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.limit-body p {
+  font-size: 0.86rem;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.limit-body .limit-read {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.65;
+  color: var(--muted);
+}
+.limit-body .limit-read::before { content: "→ "; color: var(--accent); }
+
+/* ---------- principles ---------- */
+.principles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 32px;
+  border-top: 1px solid var(--line-strong);
+}
+.principle {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.principle-num {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  padding-top: 3px;
+}
+.principle h3 {
+  font-size: 0.96rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+.principle p {
+  margin-top: 6px;
+  font-size: 0.83rem;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.principle:last-child { grid-column: 1 / -1; }
+
+/* ---------- direction ---------- */
+.direction-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(24px, 4vw, 52px);
+}
+.ladder { border-left: 1px solid var(--line-strong); margin-left: 7px; }
+.rung {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 14px;
+  padding: 0 0 24px 24px;
+}
+.rung::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 4px;
+  width: 9px;
+  height: 9px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+}
+.rung.current::before { background: var(--accent); border-color: var(--accent); }
+.rung.next::before { background: var(--surface); border-color: var(--accent); }
+.rung.next { border-left: 1px dashed var(--accent); margin-left: -1px; }
+.rung-level {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding-top: 2px;
+}
+.rung h3 {
+  font-size: 0.96rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.rung p {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.rung-tag {
+  display: inline-block;
+  margin-top: 7px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.rung.next .rung-tag { color: var(--warn); border-color: var(--warn); }
+.cockpit {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 20px;
+  align-self: start;
+}
+.cockpit h3 {
+  margin-top: 4px;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.cockpit ol {
+  list-style: none;
+  margin-top: 16px;
+  counter-reset: q;
+}
+.cockpit li {
+  counter-increment: q;
+  position: relative;
+  padding: 12px 0 12px 30px;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.cockpit li::before {
+  content: counter(q, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--accent);
+}
+.metrics-wrap { margin-top: 28px; }
+.metrics-wrap h3 {
+  font-size: 1.05rem;
+  line-height: 1.4;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.metrics-table { min-width: 0; }
+.metrics-table td:first-child { font-weight: 500; color: var(--ink); }
+.metrics-table td:last-child { color: var(--muted); }
+.adoption {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin-top: 28px;
+  border-top: 1px solid var(--line-strong);
+}
+.adopt-step {
+  padding: 18px 20px 0 0;
+  border-right: 1px solid var(--line);
+  min-width: 0;
+}
+.adopt-step:last-child { border-right: 0; padding-right: 0; }
+.adopt-step:not(:first-child) { padding-left: 20px; }
+.adopt-num {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+}
+.adopt-step h3 {
+  margin-top: 8px;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+.adopt-time {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--warn);
+}
+.adopt-step p {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+/* ---------- closing ---------- */
+.closing {
+  padding-block: clamp(52px, 7vw, 88px);
+  border-top: 1px solid var(--line-strong);
+}
+.pullquote {
+  max-width: 26ch;
+  margin-top: 18px;
+  font-size: clamp(1.65rem, 3.2vw, 2.6rem);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+.pullquote span { color: var(--accent); }
+.closing-sub {
+  margin-top: 20px;
+  max-width: 52ch;
+  font-size: 0.96rem;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+
+/* ---------- footer ---------- */
+footer {
+  border-top: 1px solid var(--line);
+  padding-block: 24px 44px;
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: clamp(24px, 4vw, 52px);
+}
+.footer-grid p {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  line-height: 1.75;
+  color: var(--muted);
+}
+.footer-grid ul {
+  list-style: none;
+  margin-top: 8px;
+  display: grid;
+  gap: 5px;
+}
+.footer-grid li {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  line-height: 1.55;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.footer-grid li span { color: var(--ink-2); }
+.footer-rule {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 980px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero h1 { max-width: 20ch; }
+  .boundary { max-width: 560px; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .verdict { grid-template-columns: 1fr; }
+  .verdict-item { border-right: 0; border-bottom: 1px solid var(--line); padding: 18px 0; }
+  .verdict-item:last-child { border-bottom: 0; }
+  .verdict-item:nth-child(2), .verdict-item:nth-child(3) { padding-left: 0; }
+  .section-head { grid-template-columns: 1fr; gap: 12px; }
+  .section-kicker { padding-top: 0; }
+  .flow { grid-template-columns: 1fr; border-top: 0; }
+  .flow-step { border-top: 1px solid var(--line-strong); padding: 18px 0 18px 20px; }
+  .flow-step::before { left: 0; top: 22px; }
+  .flow-step:not(:last-child) { border-right: 0; }
+  .flow-step:not(:first-child) { padding-left: 20px; }
+  .pagemap-row { grid-template-columns: 1fr; gap: 10px; }
+  .role-cards { grid-template-columns: repeat(2, 1fr); }
+  .lanes { grid-template-columns: 1fr; }
+  .leverage-layout { grid-template-columns: 1fr; }
+  .leverage-cards { display: none; }
+  .plot-mobile { display: grid; gap: 10px; margin-top: 18px; }
+  .plot-wrap { display: none; }
+  .plot-legend { display: none; }
+  .direction-grid { grid-template-columns: 1fr; }
+  .adoption { grid-template-columns: 1fr; }
+  .adopt-step { border-right: 0; border-bottom: 1px solid var(--line); padding: 16px 0; }
+  .adopt-step:not(:first-child) { padding-left: 0; }
+  .adopt-step:last-child { border-bottom: 0; }
+  .footer-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  .topbar { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .stamp { text-align: left; }
+  .hero { padding-block: 32px 28px; }
+  .hero h1 { font-size: clamp(2rem, 9vw, 2.8rem); }
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .kpi { padding: 14px; }
+  .kpi-value { font-size: 1.8rem; }
+  .role-cards { grid-template-columns: 1fr 1fr; }
+  .principles { grid-template-columns: 1fr; }
+  .principle:last-child { grid-column: auto; }
+  .bar-row { grid-template-columns: 124px minmax(0, 1fr) 54px; gap: 8px; }
+  .bar-label { font-size: 0.74rem; }
+  .bar-value { font-size: 0.68rem; }
+  .limit-row { grid-template-columns: 34px 1fr; gap: 8px 12px; }
+  .limit-body { grid-column: 1 / -1; }
+  .cohort-meta { grid-template-columns: 1fr; }
+  .dumbbell-track { margin: 30px 0 34px; }
+  .db-tag { font-size: 0.64rem; }
+  .pullquote { max-width: 20ch; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+</style>
+
+<div class="page">
+  <header class="topbar">
+    <div class="brand">ClawSweeper <span>/</span> Dashboard Field Note</div>
+    <div class="stamp">SNAPSHOT 2026-11-06 · READ-ONLY</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">OpenClaw × ClawSweeper · 社区维护者提效拆解</div>
+        <h1>Dashboard 不替维护者做决定，<br><span class="quiet">它让决定变得可定位。</span></h1>
+        <p class="lede">ClawSweeper 的只读观察台，把六万多条 issue 的噪音压缩成一组可讨论的队列：系统是否健康、哪里堵住、哪些条目需要人。它的提效不在“关掉多少”，而在<strong>少找多久、少看多少、先看哪一条</strong>。</p>
+      </div>
+
+      <aside class="boundary" aria-label="观察与执行的边界">
+        <div class="boundary-head">
+          <span class="mono">Boundary</span>
+          <span class="chip chip-read">只读</span>
+        </div>
+        <div class="boundary-panel">
+          <div class="mono">Observe</div>
+          <h2>Dashboard</h2>
+          <p>队列 · 覆盖 · 审查评估 · 运行健康</p>
+          <p class="small">聚合指标与受限公开引用。没有写按钮。</p>
+        </div>
+        <div class="boundary-arrow" aria-hidden="true"></div>
+        <div class="boundary-panel act">
+          <div class="mono">Act</div>
+          <h2>GitHub + Apply</h2>
+          <p>证据 · 判断 · 评论命令 · 受护栏的标签/关闭</p>
+          <p class="small">由权限、实时状态和确定性规则校验。</p>
+        </div>
+        <div class="boundary-foot">看见 ≠ 操作</div>
+      </aside>
+    </section>
+
+    <div class="kpis" aria-label="关键数字">
+      <div class="kpi">
+        <div class="kpi-value">10</div>
+        <div class="kpi-label">个只读页面</div>
+        <div class="kpi-note">没有写按钮</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value">63,057</div>
+        <div class="kpi-label">条 issue 标签样本</div>
+        <div class="kpi-note">标签可重叠</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value">81.7%</div>
+        <div class="kpi-label">人类关闭命中至少一类证据信号</div>
+        <div class="kpi-note">n = 8,140</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value">3–5%</div>
+        <div class="kpi-label">PR 由机器人亲手关闭</div>
+        <div class="kpi-note">93% 被评论过</div>
+      </div>
+    </div>
+
+    <section class="verdict" aria-label="结论先行">
+      <div class="verdict-item">
+        <div class="verdict-mark yes">有帮助</div>
+        <p>它降低的是<strong>“系统状态的搜索成本”</strong>：把队列、覆盖、审查结果和运行健康收进一个只读面，让维护者先判断“值不值得去 GitHub 看”。</p>
+      </div>
+      <div class="verdict-item">
+        <div class="verdict-mark not">还不够</div>
+        <p>它还不是一张<strong>“今天该我处理什么”</strong>的清单。多数页面为运维者设计，公共分诊只有聚合计数，评估是保存记录，不保证当前仍有效。</p>
+      </div>
+      <div class="verdict-item">
+        <div class="verdict-mark next">有方向</div>
+        <p>从“系统观察台”升级为<strong>“维护者决策台”</strong>：按人、按优先级、按证据新鲜度组织下一步，而不是再加一块指标。</p>
+      </div>
+    </section>
+
+    <section class="section" id="loop">
+      <div class="section-head">
+        <div class="section-kicker">The Loop</div>
+        <div>
+          <h2>提效发生在一条五步链上，Dashboard 只占第一步。</h2>
+          <p class="section-intro">ClawSweeper 把维护者的工作拆成“看系统 → 找条目 → 做判断 → 发命令 → 受控执行”。Dashboard 负责第一步；真正处理仍在 GitHub。<strong>它的产出不是动作，而是下一步的入口。</strong></p>
+        </div>
+      </div>
+
+      <ol class="flow">
+        <li class="flow-step">
+          <div class="flow-top"><span class="flow-num">01</span><span class="flow-tag">Observe</span></div>
+          <h3>发现信号</h3>
+          <p>看队列、吞吐、覆盖与审查评估；判断系统是否在工作、哪里有异常。</p>
+        </li>
+        <li class="flow-step">
+          <div class="flow-top"><span class="flow-num">02</span><span class="flow-tag">Locate</span></div>
+          <h3>定位条目</h3>
+          <p>从聚合样例跳回 GitHub Issue/PR；读证据、标签、报告与决策包。</p>
+        </li>
+        <li class="flow-step">
+          <div class="flow-top"><span class="flow-num">03</span><span class="flow-tag">Decide</span></div>
+          <h3>完成判断</h3>
+          <p>补信息、验证复现、决定产品行为，或安排安全与维护者复核。</p>
+        </li>
+        <li class="flow-step">
+          <div class="flow-top"><span class="flow-num">04</span><span class="flow-tag">Request</span></div>
+          <h3>发出请求</h3>
+          <p><span class="mono">@clawsweeper review / re-review / explain / stop</span>；命令经权限与当前评论校验。</p>
+        </li>
+        <li class="flow-step">
+          <div class="flow-top"><span class="flow-num">05</span><span class="flow-tag">Apply</span></div>
+          <h3>受控执行</h3>
+          <p>标签同步或满足条件的关闭由独立 Apply 车道完成；不是在 Dashboard 点按钮。</p>
+        </li>
+      </ol>
+
+      <div class="callout"><strong>看见 ≠ 操作。</strong> Dashboard 是只读观察台，不是 GitHub 管理后台。发现问题的页面和解决问题的页面，刻意分开。</div>
+    </section>
+
+    <section class="section" id="pages">
+      <div class="section-head">
+        <div class="section-kicker">Page Map</div>
+        <div>
+          <h2>10 个页面，先回答四个问题。</h2>
+          <p class="section-intro">页面不是按数据表组织的，而是按维护者会问的问题组织的。先看全局，再决定去哪个详情页；每个页面都带着自己的口径和边界。</p>
+        </div>
+      </div>
+
+      <div class="pagemap">
+        <div class="pagemap-row">
+          <div class="pagemap-q"><span class="q-index">Q1</span><h3>系统是否在工作？</h3></div>
+          <div class="pagemap-pages">
+            <span class="page-chip">Overview</span><span class="page-chip">Throughput</span><span class="page-chip">Agent performance</span><span class="page-chip">Operations</span><span class="page-chip">Coverage</span>
+          </div>
+          <div class="pagemap-role"><span class="chip chip-ops">运维者</span><span class="chip chip-shared">维护者</span></div>
+          <p class="pagemap-note">先看全局，再决定去哪一页；不是逐项审批列表。</p>
+        </div>
+        <div class="pagemap-row">
+          <div class="pagemap-q"><span class="q-index">Q2</span><h3>哪里堵了？</h3></div>
+          <div class="pagemap-pages">
+            <span class="page-chip">Queue</span><span class="page-chip">Operations</span><span class="page-chip">Agent performance</span>
+          </div>
+          <div class="pagemap-role"><span class="chip chip-ops">运维者</span></div>
+          <p class="pagemap-note">积压、退避、搁置、handoff、publication 延迟；页面不提供清队列或重试按钮。</p>
+        </div>
+        <div class="pagemap-row">
+          <div class="pagemap-q"><span class="q-index">Q3</span><h3>哪些需要人看？</h3></div>
+          <div class="pagemap-pages">
+            <span class="page-chip">Assessments</span><span class="page-chip">Repositories</span>
+          </div>
+          <div class="pagemap-role"><span class="chip chip-maint">维护者</span></div>
+          <p class="pagemap-note">security / maintainer flags、stale open、近期关闭；基于保存记录，不保证当前仍 open。</p>
+        </div>
+        <div class="pagemap-row">
+          <div class="pagemap-q"><span class="q-index">Q4</span><h3>公共分诊长什么样？</h3></div>
+          <div class="pagemap-pages">
+            <span class="page-chip">Issue triage</span><span class="page-chip">PR proof triage</span>
+          </div>
+          <div class="pagemap-role"><span class="chip chip-public">公众</span></div>
+          <p class="pagemap-note">只有固定分类的聚合计数和数据完整性状态；没有逐条 Issue、搜索或详情链接。</p>
+        </div>
+      </div>
+
+      <div class="role-cards" aria-label="按主要角色归类">
+        <div class="role-card">
+          <div class="role-num">3</div>
+          <div class="role-name">运维者主视角</div>
+          <p>Agent performance<br>Queue<br>Operations</p>
+        </div>
+        <div class="role-card">
+          <div class="role-num">3</div>
+          <div class="role-name">维护者 / 运维者共用</div>
+          <p>Overview<br>Throughput<br>Coverage</p>
+        </div>
+        <div class="role-card">
+          <div class="role-num">2</div>
+          <div class="role-name">维护者主视角</div>
+          <p>Assessments<br>Repositories</p>
+        </div>
+        <div class="role-card">
+          <div class="role-num">2</div>
+          <div class="role-name">公众投影</div>
+          <p>Issue triage<br>PR proof triage</p>
+        </div>
+      </div>
+
+      <div class="callout"><strong>这张地图暴露了一个产品事实：</strong> Dashboard 的第一用户更像“服务操作者”，而不是“社区维护者”。维护者主视角只有 Assessments 和 Repositories 两页，且都是已保存记录的只读投影——它帮你判断“值不值得去 GitHub 看”，不替你判断“这条该怎么处理”。</div>
+    </section>
+
+    <section class="section" id="lanes">
+      <div class="section-head">
+        <div class="section-kicker">Work Lanes</div>
+        <div>
+          <h2>所谓提效，是把 issue <span class="nowrap">分成四种“谁来处理”。</span></h2>
+          <p class="section-intro">ClawSweeper 把审查结论投影成 13 个 advisory labels，收束为四条工作路径。它们不是四个自动化动作，而是四个<strong>“把问题交给谁”</strong>的路由。</p>
+        </div>
+      </div>
+
+      <div class="lanes">
+        <article class="lane">
+          <div class="lane-head">
+            <span class="lane-id">A</span>
+            <span class="lane-label">证据够不够</span>
+            <span class="lane-pct"><small>覆盖</small>81.7%</span>
+          </div>
+          <p class="lane-desc">决定值不值得派人；缺证据先回报告者。</p>
+          <div class="lane-tags"><span>current-main-repro</span><span>source-repro</span><span>not-repro-on-main</span><span>needs-live-repro</span><span>needs-info</span></div>
+        </article>
+        <article class="lane">
+          <div class="lane-head">
+            <span class="lane-id">B</span>
+            <span class="lane-label">要不要重复</span>
+            <span class="lane-pct"><small>覆盖</small>53.4%</span>
+          </div>
+          <p class="lane-desc">先看已有 PR，别重复排修复。</p>
+          <div class="lane-tags"><span>linked-pr-open</span><span>no-new-fix-pr</span></div>
+        </article>
+        <article class="lane">
+          <div class="lane-head">
+            <span class="lane-id">C</span>
+            <span class="lane-label">谁该拍板</span>
+            <span class="lane-pct"><small>覆盖</small>24.2%</span>
+          </div>
+          <p class="lane-desc">分别路由给维护者、产品与安全；不冒充产品判断。</p>
+          <div class="lane-tags"><span>needs-maintainer-review</span><span>needs-product-decision</span><span>needs-security-review</span></div>
+        </article>
+        <article class="lane">
+          <div class="lane-head">
+            <span class="lane-id">D</span>
+            <span class="lane-label">能不能直接修</span>
+            <span class="lane-pct"><small>覆盖</small>20.5%</span>
+          </div>
+          <p class="lane-desc">进入可修队列；queueable-fix 自动加 no-stale。</p>
+          <div class="lane-tags"><span>queueable-fix</span><span>fix-shape-clear</span></div>
+        </article>
+      </div>
+
+      <figure class="chart-panel">
+        <figcaption class="chart-head">
+          <div>
+            <div class="mono">Coverage / Human Closes</div>
+            <h3>人类关闭时，哪些信号已经在场</h3>
+            <p>n = 8,140 人类关闭 issue · 2026-08-12～11-12 · 标签可重叠</p>
+          </div>
+        </figcaption>
+        <div class="bars">
+          <div class="bar-row">
+            <div class="bar-label">证据<span class="bar-sub">6,652 条</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:81.7%" title="证据信号 · 6,652 条 · 81.7%"></div></div>
+            <div class="bar-value">81.7%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">查重<span class="bar-sub">4,345 条</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:53.4%" title="查重信号 · 4,345 条 · 53.4%"></div></div>
+            <div class="bar-value">53.4%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">决策<span class="bar-sub">1,971 条</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:24.2%" title="决策信号 · 1,971 条 · 24.2%"></div></div>
+            <div class="bar-value">24.2%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">可修<span class="bar-sub">1,666 条</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:20.5%" title="可修信号 · 1,666 条 · 20.5%"></div></div>
+            <div class="bar-value">20.5%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">无以上信号<span class="bar-sub">702 条</span></div>
+            <div class="bar-track"><div class="bar-fill gap" style="width:8.6%" title="无以上信号 · 702 条 · 8.6%"></div></div>
+            <div class="bar-value">8.6%</div>
+          </div>
+        </div>
+        <div class="chart-note">可重叠口径，相加超过 100%，不宜做饼图。<strong>至少命中 2 组 69.1%，3 组 17.9%，4 组 0.7%。</strong></div>
+        <details class="data-table">
+          <summary>查看数据表</summary>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>路径</th><th>包含的标签</th><th class="num">命中 issue</th><th class="num">占人类关闭</th></tr></thead>
+              <tbody>
+                <tr><td>证据</td><td>current-main-repro · source-repro · not-repro-on-main · needs-live-repro · needs-info</td><td class="num">6,652</td><td class="num">81.7%</td></tr>
+                <tr><td>查重</td><td>linked-pr-open · no-new-fix-pr</td><td class="num">4,345</td><td class="num">53.4%</td></tr>
+                <tr><td>决策</td><td>needs-maintainer-review · needs-product-decision · needs-security-review</td><td class="num">1,971</td><td class="num">24.2%</td></tr>
+                <tr><td>可修</td><td>queueable-fix · fix-shape-clear</td><td class="num">1,666</td><td class="num">20.5%</td></tr>
+                <tr><td>无以上信号</td><td>—</td><td class="num">702</td><td class="num">8.6%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </figure>
+
+      <div class="callout"><strong>四条路径覆盖了 91.4% 的人类关闭。</strong>但这只说明标签“说中了人为什么关”，不等于机器人“替人关了”。真正的提效要看下一条：转化率。</div>
+    </section>
+
+    <section class="section" id="leverage">
+      <div class="section-head">
+        <div class="section-kicker">Leverage</div>
+        <div>
+          <h2>收益集中在一条窄通道：可修，但只覆盖 12%。</h2>
+          <p class="section-intro">把“覆盖率”和“完成关闭率”放在同一张图里，才能看出 AI 到底在哪一段真正改变了维护者的工作。</p>
+        </div>
+      </div>
+
+      <div class="leverage-layout">
+        <figure class="plot-panel">
+          <div class="mono">Leverage Map</div>
+          <h3>覆盖率 × 完成关闭率</h3>
+          <p class="plot-sub">窗口 2026-08-12～11-12 · 17,374 个 issue · 13,024 条可归属关闭记录</p>
+
+          <div class="plot-mobile">
+            <div class="lever-card">
+              <div class="mono">Queueable-fix</div>
+              <div class="lever-value">79%</div>
+              <p>完成关闭率 · 基线 52%</p>
+              <div class="lever-meta">覆盖率 12% · 3.2× 转化 · 窄通道</div>
+            </div>
+            <div class="lever-card">
+              <div class="mono">Needs-product-decision</div>
+              <div class="lever-value">25%</div>
+              <p>完成关闭率 · 基线 52%</p>
+              <div class="lever-meta">覆盖率 20% · 路由有效，解决无效</div>
+            </div>
+          </div>
+
+          <div class="plot-wrap" role="img" aria-label="覆盖率与完成关闭率散点图：queueable-fix 覆盖 12%、关闭率 79%；needs-product-decision 覆盖 20%、关闭率 25%；基线 52%。">
+            <div class="plot-grid"></div>
+            <div class="zone"><span class="zone-label">高转化 · 窄覆盖</span></div>
+            <div class="baseline"><span>基线 52%</span></div>
+
+            <div class="dot" style="--dot-color:var(--series-1); left:48%; bottom:79%;">
+              <div class="dot-label"><strong>queueable-fix</strong><span>覆盖 12% · 关闭 79%</span></div>
+            </div>
+            <div class="dot" style="--dot-color:var(--series-2); left:80%; bottom:25%;">
+              <div class="dot-label left"><strong>needs-product-decision</strong><span>覆盖 20% · 关闭 25%</span></div>
+            </div>
+
+            <div class="tick-x" style="left:0;">0</div>
+            <div class="tick-x" style="left:50%;">12.5%</div>
+            <div class="tick-x" style="left:100%;">25%</div>
+            <div class="tick-y" style="bottom:0;">0</div>
+            <div class="tick-y" style="bottom:50%;">50%</div>
+            <div class="tick-y" style="bottom:100%;">100%</div>
+            <div class="plot-axis-x">标签覆盖率 →</div>
+          </div>
+
+          <div class="plot-legend">
+            <span><span class="key-dot" style="background:var(--series-1);"></span>queueable-fix</span>
+            <span><span class="key-dot" style="background:var(--series-2);"></span>needs-product-decision</span>
+            <span><span class="key-dot" style="background:var(--chart-axis);"></span>基线 52%</span>
+          </div>
+
+          <details class="data-table">
+            <summary>查看数据表</summary>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>工作路径</th><th class="num">覆盖率</th><th class="num">完成关闭率</th><th class="num">相对基线</th></tr></thead>
+                <tbody>
+                  <tr><td>queueable-fix</td><td class="num">12%</td><td class="num">79%</td><td class="num">3.2×</td></tr>
+                  <tr><td>needs-product-decision</td><td class="num">20%</td><td class="num">25%</td><td class="num">0.5×</td></tr>
+                  <tr><td>基线</td><td class="num">—</td><td class="num">52%</td><td class="num">1.0×</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </figure>
+
+        <div class="leverage-cards">
+          <div class="lever-card">
+            <div class="mono">Queueable-fix</div>
+            <div class="lever-value">79%</div>
+            <p>完成关闭率 · 基线 52%</p>
+            <div class="lever-meta">覆盖率 12% · 3.2× 转化<br>通道很窄，但一旦进入，结局明显更好。</div>
+          </div>
+          <div class="lever-card">
+            <div class="mono">Needs-product-decision</div>
+            <div class="lever-value">25%</div>
+            <p>完成关闭率 · 基线 52%</p>
+            <div class="lever-meta">覆盖率 20% · 路由有效，解决无效<br>把人从错误的地方挪开，但没有让决策变快。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout"><strong>这组对比是整页最重要的方向性信号：</strong> AI 能把“可修”的 issue 变成高转化队列，但这类 issue 只占 12%；它也能把“待产品决策”的 issue 分出来，但不会让产品决策变快。维护者真正省下的，不是“修”的时间，而是“在错误的地方判断”的时间。</div>
+
+      <div class="caveat" style="margin-top:18px;"><span class="mono">Caveat</span>覆盖率是窗口内标签覆盖，不是全量 issue 的比例；完成关闭率是描述性统计，不是因果估计。样本窗口 2026-08-12～11-12。</div>
+    </section>
+
+    <section class="section" id="outcome">
+      <div class="section-head">
+        <div class="section-kicker">Outcome</div>
+        <div>
+          <h2>社区结果在变好，但别把相关性当因果。</h2>
+          <p class="section-intro">全社区 issue cohort 在接入前后出现了很大的闭合率差异。这个数字值得看，但它不是 ClawSweeper 的净因果提升——同期的流量、issue 构成和其他自动化都在变化。</p>
+        </div>
+      </div>
+
+      <figure class="cohort-panel">
+        <div class="cohort-top">
+          <div>
+            <div class="mono">Cohort / Closed within 30–36 days</div>
+            <h3>接入前后，全社区 issue 的累计闭合比例</h3>
+          </div>
+          <div class="cohort-delta">+45.22 <span>pp</span></div>
+        </div>
+        <div class="dumbbell-track" role="img" aria-label="接入前 37.05%，接入后 82.27%，相差 45.22 个百分点。">
+          <div class="db-line"></div>
+          <div class="db-dot db-before" style="left:37.05%;"><span class="db-tag">37.05%</span></div>
+          <div class="db-dot db-after" style="left:82.27%;"><span class="db-tag">82.27%</span></div>
+        </div>
+        <div class="cohort-meta">
+          <div><strong>37.05%</strong><span>接入前 · 03/01–03/07 · n=2,526 · 936 条关闭</span></div>
+          <div><strong>82.27%</strong><span>接入后 · 05/15–05/21 · n=1,348 · 1,109 条关闭</span></div>
+        </div>
+        <div class="caveat" style="margin-top:16px;"><span class="mono">Not causal</span>仓库 2026-04-28 首次接入 dispatcher。两组创建量相差 46.6%，同期流量、issue 构成与其他自动化均可能影响结果。这是观察差异，不是 ClawSweeper 的净因果提升。</div>
+      </figure>
+
+      <figure class="chart-panel">
+        <figcaption class="chart-head">
+          <div>
+            <div class="mono">Label Distribution / All Issues</div>
+            <h3>63,057 条 issue 的标签分布：大量分流，少量进入修复候选</h3>
+            <p>分母为全部 63,057 条 issue · 标签可重叠 · 快照 2026-11-06</p>
+          </div>
+        </figcaption>
+
+        <div class="group-label">分流与路由</div>
+        <div class="bars">
+          <div class="bar-row">
+            <div class="bar-label">no-new-fix-pr<span class="bar-sub">先看已有 PR</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:24.7%" title="no-new-fix-pr · 24.70%"></div></div>
+            <div class="bar-value">24.70%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">source-repro<span class="bar-sub">有源码级复现</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:19.96%" title="source-repro · 19.96%"></div></div>
+            <div class="bar-value">19.96%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">needs-maintainer-review<span class="bar-sub">需维护者判断</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:12.7%" title="needs-maintainer-review · 12.70%"></div></div>
+            <div class="bar-value">12.70%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">needs-product-decision<span class="bar-sub">需产品决策</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:11.97%" title="needs-product-decision · 11.97%"></div></div>
+            <div class="bar-value">11.97%</div>
+          </div>
+        </div>
+
+        <div class="group-label fix">修复候选 · 合计 5.03%</div>
+        <div class="bars">
+          <div class="bar-row">
+            <div class="bar-label">queueable-fix<span class="bar-sub">可排队修复</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:4.85%" title="queueable-fix · 4.85%"></div></div>
+            <div class="bar-value">4.85%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">current-main-repro<span class="bar-sub">主线可复现</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:0.18%; min-width:3px;" title="current-main-repro · 0.18%"></div></div>
+            <div class="bar-value">0.18%</div>
+          </div>
+        </div>
+
+        <div class="chart-note">标签覆盖的是“分流”，不是“修复”。<strong>queueable-fix 只有 4.85%，current-main-repro 只有 0.18%。</strong>这解释了为什么 Dashboard 的维护者价值主要在前两页：它帮你找“哪些不用看”，而不是“哪些已经修好”。</div>
+        <details class="data-table">
+          <summary>查看数据表</summary>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>标签</th><th class="num">占全部 issue</th><th>它回答什么</th></tr></thead>
+              <tbody>
+                <tr><td>no-new-fix-pr</td><td class="num">24.70%</td><td>先 review 已有 PR，不重复排修复</td></tr>
+                <tr><td>source-repro</td><td class="num">19.96%</td><td>有源码级复现证据</td></tr>
+                <tr><td>needs-maintainer-review</td><td class="num">12.70%</td><td>需要维护者判断</td></tr>
+                <tr><td>needs-product-decision</td><td class="num">11.97%</td><td>需要产品决策</td></tr>
+                <tr><td>queueable-fix</td><td class="num">4.85%</td><td>可进入修复队列</td></tr>
+                <tr><td>current-main-repro</td><td class="num">0.18%</td><td>当前 main 可复现</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </figure>
+
+      <figure class="chart-panel">
+        <figcaption class="chart-head">
+          <div>
+            <div class="mono">PR / Action Surface</div>
+            <h3>机器人碰了 93% 的 PR，但亲手关闭只有 3–5%</h3>
+            <p>openclaw/openclaw · 2026-04 起 9w+ PR · 不同动作的作用面，可重叠</p>
+          </div>
+        </figcaption>
+        <div class="bars">
+          <div class="bar-row">
+            <div class="bar-label">被评论过</div>
+            <div class="bar-track"><div class="bar-fill" style="width:93%" title="被评论过 · 93%"></div></div>
+            <div class="bar-value">93%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">标为“可看”</div>
+            <div class="bar-track"><div class="bar-fill" style="width:50%" title="标为可看 · 50%"></div></div>
+            <div class="bar-value">50%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">打回“需要证据”</div>
+            <div class="bar-track"><div class="bar-fill" style="width:16%" title="打回需要证据 · 16%"></div></div>
+            <div class="bar-value">16%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">亲手关闭</div>
+            <div class="bar-track"><div class="bar-fill warn" style="width:5%" title="亲手关闭 · 3–5%"></div></div>
+            <div class="bar-value">3–5%</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">合并</div>
+            <div class="bar-track"><div class="bar-fill muted" style="width:0; min-width:3px;" title="合并 · ≈0"></div></div>
+            <div class="bar-value">≈0</div>
+          </div>
+        </div>
+        <div class="chart-note">这组数字说明：ClawSweeper 在 PR 上做的是<strong>分流与拦截</strong>，不是合并。维护者的真实工作量仍在自己的 PR（约 49% 自建自并）和“社区提交 → 维护者评审 → 合并”的 11% 通道。无维护者池 27.6% 是机器人唯一能独立工作的区域：54.1% 被关闭、36.0% 被合并、9.9% 仍 open。</div>
+        <details class="data-table">
+          <summary>查看数据表</summary>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>动作</th><th class="num">作用面</th><th>含义</th></tr></thead>
+              <tbody>
+                <tr><td>被评论过</td><td class="num">93%</td><td>几乎每条 PR 都拿到过反馈</td></tr>
+                <tr><td>标为“可看”</td><td class="num">50%</td><td>拿到正向分诊信号</td></tr>
+                <tr><td>打回“需要证据”</td><td class="num">16%</td><td>缺证明，回到作者</td></tr>
+                <tr><td>亲手关闭</td><td class="num">3–5%</td><td>受护栏约束的关闭，策略保守</td></tr>
+                <tr><td>合并</td><td class="num">≈0</td><td>合并仍由人完成</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </figure>
+    </section>
+
+    <section class="section" id="limits">
+      <div class="section-head">
+        <div class="section-kicker">Limits</div>
+        <div>
+          <h2>Dashboard 的五个“不”。</h2>
+          <p class="section-intro">这些不是缺陷清单，而是使用说明。它们决定了正确的读法：把 Dashboard 当作“去哪里查”的索引，而不是“结论是什么”的判决书。</p>
+        </div>
+      </div>
+
+      <div class="limits">
+        <div class="limit-row">
+          <div class="limit-id">01</div>
+          <div class="limit-title">不是实时</div>
+          <div class="limit-body">
+            <p>站点构建约每 15 分钟；队列与运行遥测可更频繁；审查总量、评估和关闭汇总约每日两次更新。</p>
+            <p class="limit-read">先看页首的 Snapshot、Reviews、Queue 时间，再判断数据是否足够新。</p>
+          </div>
+        </div>
+        <div class="limit-row">
+          <div class="limit-id">02</div>
+          <div class="limit-title">不是完整清单</div>
+          <div class="limit-body">
+            <p>未认证 observer API 只返回固定聚合字段和 allowlist 范围的公开引用；页面样例有上限，不构成完整清单。</p>
+            <p class="limit-read">排查具体事件要回 GitHub / 授权运维渠道，不要拿页面样例当全量。</p>
+          </div>
+        </div>
+        <div class="limit-row">
+          <div class="limit-id">03</div>
+          <div class="limit-title">不是当前事实</div>
+          <div class="limit-body">
+            <p>Assessments 和 Repositories 主要基于已保存报告；历史状态不能证明条目现在仍 open、来源仍匹配或问题已经解决。</p>
+            <p class="limit-read">“Unknown”不要读成“没有问题”；到 GitHub 核对 live 状态与最新报告。</p>
+          </div>
+        </div>
+        <div class="limit-row">
+          <div class="limit-id">04</div>
+          <div class="limit-title">不是准确率报告</div>
+          <div class="limit-body">
+            <p>评估是审查者判断，不是验证过的严重度；未见公开 gold-set、precision / recall。护栏能拦截格式错误与越权写入，不能保证语义判断正确。</p>
+            <p class="limit-read">把评估当“值得抽查的线索”，不要当“已验证的结论”。</p>
+          </div>
+        </div>
+        <div class="limit-row">
+          <div class="limit-id">05</div>
+          <div class="limit-title">不是通用服务</div>
+          <div class="limit-body">
+            <p>官方实例服务 OpenClaw / steipete 生态；其它社区接入需自行托管，并配置目标仓 dispatcher、App、Worker 与权限。</p>
+            <p class="limit-read">Dashboard 页面可以作为设计参考，不代表第三方仓能直接加入官方实例。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="playbook">
+      <div class="section-head">
+        <div class="section-kicker">Playbook</div>
+        <div>
+          <h2>其它社区可以照搬的 7 条设计原则。</h2>
+          <p class="section-intro">ClawSweeper 的 Dashboard 不是“漂亮图表”的集合，而是一套观察纪律。下面这些原则，比具体的页面布局更值得复制。</p>
+        </div>
+      </div>
+
+      <div class="principles">
+        <article class="principle">
+          <div class="principle-num">01</div>
+          <div><h3>按问题组织页面，不按数据表组织。</h3><p>每个页面先写清楚“它回答哪个维护问题”，再决定放哪些指标。问题先行，指标随后。</p></div>
+        </article>
+        <article class="principle">
+          <div class="principle-num">02</div>
+          <div><h3>观察与执行分离。</h3><p>Dashboard 永不写 GitHub；所有写操作回到 GitHub 或受控 Apply 车道。看见和操作之间，留一道权限与实时校验。</p></div>
+        </article>
+        <article class="principle">
+          <div class="principle-num">03</div>
+          <div><h3>每个数字带口径、时间戳和 Unknown。</h3><p>快照时间、样本窗口、分母、是否可重叠。不知道就写 Unknown，不用旧数据伪装实时。</p></div>
+        </article>
+        <article class="principle">
+          <div class="principle-num">04</div>
+          <div><h3>角色分层。</h3><p>维护者、运维者、公众看到不同的投影；公开页只给聚合，不给逐条隐私。</p></div>
+        </article>
+        <article class="principle">
+          <div class="principle-num">05</div>
+          <div><h3>结论必须能回到证据。</h3><p>每个标签、评估、样例都能跳回 GitHub 条目；Dashboard 不是 source of truth。</p></div>
+        </article>
+        <article class="principle">
+          <div class="principle-num">06</div>
+          <div><h3>把“下一步”做成显式路径。</h3><p>Observe → Locate → Decide → Request → Apply；不要让维护者在图表里自己找入口。</p></div>
+        </article>
+        <article class="principle">
+          <div class="principle-num">07</div>
+          <div><h3>把失败和缺口放在首页。</h3><p>队列积压、backoff、handoff、覆盖缺口、stale 样例。系统先分诊自己的失败，再让人看到。</p></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="direction">
+      <div class="section-head">
+        <div class="section-kicker">Direction</div>
+        <div>
+          <h2>下一步不是更多指标，<br>而是一张“今天该我判断”的清单。</h2>
+          <p class="section-intro">ClawSweeper 已经把“观察”和“分诊”做得很完整。社区可以补上的，是两者之间的一层：把系统信号翻译成<strong>某个维护者今天能执行的下一步</strong>。</p>
+        </div>
+      </div>
+
+      <div class="direction-grid">
+        <div class="ladder" aria-label="社区自动化成熟度阶梯">
+          <div class="rung">
+            <div class="rung-level">L0</div>
+            <div><h3>黑盒 backlog</h3><p>没有观察面，靠人记忆和搜索。</p></div>
+          </div>
+          <div class="rung current">
+            <div class="rung-level">L1</div>
+            <div><h3>只读观察</h3><p>队列、吞吐、覆盖、审查评估；先让系统可见。</p><span class="rung-tag">ClawSweeper 已具备</span></div>
+          </div>
+          <div class="rung current">
+            <div class="rung-level">L2</div>
+            <div><h3>建议性分诊</h3><p>13 个 advisory labels、4 条工作路径；只提议，不派发修复。</p><span class="rung-tag">ClawSweeper 已具备</span></div>
+          </div>
+          <div class="rung next">
+            <div class="rung-level">L3</div>
+            <div><h3>维护者决策队列</h3><p>按人、按优先级、按证据新鲜度组织“下一步”。社区可以补上的一层。</p><span class="rung-tag">缺口</span></div>
+          </div>
+          <div class="rung">
+            <div class="rung-level">L4</div>
+            <div><h3>受控执行</h3><p>护栏、审计、一条评论复活；只在信任边界内自动。</p></div>
+          </div>
+        </div>
+
+        <aside class="cockpit">
+          <div class="mono">What to do next</div>
+          <h3>维护者决策台应该回答五个问题</h3>
+          <ol>
+            <li>本周哪些条目只有我能决定？</li>
+            <li>哪些结论已经过期，或证据不足？</li>
+            <li>哪些关闭 / 标签值得抽样复核？</li>
+            <li>哪些重复劳动可以被挡住？</li>
+            <li>这周我们的判断错在哪里？</li>
+          </ol>
+        </aside>
+      </div>
+
+      <div class="metrics-wrap">
+        <h3>指标要能回答“维护者省下了什么”，而不只是“系统跑了多少”。</h3>
+        <div class="table-scroll">
+          <table class="metrics-table">
+            <thead><tr><th>指标</th><th>它回答什么</th><th>不要用它做什么</th></tr></thead>
+            <tbody>
+              <tr><td>首次有意义响应时间</td><td>贡献者是否被看见</td><td>不要用总评论量替代</td></tr>
+              <tr><td>人工关闭的证据覆盖率</td><td>判断是否有据</td><td>不要当自动化率</td></tr>
+              <tr><td>误关复活率</td><td>执行质量</td><td>不要追求零；会牺牲召回</td></tr>
+              <tr><td>维护者负载集中度</td><td>社区是否可持续</td><td>不要只看 top-5</td></tr>
+              <tr><td>队列最老等待时间</td><td>系统是否健康</td><td>不要当社区健康</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="adoption">
+        <div class="adopt-step">
+          <div class="adopt-num">01</div>
+          <h3>只读接入</h3>
+          <div class="adopt-time">2–4 周</div>
+          <p>事件转发、耐久报告、单条评论；不开任何关闭。先验证“看得见”。</p>
+        </div>
+        <div class="adopt-step">
+          <div class="adopt-num">02</div>
+          <h3>建议性分诊</h3>
+          <div class="adopt-time">4–8 周</div>
+          <p>只写 advisory labels；抽样复核 precision；不建 PR、不合并、不关闭。</p>
+        </div>
+        <div class="adopt-step">
+          <div class="adopt-num">03</div>
+          <h3>受控执行</h3>
+          <div class="adopt-time">按仓库开启</div>
+          <p>逐条开启 close rules；保留复活、审计与人工否决。先观察，再放开关闭。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing">
+      <div class="mono">Field Note / 2026-11-15</div>
+      <p class="pullquote">一个好的社区仪表盘，最终要让维护者更容易说：<span>“这条不用我看。”</span></p>
+      <p class="closing-sub">先让系统可见，再让判断可定位，最后才让动作可执行。顺序反了，仪表盘就会变成另一份需要维护的 backlog。</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-grid">
+      <div>
+        <div class="mono">Method</div>
+        <p>本页基于 ClawSweeper 线上页面、仓库文档与 2026-11 的 GitHub 快照整理。所有百分比均为描述性统计；标签覆盖可重叠，不代表自动化率或因果效果。Dashboard 自身也明确：记录不等于实时事实，评估不是准确率报告。</p>
+      </div>
+      <div>
+        <div class="mono">Sources</div>
+        <ul>
+          <li><span>Dashboard 页面、角色与边界</span> · research/clawsweeper-dashboard-guide.html · 2026-11-06</li>
+          <li><span>功能、命令与护栏</span> · research/clawsweeper-features.html · 2026-11-05</li>
+          <li><span>准入与调度</span> · research/clawsweeper-admission.html · 2026-11-06</li>
+          <li><span>标签覆盖与人类关闭样本</span> · research/openclaw-human-closure-coverage-half.pptx · 2026-08-12～11-12</li>
+          <li><span>工作路径与转化率</span> · research/openclaw-work-lane-maintainer-efficiency.pptx · 2026-08-12～11-12</li>
+          <li><span>全社区 cohort 与标签占比</span> · research/clawsweeper-community-issue-1109.pptx · 2026-11-06</li>
+          <li><span>PR 行为与维护者通道</span> · research/maintainer-trust-efficiency.pptx · 2026-11-12</li>
+          <li><span>线上页面</span> · clawsweeper.openclaw.ai</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-rule">ClawSweeper Dashboard Field Note · 研究快照，不构成对 ClawSweeper 准确率或因果效果的独立验证 · 页面设计仅作社区参考</div>
+  </footer>
+</div>
