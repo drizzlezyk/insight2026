@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="OpenClaw 与 vLLM-Ascend 的 GitHub Actions workflow 对比：规模、触发、安全、runner、可靠性与 30/60/90 天建议。">
+<title>OpenClaw × vLLM-Ascend · Workflow 设计对比与启示</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f4f3ef;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #74726c;
+  --border: rgba(11, 11, 11, 0.10);
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --accent: #2a78d6;
+  --accent-2: #184f95;
+  --accent-weak: #cde2fb;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --critical-text: #c0392b;
+  --warning-text: #946200;
+  --serious-text: #a14a26;
+  --track: #f0efec;
+  --hover: rgba(42, 120, 214, 0.055);
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
+  --radius: 12px;
+  --sans: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232322;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --border: rgba(255, 255, 255, 0.10);
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --accent: #3987e5;
+    --accent-2: #86b6ef;
+    --accent-weak: #184f95;
+    --good-text: #0ca30c;
+    --critical-text: #e66767;
+    --warning-text: #fab219;
+    --serious-text: #ec835a;
+    --track: #232322;
+    --hover: rgba(57, 135, 229, 0.10);
+    --shadow: none;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232322;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --border: rgba(255, 255, 255, 0.10);
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --accent: #3987e5;
+  --accent-2: #86b6ef;
+  --accent-weak: #184f95;
+  --good-text: #0ca30c;
+  --critical-text: #e66767;
+  --warning-text: #fab219;
+  --serious-text: #ec835a;
+  --track: #232322;
+  --hover: rgba(57, 135, 229, 0.10);
+  --shadow: none;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--accent-weak); color: var(--ink); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button, input, select { font: inherit; color: inherit; }
+code, .mono { font-family: var(--mono); font-size: 0.92em; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.skip { position: absolute; left: 12px; top: -60px; z-index: 100; background: var(--surface); padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.skip:focus { top: 12px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.shell { max-width: 1280px; margin: 0 auto; padding: 0 28px 88px; }
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 18px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 44px;
+}
+.brand { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 650; }
+.brand-mark { width: 22px; height: 22px; border-radius: 7px; background: var(--accent); position: relative; display: inline-block; }
+.brand-mark::after { content: ""; position: absolute; inset: 6px; border: 1.5px solid var(--surface); border-radius: 3px; }
+.top-actions { display: flex; align-items: center; gap: 10px; }
+.btn-ghost, .theme-toggle {
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink-2);
+  border-radius: 8px; padding: 7px 11px; cursor: pointer; font-size: 12px;
+}
+.btn-ghost:hover, .theme-toggle:hover { background: var(--hover); color: var(--ink); }
+.github-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.github-link:hover { color: var(--accent); text-decoration: none; }
+
+header.report-hero { margin-bottom: 46px; }
+.eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 12px; }
+h1 { margin: 0 0 14px; font-size: clamp(34px, 5vw, 54px); line-height: 1.06; letter-spacing: -0.03em; font-weight: 760; }
+.dek { margin: 0; max-width: 820px; color: var(--ink-2); font-size: clamp(16px, 2vw, 19px); line-height: 1.55; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 22px; }
+.meta-chip {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2);
+  border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 10px;
+}
+.meta-chip strong { color: var(--ink); font-weight: 650; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: 18px; margin-top: 30px; }
+.hero-card {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  padding: 26px 28px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.hero-card.primary::after {
+  content: ""; position: absolute; right: -60px; top: -80px; width: 240px; height: 240px;
+  border-radius: 50%; background: var(--accent-weak); opacity: 0.42; pointer-events: none;
+}
+.hero-label { color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.hero-value { font-size: clamp(44px, 7vw, 68px); line-height: 1; letter-spacing: -0.04em; font-weight: 760; margin: 10px 0 8px; }
+.hero-value .plus { color: var(--accent); font-size: 0.55em; vertical-align: 0.25em; margin-left: 3px; }
+.hero-note { color: var(--ink-2); font-size: 13px; max-width: 520px; }
+.hero-side { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mini-stat { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 16px 16px 14px; }
+.mini-stat .v { font-size: 24px; font-weight: 720; letter-spacing: -0.02em; line-height: 1.15; }
+.mini-stat .l { color: var(--muted); font-size: 11.5px; line-height: 1.35; margin-top: 4px; }
+
+.layout { display: grid; grid-template-columns: 206px minmax(0, 1fr); gap: 46px; align-items: start; }
+.toc { position: sticky; top: 22px; align-self: start; }
+.toc-title { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+.toc nav { display: flex; flex-direction: column; gap: 1px; }
+.toc a { color: var(--ink-2); font-size: 12.5px; line-height: 1.35; padding: 6px 9px; border-left: 2px solid transparent; border-radius: 0 6px 6px 0; }
+.toc a:hover { background: var(--hover); color: var(--ink); text-decoration: none; }
+.toc a.active { color: var(--ink); border-left-color: var(--accent); background: var(--hover); font-weight: 600; }
+.toc-meta { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.toc-meta strong { color: var(--ink-2); font-weight: 600; }
+
+main { min-width: 0; }
+section.section { margin-bottom: 62px; scroll-margin-top: 22px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 24px; }
+.section-head h2 { margin: 0; font-size: clamp(22px, 3vw, 30px); line-height: 1.15; letter-spacing: -0.02em; font-weight: 720; }
+.section-head .num { color: var(--accent); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.lead { color: var(--ink-2); font-size: 16px; max-width: 850px; margin: 0 0 22px; }
+h3 { margin: 0; font-size: 16px; line-height: 1.3; font-weight: 680; letter-spacing: -0.01em; }
+h4 { margin: 0 0 6px; font-size: 13px; font-weight: 680; }
+p { margin: 0 0 12px; }
+p:last-child { margin-bottom: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.tiny { font-size: 11.5px; }
+.nowrap { white-space: nowrap; }
+.good { color: var(--good-text); }
+.critical { color: var(--critical-text); }
+.warning { color: var(--warning-text); }
+.serious { color: var(--serious-text); }
+
+.kpi-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin: 18px 0 26px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 15px 15px 13px; box-shadow: var(--shadow); min-width: 0; }
+.kpi-label { color: var(--muted); font-size: 11px; line-height: 1.3; letter-spacing: 0.01em; }
+.kpi-value { font-size: 26px; line-height: 1.15; font-weight: 740; letter-spacing: -0.025em; margin: 5px 0 2px; white-space: nowrap; }
+.kpi-note { color: var(--ink-2); font-size: 11px; line-height: 1.35; }
+.kpi.accent .kpi-value { color: var(--accent); }
+.kpi.good .kpi-value { color: var(--good-text); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 16px; min-width: 0; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.card-head p { color: var(--muted); font-size: 12px; margin: 0; text-align: right; max-width: 48%; line-height: 1.4; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.grid-2 > *, .grid-3 > * { min-width: 0; }
+.grid-2 > .card, .grid-3 > .card { margin-bottom: 0; }
+.mini-stat { min-width: 0; }
+.stack-cards { display: grid; gap: 16px; }
+
+.bars { display: flex; flex-direction: column; gap: 7px; }
+.bar-row { display: grid; grid-template-columns: minmax(118px, 196px) minmax(0, 1fr) 68px; align-items: center; gap: 12px; min-height: 22px; border-radius: 4px; }
+.bar-row:hover .bar-fill, .bar-row:focus-visible .bar-fill { filter: brightness(1.06); }
+.bar-label { color: var(--ink-2); font-size: 12.5px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-track {
+  position: relative; height: 18px;
+  background-image: linear-gradient(to right, var(--grid) 1px, transparent 1px);
+  background-size: 25% 100%;
+  border-left: 1px solid var(--baseline);
+}
+.bar-fill { height: 18px; border-radius: 0 4px 4px 0; background: var(--accent); min-width: 2px; }
+.bar-fill.muted { background: var(--baseline); }
+.bar-fill.critical { background: var(--critical); }
+.bar-fill.serious { background: var(--serious); }
+.bar-fill.good { background: var(--good); }
+.bar-fill.selfhosted { background: var(--accent); }
+.bar-fill.githubhosted { background: var(--baseline); }
+.bar-value { color: var(--ink); font-size: 12px; font-weight: 650; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 10px 0 2px; color: var(--ink-2); font-size: 12px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.swatch.round { border-radius: 50%; }
+.swatch.accent { background: var(--accent); }
+.swatch.muted { background: var(--baseline); }
+.swatch.good { background: var(--good); }
+.swatch.warning { background: var(--warning); }
+.swatch.critical { background: var(--critical); }
+.swatch.serious { background: var(--serious); }
+
+.stack-figure { margin: 4px 0 8px; }
+.stack-total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: var(--ink-2); font-size: 12px; }
+.stack-total strong { color: var(--ink); font-size: 20px; letter-spacing: -0.02em; }
+.stack { display: flex; gap: 2px; height: 30px; width: 100%; }
+.seg { height: 30px; border-radius: 4px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; font-size: 11px; font-weight: 650; padding: 0 7px; min-width: 2px; }
+.seg.good { background: var(--good); color: #fff; }
+.seg.critical { background: var(--critical); color: #fff; }
+.seg.warning { background: var(--warning); color: #0b0b0b; }
+.seg.muted { background: var(--baseline); color: #0b0b0b; }
+.seg span { overflow: hidden; text-overflow: ellipsis; }
+
+.columns-wrap { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.columns { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; align-items: end; height: 178px; border-bottom: 1px solid var(--baseline); padding-top: 12px; }
+.col { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; position: relative; border-radius: 3px; }
+.col-bar { width: 100%; max-width: 18px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+.col:hover .col-bar, .col:focus-visible .col-bar { filter: brightness(1.08); }
+.col-x { color: var(--muted); font-size: 9.5px; line-height: 1; height: 11px; font-variant-numeric: tabular-nums; }
+.col-peak .col-bar { background: var(--accent-2); }
+.axis-note { display: flex; justify-content: space-between; color: var(--muted); font-size: 10.5px; margin-top: 2px; }
+.peak-note { color: var(--ink-2); font-size: 12px; margin-top: 6px; }
+.peak-note strong { color: var(--ink); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; line-height: 1.45; }
+table.data-table th, table.data-table td { padding: 9px 11px; border-bottom: 1px solid var(--grid); text-align: left; vertical-align: top; }
+table.data-table th { background: var(--surface-2); color: var(--ink-2); font-size: 11px; font-weight: 680; letter-spacing: 0.02em; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+table.data-table tbody tr:last-child td { border-bottom: 0; }
+table.data-table tbody tr:hover { background: var(--hover); }
+table.data-table td.num, table.data-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.data-table code { color: var(--ink-2); }
+.table-view { margin-top: 12px; border-top: 1px solid var(--grid); padding-top: 8px; }
+.table-view summary { cursor: pointer; color: var(--muted); font-size: 11.5px; user-select: none; }
+.table-view summary:hover { color: var(--ink-2); }
+.table-view .table-wrap { margin-top: 8px; }
+
+.chip { display: inline-block; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-2); border-radius: 999px; padding: 1px 7px; font-size: 10.5px; line-height: 1.55; white-space: nowrap; }
+.chip.trigger { color: var(--accent-2); border-color: rgba(42, 120, 214, 0.25); background: rgba(42, 120, 214, 0.07); }
+.chip.cat { color: var(--ink-2); }
+.chips { display: flex; flex-wrap: wrap; gap: 3px; }
+
+.badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; font-size: 10px; font-weight: 750; line-height: 1; border: 1px solid transparent; }
+.badge.ok { color: var(--good-text); background: rgba(12, 163, 12, 0.10); border-color: rgba(12, 163, 12, 0.22); }
+.badge.gap { color: var(--muted); background: transparent; border-color: var(--baseline); border-style: dashed; }
+.badge.warn { color: var(--warning-text); background: rgba(250, 178, 25, 0.14); border-color: rgba(250, 178, 25, 0.35); }
+.hardening { display: flex; gap: 4px; }
+
+.status { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; white-space: nowrap; }
+.status .s-icon { font-weight: 750; }
+.status.good { color: var(--good-text); }
+.status.critical { color: var(--critical-text); }
+.status.warning { color: var(--warning-text); }
+.status.serious { color: var(--serious-text); }
+.status.muted { color: var(--muted); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--hover); border-radius: 0 8px 8px 0; padding: 14px 16px; color: var(--ink-2); font-size: 13px; }
+.callout strong { color: var(--ink); }
+.callout.warn { border-left-color: var(--warning); background: rgba(250, 178, 25, 0.08); }
+.callout.critical { border-left-color: var(--critical); background: rgba(208, 59, 59, 0.07); }
+.callout.good { border-left-color: var(--good); background: rgba(12, 163, 12, 0.07); }
+
+meter.meter { width: 100%; height: 8px; border: 0; background: var(--track); border-radius: 999px; overflow: hidden; display: block; }
+meter.meter::-webkit-meter-bar { background: var(--track); border: 0; border-radius: 999px; }
+meter.meter::-webkit-meter-optimum-value { background: var(--accent); border-radius: 999px; }
+meter.meter.good::-webkit-meter-optimum-value { background: var(--good); }
+meter.meter.warn::-webkit-meter-optimum-value { background: var(--warning); }
+meter.meter.serious::-webkit-meter-optimum-value { background: var(--serious); }
+meter.meter::-moz-meter-bar { background: var(--accent); border-radius: 999px; }
+
+.score-list { display: flex; flex-direction: column; gap: 10px; }
+.score-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) 118px auto; align-items: center; gap: 10px; }
+.score-row .s-icon { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; }
+.score-row .s-icon.good { background: rgba(12, 163, 12, 0.12); color: var(--good-text); }
+.score-row .s-icon.warn { background: rgba(250, 178, 25, 0.18); color: var(--warning-text); }
+.score-row .s-icon.serious { background: rgba(236, 131, 90, 0.16); color: var(--serious-text); }
+.score-row .s-icon.critical { background: rgba(208, 59, 59, 0.12); color: var(--critical-text); }
+.score-row .s-label { color: var(--ink-2); font-size: 12.5px; }
+.score-row .s-label strong { color: var(--ink); font-weight: 620; }
+.score-row .s-value { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.score-row .s-note { color: var(--muted); font-size: 11px; text-align: right; }
+
+.detail-list { display: grid; gap: 8px; }
+.detail-row-kv { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; font-size: 12px; }
+.detail-row-kv .k { color: var(--muted); }
+.detail-row-kv .v { color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
+
+.findings { display: grid; gap: 12px; }
+.finding { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.finding .fnum { width: 28px; height: 28px; border-radius: 8px; background: var(--accent-weak); color: var(--accent-2); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; }
+.finding h4 { margin: 0 0 4px; font-size: 15px; }
+.finding p { margin: 0 0 6px; color: var(--ink-2); font-size: 13px; }
+.finding .evidence { color: var(--muted); font-size: 11.5px; }
+.priority { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 5px; margin-right: 6px; vertical-align: 1px; }
+.priority.p0 { color: var(--critical-text); background: rgba(208, 59, 59, 0.12); }
+.priority.p1 { color: var(--warning-text); background: rgba(250, 178, 25, 0.18); }
+.priority.p2 { color: var(--accent-2); background: rgba(42, 120, 214, 0.10); }
+
+.reco-table td:first-child { white-space: nowrap; }
+
+.inventory-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+.inventory-controls input[type="search"], .inventory-controls select {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+  padding: 7px 9px; font-size: 12px; color: var(--ink);
+}
+.inventory-controls input[type="search"] { min-width: 230px; }
+.inventory-controls .check { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-2); }
+.inventory-controls .check input { accent-color: var(--accent); }
+#wf-count { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+.inventory-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: auto; max-height: 76vh; background: var(--surface); }
+table.inventory { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 960px; font-size: 12px; line-height: 1.4; }
+table.inventory th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); color: var(--ink-2); font-size: 10.5px; font-weight: 700; text-align: left; padding: 9px 7px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.inventory td { padding: 7px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+table.inventory tr.wf-row:hover td { background: var(--hover); }
+table.inventory tr.wf-row[hidden], table.inventory tr.detail-row[hidden] { display: none; }
+.wf-name { font-weight: 650; color: var(--ink); line-height: 1.3; }
+.wf-name .file { display: block; color: var(--muted); font-size: 10px; font-weight: 400; margin-top: 2px; }
+table.inventory td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.inventory .triggers .chips { max-width: 160px; }
+.expand { width: 24px; height: 24px; border: 1px solid var(--border); background: var(--surface); border-radius: 6px; cursor: pointer; color: var(--ink-2); font-size: 14px; line-height: 1; padding: 0; }
+.expand:hover { background: var(--hover); color: var(--ink); }
+tr.detail-row td { background: var(--page); padding: 14px 16px 18px !important; }
+.detail-inner { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 22px; }
+.detail-inner .detail-block { min-width: 0; }
+.detail-inner .k { display: block; color: var(--muted); font-size: 10.5px; margin-bottom: 2px; }
+.detail-inner .v { color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.detail-inner code { color: var(--ink-2); }
+
+footer.report-footer { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 18px; color: var(--muted); font-size: 11.5px; line-height: 1.55; }
+
+#tooltip {
+  position: fixed; z-index: 100; pointer-events: none; max-width: 340px;
+  background: var(--ink); color: var(--surface); border-radius: 6px;
+  padding: 6px 9px; font-size: 11.5px; line-height: 1.4;
+  opacity: 0; transform: translate(-50%, calc(-100% - 6px)); transition: opacity 100ms ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+#tooltip.show { opacity: 1; }
+
+@media (max-width: 1120px) {
+  .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 1080px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; gap: 22px; }
+  .toc { position: static; order: -1; }
+  .toc nav { flex-direction: row; flex-wrap: wrap; gap: 2px; }
+  .toc a { border-left: 0; border-radius: 6px; }
+  .toc a.active { border-left: 0; }
+  .toc-meta { display: none; }
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-side { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .shell { padding: 0 16px 56px; }
+  .topbar { margin-bottom: 28px; }
+  .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .hero-side { grid-template-columns: 1fr 1fr; }
+  .card { padding: 17px 16px; }
+  .card-head { display: block; }
+  .card-head p { text-align: left; max-width: none; margin-top: 4px; }
+  .bar-row { grid-template-columns: minmax(0, 1fr) 58px; }
+  .bar-label { grid-column: 1 / -1; white-space: normal; }
+  .bar-track { grid-column: 1; }
+  .bar-value { grid-column: 2; }
+  .score-row { grid-template-columns: 22px minmax(0, 1fr) auto; }
+  .cmp-row { grid-template-columns: 1fr; gap: 4px; }
+  .cmp-label { font-weight: 600; color: var(--ink); }
+  .score-row .meter { display: none; }
+  .score-row .s-note { display: none; }
+  .detail-inner { grid-template-columns: 1fr 1fr; }
+  table.stack-mobile, table.stack-mobile tbody, table.stack-mobile tr, table.stack-mobile td { display: block; width: 100%; }
+  table.stack-mobile thead { display: none; }
+  table.stack-mobile tr { border-bottom: 1px solid var(--grid); padding: 7px 0; }
+  table.stack-mobile tr:last-child { border-bottom: 0; }
+  table.stack-mobile td { border: 0; padding: 3px 10px; }
+  table.stack-mobile td:first-child { color: var(--muted); font-size: 10.5px; }
+  .inventory-controls input[type="search"] { min-width: 100%; }
+  #wf-count { margin-left: 0; width: 100%; }
+  .columns { height: 140px; }
+  .col-x { font-size: 8px; }
+  .seg { font-size: 9px; padding: 0 4px; }
+  .finding { grid-template-columns: 28px minmax(0, 1fr); padding: 14px; }
+}
+@media (max-width: 480px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .hero-value { font-size: 48px; }
+  .detail-inner { grid-template-columns: 1fr; }
+  .top-actions .github-link span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+@media print {
+  :root { --page: #fff; --surface: #fff; --surface-2: #fff; --ink: #000; --ink-2: #333; --muted: #555; --border: #ccc; --grid: #ddd; --baseline: #999; --accent: #1b5fae; --accent-2: #1b5fae; --accent-weak: #e8f0fb; }
+  body { font-size: 11px; }
+  .shell { max-width: none; padding: 0; }
+  .toc, .top-actions, .inventory-controls, .expand, #tooltip { display: none !important; }
+  .layout { display: block; }
+  .card, .finding, .kpi { break-inside: avoid; box-shadow: none; }
+  section.section { break-before: auto; margin-bottom: 26px; }
+  .table-view { display: block; }
+  .table-view > summary { display: none; }
+  .table-view .table-wrap { display: block; }
+  a { color: #000; text-decoration: none; }
+}
+
+/* Comparison-specific marks */
+.cmp-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 4px 0 12px; color: var(--ink-2); font-size: 12px; }
+.cmp-legend .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.cmp-row { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--grid); }
+.cmp-row:last-child { border-bottom: 0; }
+.cmp-label { color: var(--ink-2); font-size: 12px; line-height: 1.25; }
+.cmp-bars { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cmp-bar { display: grid; grid-template-columns: minmax(0, 1fr) 56px; gap: 8px; align-items: center; min-width: 0; }
+.cmp-track { position: relative; height: 11px; background-image: linear-gradient(to right, var(--grid) 1px, transparent 1px); background-size: 25% 100%; border-left: 1px solid var(--baseline); min-width: 0; }
+.cmp-fill { height: 11px; border-radius: 0 4px 4px 0; min-width: 2px; background: var(--accent); }
+.cmp-fill.orange { background: #eb6834; }
+.cmp-val { text-align: right; font-size: 11px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.seg.orange { background: #eb6834; color: #fff; }
+.seg.accent { background: var(--accent); color: #fff; }
+.seg.gray { background: #c3c2b7; color: #0b0b0b; }
+.seg.light { background: #e1e0d9; color: #0b0b0b; }
+.mini-bar { height: 6px; min-width: 74px; background: var(--track); border-radius: 999px; overflow: hidden; margin-top: 5px; }
+.mini-bar > span { display: block; height: 100%; background: var(--critical); border-radius: 999px; }
+@media (max-width: 720px) {
+  .cmp-row { grid-template-columns: 1fr; gap: 4px; }
+  .cmp-label { font-weight: 600; color: var(--ink); }
+  .cmp-bar { grid-template-columns: minmax(0, 1fr) 50px; }
+}
+
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">跳到正文</a>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>OpenClaw × vLLM-Ascend</span></div>
+    <div class="top-actions">
+      <a class="github-link" href="https://github.com/vllm-project/vllm-ascend" target="_blank" rel="noreferrer">vllm-ascend <span aria-hidden="true">↗</span></a>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false">☾ 暗色</button>
+    </div>
+  </div>
+
+  <header class="report-hero">
+    <div class="eyebrow">Comparative workflow audit · snapshot 2026-11-16</div>
+    <h1>两种社区，<br>两套 CI 哲学</h1>
+    <p class="dek">把 <strong>OpenClaw 的 129 个 workflow</strong> 与 <strong>vLLM-Ascend 的 57 个 workflow</strong> 放在同一张表上：一边是发布与证明重型的自动化平台，一边是 PR 门禁与 NPU 设备矩阵重型的硬件社区。哪些设计值得借鉴，哪些复杂度不该复制？</p>
+    <div class="meta-row">
+      <span class="meta-chip"><strong>OpenClaw</strong> 129 个 YAML · 471 jobs · 3,168 steps</span>
+      <span class="meta-chip"><strong>vLLM-Ascend</strong> 57 个 YAML · 187 jobs · 722 steps</span>
+      <span class="meta-chip">运行样本 <strong>8,837 + 4,017</strong></span>
+      <span class="meta-chip">快照 <strong>2026-11-16</strong></span>
+    </div>
+
+    <div class="hero-grid">
+      <div class="hero-card primary">
+        <div class="hero-label">最紧迫的差距：action 引用的 SHA 固定率</div>
+        <div class="hero-value">5.3<span class="plus">%</span></div>
+        <div class="hero-note">vLLM-Ascend 的 284 个 action 引用中只有 15 个固定到 commit SHA；OpenClaw 是 1,262 / 1,262（100%）。这是两个仓库之间最大、也最容易在 30 天内补齐的治理差距。</div>
+      </div>
+      <div class="hero-side">
+        <div class="mini-stat"><div class="v">129</div><div class="l">OpenClaw workflow<br>471 jobs / 69,776 行</div></div>
+        <div class="mini-stat"><div class="v">57</div><div class="l">vLLM-Ascend workflow<br>187 jobs / 18,394 行</div></div>
+        <div class="mini-stat"><div class="v">4.4×</div><div class="l">OpenClaw 的 step 数<br>3,168 vs 722</div></div>
+        <div class="mini-stat"><div class="v">80.8%</div><div class="l">vLLM-Ascend 的自建<br>runner 占比</div></div>
+      </div>
+    </div>
+
+    <div class="kpi-row" style="margin-bottom:0">
+      <div class="kpi accent"><div class="kpi-label">workflow 数量</div><div class="kpi-value">129 vs 57</div><div class="kpi-note">OpenClaw 是 vLLM 的 2.3 倍</div></div>
+      <div class="kpi "><div class="kpi-label">job 数</div><div class="kpi-value">471 vs 187</div><div class="kpi-note">OpenClaw 2.5 倍</div></div>
+      <div class="kpi "><div class="kpi-label">step 数</div><div class="kpi-value">3,168 vs 722</div><div class="kpi-note">OpenClaw 4.4 倍</div></div>
+      <div class="kpi accent"><div class="kpi-label">近30天样本失败</div><div class="kpi-value">1,016 vs 605</div><div class="kpi-note">Top10 占比 56% vs 79%</div></div>
+      <div class="kpi "><div class="kpi-label">自建 runner 占比</div><div class="kpi-value">19.7% vs 80.8%</div><div class="kpi-note">云托管 vs 硬件舰队</div></div>
+      <div class="kpi "><div class="kpi-label">原生 schedule</div><div class="kpi-value">33 vs 6</div><div class="kpi-note">411 vs 28.5 次/天</div></div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="toc">
+      <div class="toc-title">Contents</div>
+      <nav aria-label="目录">
+        <a href="#baseline">01 · 基线与规模</a>
+        <a href="#portfolio">02 · 组合结构</a>
+        <a href="#control">03 · 触发与控制面</a>
+        <a href="#security">04 · 安全与供应链</a>
+        <a href="#runner">05 · Runner 与容量</a>
+        <a href="#reliability">06 · 可靠性</a>
+        <a href="#reuse">07 · 复用与维护</a>
+        <a href="#lessons">08 · 启示清单</a>
+        <a href="#plan">09 · 30/60/90 天</a>
+        <a href="#appendix">附录 · 方法与口径</a>
+      </nav>
+      <div class="toc-meta">
+        <strong>对比对象</strong><br>openclaw/openclaw<br>vllm-project/vllm-ascend<br><br>
+        <strong>数据源</strong><br>GitHub Contents API<br>Actions Workflows API<br>Actions Runs API<br>PyYAML 静态解析
+      </div>
+    </aside>
+
+    <main id="main">
+
+<section class="section" id="baseline"><div class="section-head"><h2>基线与规模：不是谁更大，而是谁更重</h2><span class="num">01 / BASELINE</span></div>
+<p class="lead">先把“可比性”说清楚：OpenClaw 是一个 <strong>129 个 workflow、69,776 行、3,168 个 step</strong> 的发布/证明平台；vLLM-Ascend 是一个 <strong>57 个 workflow、18,394 行、722 个 step</strong> 的硬件社区 CI。OpenClaw 在绝对规模上大约是 vLLM 的 2–4 倍，但两者的中位 workflow 都只有 2 个 job，真正的差异在“长尾怎么长”。</p>
+<section class="card "><div class="card-head"><h3>规模与运行基线</h3><p>所有数字来自同一快照</p></div><div class="table-wrap"><table class="data-table" aria-label="规模与运行基线"><thead><tr><th>指标</th><th>OpenClaw</th><th>vLLM-Ascend</th><th>读法</th></tr></thead><tbody><tr><td>workflow YAML</td><td class="num">129</td><td class="num">57</td><td>OpenClaw 2.3×</td></tr><tr><td>总行数</td><td class="num">69,776</td><td class="num">18,394</td><td>OpenClaw 3.8×</td></tr><tr><td>job 总数</td><td class="num">471</td><td class="num">187</td><td>OpenClaw 2.5×</td></tr><tr><td>step 总数</td><td class="num">3,168</td><td class="num">722</td><td>OpenClaw 4.4×</td></tr><tr><td>每 workflow 中位行数</td><td class="num">207</td><td class="num">243</td><td>规模分布不同</td></tr><tr><td>每 workflow 中位 job 数</td><td class="num">2</td><td class="num">2</td><td>中位复杂度接近</td></tr><tr><td>>1,000 行的文件</td><td class="num">18</td><td class="num">2</td><td>OpenClaw 长尾更重</td></tr><tr><td>最大单文件</td><td class="num">ci.yml · 7,475 行</td><td class="num">pr_nightly_command.yml · 1,090 行</td><td>OpenClaw 有巨型 monolith</td></tr><tr><td>Actions 注册记录</td><td class="num">348</td><td class="num">145</td><td>历史记录均为当前的 2.5–2.7×</td></tr><tr><td>历史记录（非当前文件）</td><td class="num">219</td><td class="num">88</td><td>两边都有清理滞后</td></tr><tr><td>历史运行量下限</td><td class="num">1,184,810+</td><td class="num">295,169+</td><td>OpenClaw 4.0×</td></tr><tr><td>达到 40,000 API 上限</td><td class="num">23</td><td class="num">3</td><td>OpenClaw bot 自动化更重</td></tr><tr><td>最近 100 次样本</td><td class="num">8,837</td><td class="num">4,017</td><td>每 workflow 最多 100 条</td></tr><tr><td>近 30 天样本</td><td class="num">6,159</td><td class="num">3,123</td><td>样本窗口不同</td></tr><tr><td>近 30 天完成成功率</td><td class="num">76.6%</td><td class="num">71.6%</td><td>success / (success+failure)</td></tr><tr><td>近 30 天失败数</td><td class="num">1,016</td><td class="num">605</td><td>OpenClaw 绝对量更大</td></tr><tr><td>Top 10 失败占比</td><td class="num">56%</td><td class="num">79%</td><td>vLLM 失败更集中</td></tr><tr><td>近 7 天活跃 workflow</td><td class="num">92</td><td class="num">42</td><td>OpenClaw 活跃面更广</td></tr><tr><td>零运行 workflow</td><td class="num">10</td><td class="num">11</td><td>vLLM 的 11 个全是 reusable-only</td></tr></tbody></table></div></section>
+<div class="grid-2" style="margin-top:16px">
+  <section class="card "><div class="card-head"><h3>OpenClaw 的形状</h3><p>少数巨兽 + 长尾</p></div><div class="detail-list"><div class="detail-row-kv"><span class="k">头部</span><span class="v"><code>ci.yml</code> 一个文件 7,475 行、43 个 job，占全部 YAML 的 10.7%；前 5 个文件占 32%。</span></div><div class="detail-row-kv"><span class="k">长尾</span><span class="v">18 个文件超过 1,000 行；同时有 32 个文件不足 100 行。巨型 monolith 与小型专用脚本并存。</span></div><div class="detail-row-kv"><span class="k">运行</span><span class="v">23 个 workflow 达到 40,000 次 API 上限，说明 bot、定时校验和安全扫描承担了极高的事件量。</span></div></div></section>
+  <section class="card "><div class="card-head"><h3>vLLM-Ascend 的形状</h3><p>设备变体 + PR 门禁</p></div><div class="detail-list"><div class="detail-row-kv"><span class="k">头部</span><span class="v"><code>pr_nightly_command.yml</code> 1,090 行、12 个 job；<code>pr_test.yaml</code> 1,061 行、10 个 job。最大文件只有 OpenClaw 的 1/7。</span></div><div class="detail-row-kv"><span class="k">长尾</span><span class="v">只有 2 个文件超过 1,000 行；但有 5 个 nightly + 4 个 weekly 设备变体，合计 3,936 行、74 个 job、94 个输入项。</span></div><div class="detail-row-kv"><span class="k">运行</span><span class="v">3 个 workflow 达到 40,000 上限（E2E、PR Create、Merge Conflict Labeler），PR 反应式自动化占运行量的大头。</span></div></div></section>
+</div>
+</section>
+<section class="section" id="portfolio"><div class="section-head"><h2>组合结构：发布重型 vs 测试重型</h2><span class="num">02 / PORTFOLIO</span></div>
+<p class="lead">两套 workflow 的“职能组合”几乎相反。<strong>OpenClaw 最大的一块是发布/分发（33 个，25.6%）</strong>，随后才是 CI 与社区机器人；<strong>vLLM-Ascend 最大的一块是 Nightly/Weekly 测试（20 个，35.1%）和 PR 门禁/机器人（17 个，29.8%）</strong>，两者合计 64.9%。这不是谁更先进，而是社区所处的阶段不同：一个在把发布与证明产品化，一个在把 PR 反馈与设备覆盖做厚。</p>
+<div class="grid-2">
+  <section class="card "><div class="card-head"><h3>OpenClaw 的 workflow 组合</h3><p>按人工归类</p></div><div class="table-wrap"><table class="data-table" aria-label="OpenClaw 类别"><thead><tr><th>类别</th><th>数量</th><th>占比</th></tr></thead><tbody><tr><td>发布/分发</td><td class="num">33</td><td class="num">25.6%</td></tr><tr><td>CI/验证</td><td class="num">21</td><td class="num">16.3%</td></tr><tr><td>社区机器人/自动化</td><td class="num">15</td><td class="num">11.6%</td></tr><tr><td>安全与供应链</td><td class="num">10</td><td class="num">7.8%</td></tr><tr><td>运维/治理</td><td class="num">9</td><td class="num">7.0%</td></tr><tr><td>Apple/iOS/macOS</td><td class="num">7</td><td class="num">5.4%</td></tr></tbody></table></div></section>
+  <section class="card "><div class="card-head"><h3>vLLM-Ascend 的 workflow 组合</h3><p>按人工归类</p></div><div class="table-wrap"><table class="data-table" aria-label="vLLM 类别"><thead><tr><th>类别</th><th>数量</th><th>占比</th></tr></thead><tbody><tr><td>Nightly/Weekly 测试</td><td class="num">20</td><td class="num">35.1%</td></tr><tr><td>PR 门禁/机器人</td><td class="num">17</td><td class="num">29.8%</td></tr><tr><td>镜像构建</td><td class="num">7</td><td class="num">12.3%</td></tr><tr><td>缓存/构建基础设施</td><td class="num">5</td><td class="num">8.8%</td></tr><tr><td>文档/社区运营</td><td class="num">4</td><td class="num">7.0%</td></tr><tr><td>Recipes 生态</td><td class="num">3</td><td class="num">5.3%</td></tr></tbody></table></div></section>
+</div>
+<div class="grid-2" style="margin-top:16px">
+  <section class="card "><div class="card-head"><h3>运行量集中在哪</h3><p>按历史运行量下限的前 5 类</p></div><div class="grid-2" style="gap:12px"><div class="table-wrap"><table class="data-table" aria-label="OpenClaw 运行量类别"><thead><tr><th>OpenClaw 类别</th><th>运行量</th><th>占比</th></tr></thead><tbody><tr><td>社区机器人/自动化</td><td class="num">320,643</td><td class="num">27.1%</td></tr><tr><td>CI/验证</td><td class="num">262,432</td><td class="num">22.1%</td></tr><tr><td>安全与供应链</td><td class="num">200,361</td><td class="num">16.9%</td></tr><tr><td>Apple/iOS/macOS</td><td class="num">120,879</td><td class="num">10.2%</td></tr><tr><td>发布/分发</td><td class="num">104,902</td><td class="num">8.9%</td></tr></tbody></table></div><div class="table-wrap"><table class="data-table" aria-label="vLLM 运行量类别"><thead><tr><th>vLLM 类别</th><th>运行量</th><th>占比</th></tr></thead><tbody><tr><td>PR 门禁/机器人</td><td class="num">171,987</td><td class="num">58.3%</td></tr><tr><td>文档/社区运营</td><td class="num">42,051</td><td class="num">14.2%</td></tr><tr><td>Nightly/Weekly 测试</td><td class="num">35,473</td><td class="num">12.0%</td></tr><tr><td>镜像构建</td><td class="num">23,497</td><td class="num">8.0%</td></tr><tr><td>Recipes 生态</td><td class="num">21,330</td><td class="num">7.2%</td></tr></tbody></table></div></div><p class="tiny muted" style="margin-top:8px">OpenClaw 的运行量分布更均衡：社区机器人 27.1%、CI 22.1%、安全 16.9%、Apple 10.2%、发布 8.9%。vLLM 则高度集中在 PR 门禁/机器人（58.3%），Nightly/Weekly 只占 12.0%，但失败主要来自后者。</p></section>
+  <section class="card "><div class="card-head"><h3>一句话对比</h3><p>组合决定治理重点</p></div><div class="callout" style="margin-bottom:10px"><strong>OpenClaw 的重点是“发布链路 + 安全供应链”。</strong> 33 个发布/分发 workflow、10 个安全/供应链 workflow，失败热点也集中在 release/proof。</div><div class="callout warn"><strong>vLLM-Ascend 的重点是“PR 反馈 + 设备矩阵”。</strong> 20 个 nightly/weekly、17 个 PR 门禁/机器人；运行量最大的是 PR 反应，失败最多的是硬件 nightly。</div><p class="small" style="margin-top:10px">因此，vLLM 不应该照搬 OpenClaw 的 33 个发布 workflow；它更该借鉴的是 OpenClaw 的安全卫生、超时/并发治理和复用分层。</p></section>
+</div>
+</section>
+<section class="section" id="control"><div class="section-head"><h2>触发与控制面：UI 表单 vs 评论命令</h2><span class="num">03 / CONTROL</span></div>
+<p class="lead">两边的“手动控制面”不是同一种东西。<strong>OpenClaw 用手动表单</strong>：108 个 workflow 支持 <code>workflow_dispatch</code>，475 个输入项，45 个只能手动触发；它适合发布经理在 UI 上选择 target、runner、release scope。<strong>vLLM-Ascend 用 PR 评论命令</strong>：23 个 <code>workflow_dispatch</code> + 9 个 <code>repository_dispatch</code>，其中 8 个是 <code>/run</code>、<code>/e2e</code>、<code>/nightly</code> 等命令处理器，更适合贡献者在 PR 里直接触发。</p>
+<div class="grid-2">
+  <section class="card "><div class="card-head"><h3>OpenClaw：UI 表单型控制面</h3><p>108 个 dispatch · 475 个输入</p></div><div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin:0 0 14px"><div class="kpi "><div class="kpi-label">可手动触发</div><div class="kpi-value">108</div><div class="kpi-note">83.7%</div></div><div class="kpi "><div class="kpi-label">仅手动</div><div class="kpi-value">45</div><div class="kpi-note">35% of all</div></div><div class="kpi "><div class="kpi-label">输入项</div><div class="kpi-value">475</div><div class="kpi-note">最多 25 个</div></div></div><p class="small">典型输入包括 target_ref、validation_tier、release_scope、runner_backend、release_gate。优点是发布知识显式化、可审计；缺点是表单复杂、重复操作多、关键人依赖。</p></section>
+  <section class="card "><div class="card-head"><h3>vLLM-Ascend：评论命令型控制面</h3><p>23 个 dispatch · 8 个 /命令</p></div><div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin:0 0 14px"><div class="kpi "><div class="kpi-label">可手动触发</div><div class="kpi-value">23</div><div class="kpi-note">40.4%</div></div><div class="kpi "><div class="kpi-label">repository_dispatch</div><div class="kpi-value">9</div><div class="kpi-note">8 命令 + 1 分发器</div></div><div class="kpi "><div class="kpi-label">输入项</div><div class="kpi-value">115</div><div class="kpi-note">最多 12 个</div></div></div><p class="small">贡献者在 PR 评论里输入 <code>/run</code>、<code>/e2e</code>、<code>/nightly</code>，由 <code>slash_command_dispatch.yml</code> 转成 <code>repository_dispatch</code>，再触发对应 handler。对社区更友好，但控制链路更长、需要授权/幂等/审计。</p></section>
+</div>
+<section class="card "><div class="card-head"><h3>控制面对比</h3><p>同一维度看两种设计</p></div><div class="table-wrap"><table class="data-table" aria-label="控制面对比"><thead><tr><th>维度</th><th>OpenClaw</th><th>vLLM-Ascend</th><th>读法</th></tr></thead><tbody><tr><td>workflow_dispatch（手动表单）</td><td class="num">108</td><td class="num">23</td><td>OpenClaw 83.7% vs vLLM 40.4%</td></tr><tr><td>dispatch 输入项</td><td class="num">475</td><td class="num">115</td><td>OpenClaw 的单个表单更复杂（最多 25 项）</td></tr><tr><td>仅手动触发的 workflow</td><td class="num">45</td><td class="num">12</td><td>OpenClaw 有更多“只靠人拉闸”的流水线</td></tr><tr><td>repository_dispatch（事件/机器人）</td><td class="num">0</td><td class="num">9</td><td>vLLM 用 8 个 /命令 + 1 个分发器</td></tr><tr><td>Slash commands（PR 评论）</td><td class="num">0</td><td class="num">8</td><td>/run /e2e /nightly /cherry-pick /revert /cancel /rerun /wait-feedback</td></tr><tr><td>原生 schedule</td><td class="num">33</td><td class="num">6</td><td>OpenClaw 411 次/天 vs vLLM 28.5 次/天</td></tr><tr><td>集中式 gh workflow run 调用</td><td class="num">4</td><td class="num">14</td><td>vLLM 的周期负载藏在 orchestrator 里</td></tr><tr><td>workflow_call 定义 / 调用</td><td class="num">23 / 41</td><td class="num">13 / 48</td><td>vLLM 的复用调用更多</td></tr><tr><td>workflow_run 链</td><td class="num">8</td><td class="num">2</td><td>OpenClaw 的链式自动化更复杂</td></tr></tbody></table></div><div class="callout" style="margin-top:12px"><strong>判读：</strong>OpenClaw 的控制面适合“发布经理 + 少量高频发布”；vLLM 的控制面适合“大量贡献者 + 稀缺 NPU 资源”。vLLM 不该把 slash commands 换成 25 项 UI 表单；它该补的是命令的授权、幂等、速率限制和运行账本。</div></section>
+<div class="grid-2" style="margin-top:16px">
+  <section class="card "><div class="card-head"><h3>调度：原生 cron vs 中央 orchestrator</h3><p>谁在真正决定什么时候跑</p></div><div class="detail-list"><div class="detail-row-kv"><span class="k">OpenClaw</span><span class="v">33 个原生 schedule，估计 411 次/天；5 个 workflow 共用 <code>23 * * * *</code>，07:00 UTC 是峰值（148 次/周）。调度可见，但容易碰撞。</span></div><div class="detail-row-kv"><span class="k">vLLM-Ascend</span><span class="v">只有 6 个原生 schedule（28.5 次/天），但 20 个 Nightly/Weekly 类别 workflow 中，13 个是调度入口（多数 dispatch-only），7 个是 <code>_</code> reusable helper；<code>schedule_daily_test</code> 和 <code>pr_nightly_command</code> 里有 14 处 <code>gh workflow run</code>，真实周期负载远高于 28.5/天。</span></div><div class="detail-row-kv"><span class="k">启示</span><span class="v">中央 orchestrator 更适合稀缺 NPU 容量，但必须补运行账本、幂等键和重复 dispatch 检测；否则“谁在什么时候触发了什么”会比原生 cron 更难追踪。</span></div></div></section>
+  <section class="card "><div class="card-head"><h3>vLLM 的周期负载被低估了</h3><p>原生 schedule 只覆盖 6 个 workflow</p></div><div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin:0 0 10px"><div class="kpi "><div class="kpi-label">Nightly/Weekly</div><div class="kpi-value">20</div><div class="kpi-note">13 个入口 + 7 个 helper</div></div><div class="kpi "><div class="kpi-label">设备变体</div><div class="kpi-value">9</div><div class="kpi-note">5 nightly + 4 weekly</div></div><div class="kpi "><div class="kpi-label">历史运行</div><div class="kpi-value">35,473</div><div class="kpi-note">Nightly/Weekly 类别下限</div></div></div><p class="small">这 20 个 workflow 合计 9,631 行、104 个 job，历史运行量下限 35,473 次；其中 9 个设备变体主要由两个 orchestrator 调起，而不是各自监听 cron。对容量规划来说，必须按 orchestrator 的实际 dispatch 频率来估算，而不能只看 6 个 schedule。</p></section>
+</div>
+</section>
+<section class="section" id="security"><div class="section-head"><h2>安全与供应链：最大、也最容易补的差距</h2><span class="num">04 / SECURITY</span></div>
+<p class="lead">安全是两者差距最大的维度，而且差距非常具体：<strong>OpenClaw 的 1,262 个 action 引用 100% 固定到 SHA；vLLM-Ascend 的 284 个引用里只有 15 个固定（5.3%）。</strong> 更严重的是，vLLM 的 <code>actions/checkout</code>（89 次）、<code>actions/upload-artifact</code>（40 次）、<code>peter-evans/create-or-update-comment</code>（34 次）这些高频 action 全部未固定。permissions、concurrency、timeout 的覆盖率也都明显低于 OpenClaw。</p>
+<div class="grid-2">
+  <section class="card "><div class="card-head"><h3>覆盖率对比</h3><p>蓝色=OpenClaw，橙色=vLLM-Ascend</p></div><div class="cmp-legend"><span class="legend-item"><span class="swatch accent"></span>OpenClaw</span><span class="legend-item"><span class="swatch" style="background:#eb6834"></span>vLLM-Ascend</span></div><div role="img" aria-label="OpenClaw 与 vLLM 的安全治理覆盖率"><div class="cmp-row"><div class="cmp-label">Action SHA 固定率</div><div class="cmp-bars"><div class="cmp-bar" tabindex="0" data-tip="OpenClaw：1,262/1,262 固定" aria-label="OpenClaw：1,262/1,262 固定"><div class="cmp-track"><div class="cmp-fill" style="width:100.00%"></div></div><span class="cmp-val">100.0%</span></div><div class="cmp-bar" tabindex="0" data-tip="vLLM：15/284 固定" aria-label="vLLM：15/284 固定"><div class="cmp-track"><div class="cmp-fill orange" style="width:5.28%"></div></div><span class="cmp-val">5.3%</span></div></div></div><div class="cmp-row"><div class="cmp-label">permissions 声明率</div><div class="cmp-bars"><div class="cmp-bar" tabindex="0" data-tip="OpenClaw：128/129 个文件" aria-label="OpenClaw：128/129 个文件"><div class="cmp-track"><div class="cmp-fill" style="width:99.22%"></div></div><span class="cmp-val">99.2%</span></div><div class="cmp-bar" tabindex="0" data-tip="vLLM：38/57 个文件" aria-label="vLLM：38/57 个文件"><div class="cmp-track"><div class="cmp-fill orange" style="width:66.67%"></div></div><span class="cmp-val">66.7%</span></div></div></div><div class="cmp-row"><div class="cmp-label">concurrency 覆盖率</div><div class="cmp-bars"><div class="cmp-bar" tabindex="0" data-tip="OpenClaw：101/129 个文件" aria-label="OpenClaw：101/129 个文件"><div class="cmp-track"><div class="cmp-fill" style="width:78.29%"></div></div><span class="cmp-val">78.3%</span></div><div class="cmp-bar" tabindex="0" data-tip="vLLM：31/57 个文件" aria-label="vLLM：31/57 个文件"><div class="cmp-track"><div class="cmp-fill orange" style="width:54.39%"></div></div><span class="cmp-val">54.4%</span></div></div></div><div class="cmp-row"><div class="cmp-label">job timeout 覆盖率</div><div class="cmp-bars"><div class="cmp-bar" tabindex="0" data-tip="OpenClaw：310/471 个 job" aria-label="OpenClaw：310/471 个 job"><div class="cmp-track"><div class="cmp-fill" style="width:65.82%"></div></div><span class="cmp-val">65.8%</span></div><div class="cmp-bar" tabindex="0" data-tip="vLLM：15/187 个 job" aria-label="vLLM：15/187 个 job"><div class="cmp-track"><div class="cmp-fill orange" style="width:8.02%"></div></div><span class="cmp-val">8.0%</span></div></div></div><div class="cmp-row"><div class="cmp-label">PR target 安全 checkout</div><div class="cmp-bars"><div class="cmp-bar" tabindex="0" data-tip="OpenClaw：5 个 PR target，0 个 checkout PR head" aria-label="OpenClaw：5 个 PR target，0 个 checkout PR head"><div class="cmp-track"><div class="cmp-fill" style="width:100.00%"></div></div><span class="cmp-val">100.0%</span></div><div class="cmp-bar" tabindex="0" data-tip="vLLM：6 个 PR target，0 个 checkout PR head" aria-label="vLLM：6 个 PR target，0 个 checkout PR head"><div class="cmp-track"><div class="cmp-fill orange" style="width:100.00%"></div></div><span class="cmp-val">100.0%</span></div></div></div></div><details class="table-view"><summary>表格视图</summary><div class="table-wrap"><table class="data-table" aria-label="安全治理覆盖率表"><thead><tr><th>指标</th><th>OpenClaw</th><th>vLLM-Ascend</th></tr></thead><tbody><tr><td>Action SHA 固定率</td><td class="num">100.0%</td><td class="num">5.3%</td></tr><tr><td>permissions 声明率</td><td class="num">99.2%</td><td class="num">66.7%</td></tr><tr><td>concurrency 覆盖率</td><td class="num">78.3%</td><td class="num">54.4%</td></tr><tr><td>job timeout 覆盖率</td><td class="num">65.8%</td><td class="num">8.0%</td></tr><tr><td>PR target 安全 checkout</td><td class="num">100.0%</td><td class="num">100.0%</td></tr></tbody></table></div></details><p class="tiny muted" style="margin-top:8px">PR target 安全 checkout 两边都是 100%：OpenClaw 5 个、vLLM 6 个 <code>pull_request_target</code> workflow 都没有 checkout PR head。这是一个值得保留的共同优点。</p></section>
+  <section class="card "><div class="card-head"><h3>安全治理明细</h3><p>同口径对比</p></div><div class="table-wrap"><table class="data-table" aria-label="安全治理明细"><thead><tr><th>指标</th><th>OpenClaw</th><th>vLLM-Ascend</th><th>读法</th></tr></thead><tbody><tr><td>Action 引用总数</td><td class="num">1,262</td><td class="num">284</td><td>—</td></tr><tr><td>SHA 固定 / 未固定</td><td class="num">1,262 / 0</td><td class="num">15 / 269</td><td>vLLM 有 269 个未固定引用</td></tr><tr><td>唯一 action 数</td><td class="num">25</td><td class="num">24</td><td>两边都很集中</td></tr><tr><td>第三方 / 非 actions 官方占比</td><td class="num">6.5%</td><td class="num">26.4%</td><td>vLLM 的第三方面更宽</td></tr><tr><td>声明了 permissions 的文件</td><td class="num">128 / 129</td><td class="num">38 / 57</td><td>vLLM 19 个文件完全没有声明</td></tr><tr><td>有 concurrency 的文件</td><td class="num">101 / 129</td><td class="num">31 / 57</td><td>vLLM 26 个文件没有</td></tr><tr><td>有 timeout 的 job</td><td class="num">310 / 471</td><td class="num">15 / 187</td><td>vLLM 只有 8.0%</td></tr><tr><td>PR target workflow</td><td class="num">5</td><td class="num">6</td><td>两边都是 0 个 checkout PR head</td></tr><tr><td>不可信事件字段直接插值</td><td class="num">0</td><td class="num">5</td><td>vLLM：bot_pr_create / pr_test / schedule_stale_manage</td></tr><tr><td>secrets 文件 / 唯一名称</td><td class="num">61 / 117</td><td class="num">50 / 25</td><td>vLLM 87.7% 文件引用 secret</td></tr><tr><td>write-all / secrets: inherit</td><td class="num">0 / 0</td><td class="num">0 / 0</td><td>两边都没有</td></tr><tr><td>zizmor 抑制注释</td><td class="num">21</td><td class="num">0</td><td>vLLM 尚未引入 zizmor</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">“第三方 / 非 actions 官方占比”按 action owner 统计；vLLM 的第三方 action 包括 peter-evans、runs-on、docker、ascend-gha-runners、tj-actions 等。</p></section>
+</div>
+<section class="card "><div class="card-head"><h3>vLLM-Ascend 的安全快赢清单</h3><p>按 30 天可完成度排序</p></div><div class="table-wrap"><table class="data-table" aria-label="vLLM 安全快赢清单"><thead><tr><th>优先级</th><th>动作</th><th>覆盖 / 数据</th><th>为什么</th></tr></thead><tbody><tr><td>P0</td><td>固定 top 3 action 到 SHA</td><td><code>actions/checkout</code> 89 + <code>actions/upload-artifact</code> 40 + <code>peter-evans/create-or-update-comment</code> 34 = <strong>163 / 284（57.4%）</strong></td><td>覆盖超过一半引用；优先级最高。</td></tr><tr><td>P0</td><td>固定剩余高频 action</td><td><code>actions/github-script</code> 29 + <code>actions/setup-python</code> 19 + <code>actions/download-artifact</code> 18；top 6 合计 <strong>229 / 284（80.6%）</strong></td><td>先做 top 6，再处理长尾。</td></tr><tr><td>P0</td><td>补 permissions</td><td>19 个文件完全没有声明；先统一 <code>contents: read</code>，再按需加 write</td><td>默认 token 权限可能比声明更宽。</td></tr><tr><td>P0</td><td>补 timeout</td><td>172 / 187 个 job 没有 timeout；优先 <code>pr_test</code> 10 个、Nightly-A3 13 个、Nightly-A2 12 个、<code>pr_nightly_command</code> 12 个</td><td>NPU runner 稀缺，挂起任务会直接占容量。</td></tr><tr><td>P0</td><td>补 concurrency</td><td>26 个文件没有；优先 <code>bot_merge_conflict</code> 40k、<code>bot_pr_create</code> 40k、<code>slash_command_dispatch</code> 28.5k、<code>pr_nightly_command</code> 4.3k</td><td>事件风暴下会重复执行/重复评论。</td></tr><tr><td>P1</td><td>环境变量化事件字段</td><td>5 处直接插值：<code>bot_pr_create</code> 1、<code>pr_test</code> 3、<code>schedule_stale_manage</code> 1</td><td>多数是编号/标签/base.ref；统一改为 env 注入。</td></tr><tr><td>P1</td><td>收敛高价值 secret</td><td><code>PAT_TOKEN</code> 20 个文件；<code>SWR_USERNAME/PASSWORD</code> 各 15；<code>OBS_*</code> 各 12</td><td>PAT 换 GitHub App/OIDC；SWR/OBS 放受保护 environment。</td></tr><tr><td>P2</td><td>引入 zizmor / actionlint</td><td>vLLM 目前 0 处 zizmor；actionlint 仅 3 处提及</td><td>把 workflow 安全规则变成 CI 门禁。</td></tr></tbody></table></div></section>
+<div class="grid-2" style="margin-top:16px">
+  <section class="card "><div class="card-head"><h3>Secret 面：OpenClaw 更宽但更“应用型”</h3><p>Top 6</p></div><div class="table-wrap"><table class="data-table" aria-label="OpenClaw secret"><thead><tr><th>secret</th><th>引用文件数</th></tr></thead><tbody><tr><td>OPENAI_API_KEY</td><td class="num">23</td></tr><tr><td>GH_APP_PRIVATE_KEY</td><td class="num">14</td></tr><tr><td>ANTHROPIC_API_KEY</td><td class="num">12</td></tr><tr><td>MINIMAX_API_KEY</td><td class="num">12</td></tr><tr><td>OPENAI_BASE_URL</td><td class="num">12</td></tr><tr><td>ANTHROPIC_API_KEY_OLD</td><td class="num">11</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">OpenClaw 的 secret 主要是 AI provider key（OPENAI、ANTHROPIC、MINIMAX 等）和 GitHub App 私钥；61 个文件、117 个唯一名称，面很宽，但使用 GitHub App token 的模式比 PAT 更好。</p></section>
+  <section class="card "><div class="card-head"><h3>Secret 面：vLLM 更“基础设施型”</h3><p>Top 8</p></div><div class="table-wrap"><table class="data-table" aria-label="vLLM secret"><thead><tr><th>secret</th><th>引用文件数</th></tr></thead><tbody><tr><td>PAT_TOKEN</td><td class="num">20</td></tr><tr><td>SWR_PASSWORD</td><td class="num">15</td></tr><tr><td>SWR_USERNAME</td><td class="num">15</td></tr><tr><td>OBS_ACCESS_KEY_ID</td><td class="num">12</td></tr><tr><td>OBS_SECRET_ACCESS_KEY</td><td class="num">12</td></tr><tr><td>OPENLIBING_SECRET</td><td class="num">11</td></tr><tr><td>HW_OBS_PROFILE_AK</td><td class="num">9</td></tr><tr><td>HW_OBS_PROFILE_SK</td><td class="num">9</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">vLLM 的 50 个文件引用 25 个名称，主要是 PAT_TOKEN、SWR 镜像仓库、OBS 对象存储、OpenLibing、KUBECONFIG。PAT_TOKEN 出现在 20 个文件，是最该优先收敛的高价值凭证。</p></section>
+</div>
+<div class="callout critical" style="margin-top:16px"><strong>结论：</strong>vLLM 的 PR target 设计是安全的（0 个 PR head checkout），但“未固定 action + 缺 permissions + 缺 timeout/concurrency”三个问题叠加，会让供应链与资源风险同时放大。先把 top 6 action 固定到 SHA、给 19 个文件补 permissions、给 172 个 job 补 timeout，是投入产出比最高的三件事。</div>
+</section>
+<section class="section" id="runner"><div class="section-head"><h2>Runner 与容量：云托管 vs 昇腾舰队</h2><span class="num">05 / RUNNER</span></div>
+<p class="lead">Runner 是第二个结构性差异。<strong>OpenClaw 的 422 个 runner 标签里 76.8% 是 GitHub-hosted，只有 19.7% 归入自建/第三方/多后端动态；vLLM-Ascend 的 120 个标签里 80.8% 是自建 CPU/NPU，GitHub-hosted 只有 8.3%。</strong> 这不是谁更先进，而是工作负载不同：OpenClaw 跑的是通用 CI、发布与证明；vLLM 跑的是必须在昇腾 NPU 上执行的设备矩阵。</p>
+<div class="grid-2">
+  <section class="card "><div class="card-head"><h3>Runner 画像</h3><p>runner 标签的构成（100% 堆叠）</p></div><div class="stack-total"><span>OpenClaw</span><span><strong>422</strong> 个 runner 标签</span></div><div class="stack" role="img" aria-label="OpenClaw runner 画像"><div class="seg orange" style="width:19.67%" data-tip="自建/第三方 83（19.7%）"><span>自建/第三方 19.7%</span></div><div class="seg gray" style="width:76.78%" data-tip="GitHub-hosted 324（76.8%）"><span>GitHub-hosted 76.8%</span></div><div class="seg light" style="width:3.55%" data-tip="动态 15（3.6%）"><span></span></div></div><div style="height:14px"></div><div class="stack-total"><span>vLLM-Ascend</span><span><strong>120</strong> 个 runner 标签</span></div><div class="stack" role="img" aria-label="vLLM runner 画像"><div class="seg orange" style="width:80.83%" data-tip="自建 NPU/CPU 97（80.8%）"><span>自建 NPU/CPU 80.8%</span></div><div class="seg gray" style="width:8.33%" data-tip="GitHub-hosted 10（8.3%）"><span>GitHub-hosted 8.3%</span></div><div class="seg light" style="width:10.83%" data-tip="动态 13（10.8%）"><span>动态 10.8%</span></div></div><div class="legend" style="margin-top:10px"><span class="legend-item"><span class="swatch" style="background:#eb6834"></span>自建/第三方</span><span class="legend-item"><span class="swatch" style="background:#c3c2b7"></span>GitHub-hosted</span><span class="legend-item"><span class="swatch" style="background:#e1e0d9"></span>动态 / matrix</span></div><details class="table-view"><summary>表格视图</summary><div class="table-wrap"><table class="data-table" aria-label="runner 画像表"><thead><tr><th>repo</th><th>自建/第三方</th><th>GitHub-hosted</th><th>动态</th></tr></thead><tbody><tr><td>OpenClaw</td><td class="num">83（19.7%）</td><td class="num">324（76.8%）</td><td class="num">15（3.6%）</td></tr><tr><td>vLLM-Ascend</td><td class="num">97（80.8%）</td><td class="num">10（8.3%）</td><td class="num">13（10.8%）</td></tr></tbody></table></div></details></section>
+  <section class="card "><div class="card-head"><h3>vLLM 的 runner 标签</h3><p>Top 10 静态标签</p></div><div class="table-wrap"><table class="data-table" aria-label="vLLM top runner 标签"><thead><tr><th>标签</th><th>job 数</th></tr></thead><tbody><tr><td><code>linux-amd64-cpu-2-hk</code></td><td class="num">32</td></tr><tr><td><code>linux-amd64-cpu-4-hk</code></td><td class="num">21</td></tr><tr><td><code>linux-amd64-cpu-8-hk</code></td><td class="num">16</td></tr><tr><td><code>ubuntu-latest</code></td><td class="num">9</td></tr><tr><td><code>linux-aarch64-a2b3-0</code></td><td class="num">9</td></tr><tr><td><code>linux-aarch64-a3-800t-0</code></td><td class="num">4</td></tr><tr><td><code>linux-aarch64-a5-0</code></td><td class="num">3</td></tr><tr><td><code>linux-aarch64-a2b3-1</code></td><td class="num">3</td></tr><tr><td><code>linux-aarch64-cpu-4</code></td><td class="num">2</td></tr><tr><td><code>linux-amd64-cpu-4</code></td><td class="num">2</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">静态标签之外还有 13 个 <code>${{ matrix.* }}</code> / <code>${{ inputs.runner }}</code> 动态标签。vLLM 的 70 个 matrix job 占 120 个可执行 job 的 58.3%，说明设备矩阵是主要组织方式。</p></section>
+</div>
+<div class="grid-2" style="margin-top:16px">
+  <section class="card "><div class="card-head"><h3>OpenClaw 的 runner 抽象</h3><p>值得借鉴，但不要照抄复杂度</p></div><div class="detail-list"><div class="detail-row-kv"><span class="k">机制</span><span class="v">用 <code>vars.OPENCLAW_CI_RUNNER_BACKEND</code>、<code>inputs.runner_group</code> 和 preflight outputs 在 GitHub-hosted / Blacksmith / Boat / Runson 之间切换；73 个 job 使用多后端动态表达式。</span></div><div class="detail-row-kv"><span class="k">优点</span><span class="v">同一套 workflow 可以在不同容量池上运行；故障时可以切回 GitHub-hosted；release 与 CI 共用同一套 runner 选择逻辑。</span></div><div class="detail-row-kv"><span class="k">代价</span><span class="v">可读性差、调试难、表达式本身就是风险面。vLLM 不需要 73 个多后端表达式。</span></div></div></section>
+  <section class="card "><div class="card-head"><h3>vLLM 的容量启示</h3><p>静态标签 + 稀缺设备</p></div><div class="detail-list"><div class="detail-row-kv"><span class="k">优势</span><span class="v">静态标签（a2b3-0、a3-800t-0、a5-0、310p）比动态表达式更透明，便于容量规划和排障。</span></div><div class="detail-row-kv"><span class="k">缺口</span><span class="v">13 个动态标签仍然存在；NPU job 的 timeout 覆盖率只有 8.0%，一旦挂起就会占用稀缺设备。</span></div><div class="detail-row-kv"><span class="k">建议</span><span class="v">保留静态设备标签；加一层很小的映射/校验（SoC → label → timeout），不要引入 OpenClaw 式的多后端抽象。先补 concurrency、timeout 和队列时长观测。</span></div></div></section>
+</div>
+</section>
+<section class="section" id="reliability"><div class="section-head"><h2>可靠性：整体接近，失败集中度不同</h2><span class="num">06 / RELIABILITY</span></div>
+<p class="lead">两边的整体成功率其实很接近：OpenClaw 近 30 天 <strong>76.6%</strong>，vLLM-Ascend <strong>71.6%</strong>。真正的区别是<strong>失败集中度</strong>：vLLM 的 Top 10 失败 workflow 占近 30 天失败的 <strong>78.8%</strong>，OpenClaw 是 <strong>56.1%</strong>。这意味着 vLLM 只要修好少数几个 nightly/orchestrator，就能拿到更大的可靠性收益。</p>
+<div class="grid-2">
+  <section class="card "><div class="card-head"><h3>失败集中度</h3><p>Top 10 占近 30 天失败的比例</p></div><div class="cmp-legend"><span class="legend-item"><span class="swatch accent"></span>OpenClaw</span><span class="legend-item"><span class="swatch" style="background:#eb6834"></span>vLLM-Ascend</span></div><div role="img" aria-label="Top 10 失败占比"><div class="cmp-row"><div class="cmp-label">Top 10 占近30天失败的比例</div><div class="cmp-bars"><div class="cmp-bar" tabindex="0" data-tip="OpenClaw：Top 10 = 570 / 1,016" aria-label="OpenClaw：Top 10 = 570 / 1,016"><div class="cmp-track"><div class="cmp-fill" style="width:56.10%"></div></div><span class="cmp-val">56.1%</span></div><div class="cmp-bar" tabindex="0" data-tip="vLLM：Top 10 = 477 / 605" aria-label="vLLM：Top 10 = 477 / 605"><div class="cmp-track"><div class="cmp-fill orange" style="width:78.84%"></div></div><span class="cmp-val">78.8%</span></div></div></div></div><details class="table-view"><summary>表格视图</summary><div class="table-wrap"><table class="data-table" aria-label="Top 10 失败占比表"><thead><tr><th>指标</th><th>OpenClaw</th><th>vLLM-Ascend</th></tr></thead><tbody><tr><td>Top 10 占近30天失败的比例</td><td class="num">56.1%</td><td class="num">78.8%</td></tr></tbody></table></div></details><div class="callout" style="margin-top:10px"><strong>vLLM 的失败不是“到处都是”，而是“几个点反复坏”。</strong> Nightly-A5、A3-560T、A3、A2、Schedule Daily、/e2e、Test Coverage、E2E-upstream 是最值得先做的 8 个点。</div></section>
+  <section class="card "><div class="card-head"><h3>运行数据</h3><p>同口径对比</p></div><div class="table-wrap"><table class="data-table" aria-label="运行数据对比"><thead><tr><th>指标</th><th>OpenClaw</th><th>vLLM-Ascend</th><th>读法</th></tr></thead><tbody><tr><td>最近 100 次样本</td><td class="num">8,837</td><td class="num">4,017</td><td>每个 workflow 最多 100 条</td></tr><tr><td>成功 / 失败 / 取消 / 跳过</td><td class="num">4,484 / 1,907 / 913 / 1,364</td><td class="num">2,117 / 821 / 287 / 682</td><td>绝对值受 workflow 数影响</td></tr><tr><td>完成成功率（排除 cancelled/skipped）</td><td class="num">70.2%</td><td class="num">72.1%</td><td>两边接近</td></tr><tr><td>近 30 天样本</td><td class="num">6,159</td><td class="num">3,123</td><td>vLLM 的样本更短</td></tr><tr><td>近 30 天完成成功率</td><td class="num">76.6%</td><td class="num">71.6%</td><td>vLLM 略低</td></tr><tr><td>近 30 天失败数</td><td class="num">1,016</td><td class="num">605</td><td>OpenClaw 绝对量更大</td></tr><tr><td>Top 10 失败占比</td><td class="num">56.1%</td><td class="num">78.8%</td><td>vLLM 更集中</td></tr><tr><td>近 7 天 / 30 天活跃</td><td class="num">92 / 94</td><td class="num">42 / 44</td><td>OpenClaw 活跃面更广</td></tr><tr><td>零运行 workflow</td><td class="num">10</td><td class="num">11</td><td>vLLM 的 11 个均为 reusable-only</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">“完成成功率”= success / (success + failure)；cancelled 与 skipped 不计入分母。近 30 天数据是每个 workflow 最近 100 次的样本，因此是下限而非全量。</p></section>
+</div>
+<div class="grid-2" style="margin-top:16px">
+  <section class="card "><div class="card-head"><h3>OpenClaw 的失败热点</h3><p>近 30 天样本 Top 5</p></div><div class="table-wrap"><table class="data-table" aria-label="OpenClaw 失败热点"><thead><tr><th>workflow</th><th>失败</th><th>成功</th></tr></thead><tbody><tr><td>OpenClaw Performance</td><td class="num">93</td><td class="num">5</td></tr><tr><td>Full Release Validation</td><td class="num">89</td><td class="num">4</td></tr><tr><td>OpenClaw Release Publish</td><td class="num">61</td><td class="num">29</td></tr><tr><td>Plugin Prerelease</td><td class="num">60</td><td class="num">37</td></tr><tr><td>OpenClaw Release Checks</td><td class="num">56</td><td class="num">41</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">OpenClaw 的失败集中在 release / proof / performance：OpenClaw Performance 93 失败 / 5 成功，Full Release Validation 89 / 4，Release Publish 61 / 29。它们更像 fail-closed 门禁，而不是单点 flaky。</p></section>
+  <section class="card "><div class="card-head"><h3>vLLM-Ascend 的失败热点</h3><p>近 30 天样本 Top 5</p></div><div class="table-wrap"><table class="data-table" aria-label="vLLM 失败热点"><thead><tr><th>workflow</th><th>失败</th><th>成功</th></tr></thead><tbody><tr><td>Nightly-A5</td><td class="num">68</td><td class="num">11</td></tr><tr><td>Nightly-A3-560T</td><td class="num">62</td><td class="num">31</td></tr><tr><td>Handle /e2e Command</td><td class="num">56</td><td class="num">32</td></tr><tr><td>Schedule Daily Tests</td><td class="num">56</td><td class="num">18</td></tr><tr><td>Nightly-A3</td><td class="num">54</td><td class="num">33</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">vLLM 的失败集中在硬件 nightly 与 orchestration：Nightly-A5 68 / 11，A3-560T 62 / 31，/e2e 56 / 32，Schedule Daily 56 / 18，A3 54 / 33。</p></section>
+</div>
+<section class="card "><div class="card-head"><h3>vLLM-Ascend 失败明细</h3><p>近 30 天样本 · 失败率按 success + failure 计</p></div><div class="table-wrap"><table class="data-table" aria-label="vLLM 失败明细"><thead><tr><th>workflow</th><th>失败</th><th>成功</th><th>取消</th><th>失败率</th></tr></thead><tbody><tr><td><strong>Nightly-A5</strong><br><code>schedule_nightly_test_a5.yaml</code></td><td class="num">68</td><td class="num">11</td><td class="num">19</td><td>86.1%<div class="mini-bar" aria-hidden="true"><span style="width:86.1%"></span></div></td></tr><tr><td><strong>Nightly-A3-560T</strong><br><code>schedule_nightly_test_a3_560t.yaml</code></td><td class="num">62</td><td class="num">31</td><td class="num">5</td><td>66.7%<div class="mini-bar" aria-hidden="true"><span style="width:66.7%"></span></div></td></tr><tr><td><strong>Handle /e2e Command</strong><br><code>pr_e2e_command.yml</code></td><td class="num">56</td><td class="num">32</td><td class="num">6</td><td>63.6%<div class="mini-bar" aria-hidden="true"><span style="width:63.6%"></span></div></td></tr><tr><td><strong>Schedule Daily Tests</strong><br><code>schedule_daily_test.yaml</code></td><td class="num">56</td><td class="num">18</td><td class="num">16</td><td>75.7%<div class="mini-bar" aria-hidden="true"><span style="width:75.7%"></span></div></td></tr><tr><td><strong>Nightly-A3</strong><br><code>schedule_nightly_test_a3.yaml</code></td><td class="num">54</td><td class="num">33</td><td class="num">12</td><td>62.1%<div class="mini-bar" aria-hidden="true"><span style="width:62.1%"></span></div></td></tr><tr><td><strong>Nightly-A2</strong><br><code>schedule_nightly_test_a2.yaml</code></td><td class="num">46</td><td class="num">39</td><td class="num">11</td><td>54.1%<div class="mini-bar" aria-hidden="true"><span style="width:54.1%"></span></div></td></tr><tr><td><strong>Weekly-A3</strong><br><code>schedule_weekly_test_a3.yaml</code></td><td class="num">42</td><td class="num">43</td><td class="num">15</td><td>49.4%<div class="mini-bar" aria-hidden="true"><span style="width:49.4%"></span></div></td></tr><tr><td><strong>Schedule Test Coverage</strong><br><code>schedule_test_coverage.yaml</code></td><td class="num">36</td><td class="num">0</td><td class="num">4</td><td>100.0%<div class="mini-bar" aria-hidden="true"><span style="width:100.0%"></span></div></td></tr><tr><td><strong>Recipes</strong><br><code>recipes.yml</code></td><td class="num">30</td><td class="num">66</td><td class="num">2</td><td>31.2%<div class="mini-bar" aria-hidden="true"><span style="width:31.2%"></span></div></td></tr><tr><td><strong>E2E-upstream</strong><br><code>schedule_e2e_upstream_test.yaml</code></td><td class="num">27</td><td class="num">2</td><td class="num">20</td><td>93.1%<div class="mini-bar" aria-hidden="true"><span style="width:93.1%"></span></div></td></tr><tr><td><strong>Nightly-310P</strong><br><code>schedule_nightly_test_310p.yaml</code></td><td class="num">27</td><td class="num">66</td><td class="num">7</td><td>29.0%<div class="mini-bar" aria-hidden="true"><span style="width:29.0%"></span></div></td></tr><tr><td><strong>E2E</strong><br><code>pr_test.yaml</code></td><td class="num">26</td><td class="num">0</td><td class="num">41</td><td>100.0%<div class="mini-bar" aria-hidden="true"><span style="width:100.0%"></span></div></td></tr><tr><td><strong>Handle /cherry-pick Command</strong><br><code>pr_cherry_pick_command.yml</code></td><td class="num">15</td><td class="num">34</td><td class="num">0</td><td>30.6%<div class="mini-bar" aria-hidden="true"><span style="width:30.6%"></span></div></td></tr><tr><td><strong>Cache csrc Build Artifacts</strong><br><code>push_build_csrc_cache.yaml</code></td><td class="num">15</td><td class="num">10</td><td class="num">6</td><td>60.0%<div class="mini-bar" aria-hidden="true"><span style="width:60.0%"></span></div></td></tr><tr><td><strong>Nightly Image Build (with base)</strong><br><code>schedule_nightly_image_build_with_base.yaml</code></td><td class="num">9</td><td class="num">76</td><td class="num">13</td><td>10.6%<div class="mini-bar" aria-hidden="true"><span style="width:10.6%"></span></div></td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">注意：<code>E2E</code> 与 <code>Schedule Test Coverage</code> 在样本中 0 成功，但 <code>E2E</code> 同时有 41 次取消、33 次跳过；失败率 100% 只表示“在已完成的 success/failure 里没有成功”，不等于所有运行都失败。</p></section>
+<section class="card "><div class="card-head"><h3>慢任务：没有 timeout 的长尾</h3><p>中位数与 p95（排除 skipped）</p></div><div class="table-wrap"><table class="data-table" aria-label="vLLM 慢任务"><thead><tr><th>workflow</th><th>中位数</th><th>p95</th></tr></thead><tbody><tr><td><strong>Main2Main</strong><br><code>schedule_main2main.yaml</code></td><td class="num">305.5 min<br><span class="tiny muted">≈ 5.1 h</span></td><td class="num">1036.0 min<br><span class="tiny muted">≈ 17.3 h</span></td></tr><tr><td><strong>Nightly-A5</strong><br><code>schedule_nightly_test_a5.yaml</code></td><td class="num">52.6 min</td><td class="num">623.3 min<br><span class="tiny muted">≈ 10.4 h</span></td></tr><tr><td><strong>Schedule Test Coverage</strong><br><code>schedule_test_coverage.yaml</code></td><td class="num">122.0 min<br><span class="tiny muted">≈ 2.0 h</span></td><td class="num">374.3 min<br><span class="tiny muted">≈ 6.2 h</span></td></tr><tr><td><strong>E2E-upstream</strong><br><code>schedule_e2e_upstream_test.yaml</code></td><td class="num">40.5 min</td><td class="num">365.0 min<br><span class="tiny muted">≈ 6.1 h</span></td></tr><tr><td><strong>Schedule Daily Tests</strong><br><code>schedule_daily_test.yaml</code></td><td class="num">117.4 min<br><span class="tiny muted">≈ 2.0 h</span></td><td class="num">303.1 min<br><span class="tiny muted">≈ 5.1 h</span></td></tr><tr><td><strong>Nightly-A3</strong><br><code>schedule_nightly_test_a3.yaml</code></td><td class="num">78.2 min<br><span class="tiny muted">≈ 1.3 h</span></td><td class="num">288.5 min<br><span class="tiny muted">≈ 4.8 h</span></td></tr><tr><td><strong>Weekly-A3</strong><br><code>schedule_weekly_test_a3.yaml</code></td><td class="num">58.1 min</td><td class="num">259.7 min<br><span class="tiny muted">≈ 4.3 h</span></td></tr><tr><td><strong>Release Code and Wheel</strong><br><code>schedule_release_code_and_wheel.yml</code></td><td class="num">105.4 min<br><span class="tiny muted">≈ 1.8 h</span></td><td class="num">205.1 min<br><span class="tiny muted">≈ 3.4 h</span></td></tr><tr><td><strong>Weekly-310P</strong><br><code>schedule_weekly_test_310p.yaml</code></td><td class="num">60.8 min<br><span class="tiny muted">≈ 1.0 h</span></td><td class="num">204.2 min<br><span class="tiny muted">≈ 3.4 h</span></td></tr></tbody></table></div><div class="callout warn" style="margin-top:10px"><strong>关键组合：</strong>Nightly-A5 的 p95 是 623 分钟（约 10.4 小时），A3 是 288 分钟，Weekly-A3 是 260 分钟，Schedule Daily 是 303 分钟；而 vLLM 只有 8.0% 的 job 设置了 timeout。长任务 + 稀缺 NPU runner + 无 timeout，是队列被占满的直接原因。另：<code>_nightly_image_build</code> 的运行记录出现约 340 天的异常时长，已从本表排除。</div></section>
+</section>
+<section class="section" id="reuse"><div class="section-head"><h2>复用与维护：action 库 vs workflow 库</h2><span class="num">07 / REUSE</span></div>
+<p class="lead">两边的复用哲学不同：<strong>OpenClaw 用 composite action 做内部平台</strong>（40 个 action、133 次调用，<code>setup-node-env</code> 一个就用了 61 次）；<strong>vLLM 用 reusable workflow 做 helper 层</strong>（13 个 <code>_</code> 前缀 workflow、48 次调用，35.8% 的 job 走 reusable）。vLLM 的 <code>_</code> 约定更干净，但设备变体还没有被复用层收拢。</p>
+<section class="card "><div class="card-head"><h3>复用与维护对比</h3><p>同口径</p></div><div class="table-wrap"><table class="data-table" aria-label="复用与维护对比"><thead><tr><th>指标</th><th>OpenClaw</th><th>vLLM-Ascend</th><th>读法</th></tr></thead><tbody><tr><td>composite action（唯一 / 调用）</td><td class="num">40 / 133</td><td class="num">3 / 9</td><td>OpenClaw 有内部 action 库</td></tr><tr><td>reusable workflow（定义 / 调用）</td><td class="num">23 / 41</td><td class="num">13 / 48</td><td>vLLM 的复用调用更多</td></tr><tr><td>仅被复用的 workflow</td><td class="num">10</td><td class="num">13</td><td>vLLM 全部以 <code>_</code> 前缀标识</td></tr><tr><td>使用 reusable 的 job 占比</td><td class="num">52 / 471（11.0%）</td><td class="num">67 / 187（35.8%）</td><td>vLLM 更依赖 reusable</td></tr><tr><td>matrix job 占比</td><td class="num">61 / 419（14.6%）</td><td class="num">70 / 120（58.3%）</td><td>vLLM 是设备矩阵驱动</td></tr><tr><td>最常复用的内部单元</td><td class="num"><code>setup-node-env</code> 61 次</td><td class="num"><code>_nightly_image_build</code> 11 次</td><td>两种复用机制</td></tr><tr><td>最大重复家族</td><td class="num">release / CI 系列</td><td class="num">9 个 nightly/weekly 设备变体</td><td>vLLM 的整合空间更明确</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">vLLM 的 11 个零运行 workflow 全部是 <code>_</code> reusable-only；这是有意设计，不是死代码。真正的问题是 9 个设备测试 workflow 的复制式变体。</p></section>
+<div class="callout" style="margin-top:16px"><strong>vLLM 最明确的整合机会：</strong>5 个 nightly + 4 个 weekly 设备 workflow 合计 <strong>3,936 行、74 个 job、94 个输入项、34,617 次历史运行</strong>，分别占全部 YAML 行的 <strong>21.4%</strong>、job 的 <strong>39.6%</strong>、dispatch 输入的 <strong>81.7%</strong>。它们覆盖 A2 / A3 / A3-560T / A5 / 310P，很多输入项和作业图高度相似。用“一个参数化 reusable workflow + 设备 matrix”可以显著降低维护面，同时保留每个 SoC 的差异化步骤。</div>
+<div class="grid-2" style="margin-top:16px">
+  <section class="card "><div class="card-head"><h3>vLLM 的 9 个设备变体</h3><p>Nightly + Weekly</p></div><div class="table-wrap"><table class="data-table" aria-label="vLLM 设备变体"><thead><tr><th>workflow</th><th>行数</th><th>job</th><th>输入</th><th>历史运行</th></tr></thead><tbody><tr><td><code>schedule_nightly_test_a3.yaml</code></td><td class="num">639</td><td class="num">13</td><td class="num">12</td><td class="num">16,416</td></tr><tr><td><code>schedule_nightly_test_a2.yaml</code></td><td class="num">581</td><td class="num">12</td><td class="num">12</td><td class="num">15,409</td></tr><tr><td><code>schedule_nightly_test_a5.yaml</code></td><td class="num">479</td><td class="num">9</td><td class="num">12</td><td class="num">846</td></tr><tr><td><code>schedule_nightly_test_a3_560t.yaml</code></td><td class="num">439</td><td class="num">8</td><td class="num">12</td><td class="num">1,007</td></tr><tr><td><code>schedule_weekly_test_a3.yaml</code></td><td class="num">437</td><td class="num">8</td><td class="num">9</td><td class="num">620</td></tr><tr><td><code>schedule_nightly_test_310p.yaml</code></td><td class="num">365</td><td class="num">6</td><td class="num">11</td><td class="num">204</td></tr><tr><td><code>schedule_weekly_test_a3_560t.yaml</code></td><td class="num">346</td><td class="num">6</td><td class="num">9</td><td class="num">32</td></tr><tr><td><code>schedule_weekly_test_a2.yaml</code></td><td class="num">340</td><td class="num">7</td><td class="num">8</td><td class="num">33</td></tr><tr><td><code>schedule_weekly_test_310p.yaml</code></td><td class="num">310</td><td class="num">5</td><td class="num">9</td><td class="num">50</td></tr></tbody></table></div></section>
+  <section class="card "><div class="card-head"><h3>OpenClaw 的复用对照</h3><p>内部 action 库 vs 巨型文件</p></div><div class="detail-list"><div class="detail-row-kv"><span class="k">优点</span><span class="v">40 个 composite action 把 Node、pnpm、Playwright、Android、发布 harness 等重复逻辑收拢；52 个 job 走 reusable workflow。</span></div><div class="detail-row-kv"><span class="k">代价</span><span class="v">复用并没有阻止巨型文件：<code>ci.yml</code> 仍有 7,475 行、43 个 job。复用层与入口层同时膨胀。</span></div><div class="detail-row-kv"><span class="k">对 vLLM 的启示</span><span class="v">复用要落在“入口薄、helper 厚”上；vLLM 的 <code>_</code> 前缀已经是正确方向，下一步是把设备变体也收进 helper，而不是复制 9 份。</span></div></div></section>
+</div>
+</section>
+<section class="section" id="lessons"><div class="section-head"><h2>启示清单：该抄什么，不该抄什么</h2><span class="num">08 / LESSONS</span></div>
+<p class="lead">把对比收束成一句话：<strong>vLLM-Ascend 不该复制 OpenClaw 的规模与发布复杂度，但应该复制它的安全卫生、超时/并发治理和“入口薄、helper 厚”的复用思路。</strong> vLLM 真正需要的，是在保留评论命令与设备矩阵的前提下，把可靠性、供应链和容量治理补起来。</p>
+<div class="findings"><div class="finding"><div class="fnum">01</div><div><h4><span class="priority p0">P0</span>先补安全卫生，不要先补发布流程</h4><p>vLLM 最紧的差距不是“发布自动化不够”，而是 269 / 284 个 action 引用未固定 SHA、19 个文件没有 permissions、172 / 187 个 job 没有 timeout。把 top 6 action 固定、给 19 个文件补 permissions、给 172 个 job 补 timeout，是 30 天内最确定的收益。</p><div class="evidence">数据：SHA 固定率 5.3% vs OpenClaw 100%；timeout 8.0% vs 65.8%；top 6 action 覆盖 80.6% 的引用。</div></div></div><div class="finding"><div class="fnum">02</div><div><h4><span class="priority p0">P0</span>保留评论命令，但把它变成可审计的控制面</h4><p>vLLM 的 8 个 /命令处理器（9 个 repository_dispatch 中 8 个是命令、1 个是分发器）比 OpenClaw 的 475 个 UI 输入项更适合社区。但 <code>slash_command_dispatch</code>（28.5k 运行）、<code>bot_merge_conflict</code>（40k）、<code>bot_pr_create</code>（40k）、<code>pr_nightly_command</code>（4.3k）都没有 concurrency；命令链路是 issue_comment → repository_dispatch → handler → 再触发 workflow，必须补授权、幂等键、冷却时间和运行账本。</p><div class="evidence">数据：26 个文件无 concurrency；<code>pr_nightly_command</code> 与 <code>schedule_daily_test</code> 都通过 <code>gh workflow run</code> 调起同一批 nightly。</div></div></div><div class="finding"><div class="fnum">03</div><div><h4><span class="priority p0">P0</span>可靠性要“修点”，不要“全面重试”</h4><p>vLLM 的 Top 10 失败 workflow 占近 30 天失败的 79%，远高于 OpenClaw 的 56%。Nightly-A5 的失败率 86.1%，A3-560T 66.7%，Schedule Daily 75.7%，/e2e 63.6%，E2E-upstream 93.1%，Test Coverage 在样本中 0 成功。先做失败分类和 quarantine，再决定哪些重试。</p><div class="evidence">数据：近 30 天 605 次失败，Top 10 = 477 次；Nightly-A5 68 失败 / 11 成功。</div></div></div><div class="finding"><div class="fnum">04</div><div><h4><span class="priority p1">P1</span>把 9 个设备变体收进一个 reusable workflow</h4><p>5 个 nightly + 4 个 weekly 设备 workflow 合计 3,936 行、74 个 job、94 个输入项、34,617 次运行，占全部 dispatch 输入的 81.7%。它们覆盖 A2/A3/A3-560T/A5/310P，很多逻辑重复。用一个参数化 reusable workflow + device matrix，保留 SoC 差异步骤，可以显著降低维护面。</p><div class="evidence">数据：设备变体占 YAML 行 21.4%、job 39.6%、dispatch 输入 81.7%。</div></div></div><div class="finding"><div class="fnum">05</div><div><h4><span class="priority p1">P1</span>中央调度适合稀缺 NPU，但必须可观测</h4><p>vLLM 只有 6 个原生 schedule，但 20 个 nightly/weekly 中 13 个是调度入口（多数 dispatch-only）、7 个是 <code>_</code> helper，由 14 处 <code>gh workflow run</code> 调起；这比 OpenClaw 的 411 次/天、5 个 <code>23 * * * *</code> 碰撞更适合稀缺设备。代价是“谁在什么时候触发了什么”更难追踪。建议统一 orchestrator、加运行账本和重复 dispatch 检测。</p><div class="evidence">数据：Nightly/Weekly 类别 35,473 次历史运行；OpenClaw 33 个原生 schedule、411 次/天。</div></div></div><div class="finding"><div class="fnum">06</div><div><h4><span class="priority p1">P1</span>保留静态设备标签，不要过度抽象 runner</h4><p>vLLM 80.8% 的 runner 是自建 CPU/NPU，静态标签（a2b3-0、a3-800t-0、a5-0、310p）比 OpenClaw 的 73 个多后端动态表达式更透明。需要补的是 timeout、concurrency、队列时长和 SoC → label 的轻量映射，而不是一整套多后端抽象。</p><div class="evidence">数据：vLLM 97 / 120 自建；13 个动态标签；OpenClaw 73 个多后端动态表达式。</div></div></div><div class="finding"><div class="fnum">07</div><div><h4><span class="priority p2">P2</span>不要为了“像 OpenClaw”而增加发布 ceremony</h4><p>vLLM 只有 1 个 release workflow、7 个 image workflow；OpenClaw 有 33 个 release/分发 workflow。vLLM 的发布面并不缺“数量”，缺的是镜像/轮子发布的可重复性和测试可靠性。把 release 自动化控制在必要范围，把精力放在 nightly 与 PR 反馈上。</p><div class="evidence">数据：vLLM release 1 / 57（1.8%）；OpenClaw release 33 / 129（25.6%）。</div></div></div><div class="finding"><div class="fnum">08</div><div><h4><span class="priority p2">P2</span>把 <code>_</code> 约定升级为生命周期制度</h4><p>vLLM 的 13 个 <code>_</code> workflow 全部 reusable-only，11 个零运行是合理设计；但 Actions 注册表已有 145 条记录，是当前文件的 2.5 倍。建议给每个 workflow 加 owner/用途/生命周期元数据，标记 reusable-only，定期归档无运行记录。</p><div class="evidence">数据：vLLM 145 记录 / 57 当前；OpenClaw 348 / 129（2.7×）。</div></div></div></div>
+<h3 style="margin:30px 0 12px">该抄 / 不该抄</h3>
+<div class="table-wrap"><table class="data-table" aria-label="该抄与不该抄"><thead><tr><th>维度</th><th>该抄</th><th>不该抄</th><th>数据依据</th></tr></thead><tbody><tr><td>安全卫生</td><td>全部 action 固定 SHA；top-level permissions；timeout + concurrency；zizmor/actionlint 门禁</td><td>不要抄 117 个 secret 名称、宽泛的 AI provider key、25 项的手动表单</td><td>vLLM 5.3% vs OpenClaw 100% SHA 固定；timeout 8.0% vs 65.8%</td></tr><tr><td>控制面</td><td>保留 <code>/run</code>、<code>/e2e</code>、<code>/nightly</code> 等评论命令；给命令加授权、幂等、速率限制、运行账本</td><td>不要把 slash commands 换成 45 个仅手动 workflow + 475 个输入项</td><td>vLLM 8 个 /命令处理器（9 个 repository_dispatch，含 1 个分发器）；OpenClaw 475 个输入项</td></tr><tr><td>调度</td><td>中央 orchestrator + 容量感知队列 + 重复 dispatch 检测</td><td>不要抄 33 个原生 schedule、411 次/天、5 个 workflow 共用 <code>23 * * * *</code></td><td>vLLM 6 个原生 schedule；20 个 nightly/weekly 中 13 个是调度入口（7 个 helper），由 14 处 <code>gh workflow run</code> 调起</td></tr><tr><td>复用</td><td>保留 <code>_</code> 前缀的 reusable workflow 层；把 9 个设备变体收敛成一个参数化 workflow + matrix</td><td>不要抄 129 个 workflow、40 个 composite action、7,475 行的 <code>ci.yml</code></td><td>设备变体 3,936 行 / 74 jobs / 94 inputs / 34,617 runs</td></tr><tr><td>可靠性</td><td>先修 Top 10；失败分类（基础设施 / 真实回归 / 预期拒绝）；quarantine + 仅对基础设施重试</td><td>不要在没有分类的情况下全面重试；不要把 release ceremony 当成可靠性</td><td>vLLM Top 10 占 79% 失败；A5 86.1%、Test Coverage 0 成功</td></tr><tr><td>Runner</td><td>保留静态设备标签；补 timeout/concurrency/队列时长；做 SoC → label → timeout 的轻量映射</td><td>不要抄 73 个多后端动态表达式；不要用 411 次/天的调度去压容量</td><td>vLLM 80.8% 自建 runner；只有 8.0% job 有 timeout</td></tr><tr><td>生命周期</td><td><code>_</code> 约定 + owner 元数据 + 90 天无运行 review；归档历史 workflow</td><td>不要保留 2.5–2.7 倍于当前文件的历史注册记录</td><td>vLLM 145 记录 / 57 当前；OpenClaw 348 / 129</td></tr></tbody></table></div>
+</section>
+<section class="section" id="plan"><div class="section-head"><h2>30 / 60 / 90 天：先护栏，再合并，再治理</h2><span class="num">09 / PLAN</span></div>
+<p class="lead">把建议落成时间表。核心原则是：<strong>先做安全与资源护栏，再做合并与可靠性，最后做凭证与生命周期。</strong> 不要先重写整套 CI，也不要把 OpenClaw 的 129 个 workflow 当成目标形态。</p>
+<section class="card "><div class="card-head"><h3>30 / 60 / 90 天计划</h3><p>按投入产出比排序</p></div><div class="table-wrap"><table class="data-table" aria-label="30/60/90 天计划"><thead><tr><th>阶段</th><th>动作</th><th>预期效果</th><th>数据依据</th></tr></thead><tbody><tr><td><span class="priority p0">0–30 天</span></td><td>固定 top 6 action 到 SHA；给 19 个文件补 permissions；给 172 个 job 补 timeout；给 26 个文件补 concurrency；5 处事件字段改为 env 注入；引入 zizmor/actionlint。</td><td>覆盖 80.6% action 引用；把 timeout 从 8.0% 拉到 100%；消除最高频的重复执行。</td><td>安全快赢清单；top 6 action = 229 / 284</td></tr><tr><td><span class="priority p1">30–60 天</span></td><td>把 9 个设备变体收敛为 1 个参数化 reusable workflow + device matrix；统一 <code>schedule_daily_test</code> 与 <code>pr_nightly_command</code> 的 dispatch；加失败分类、quarantine、运行账本与幂等键。</td><td>设备变体维护面预计下降 50%+；Top 10 失败占比从 79% 降到 <60%；重复 dispatch 可检测。</td><td>设备变体 3,936 行 / 74 jobs / 94 inputs；Top 10 = 477 / 605</td></tr><tr><td><span class="priority p2">60–90 天</span></td><td>PAT_TOKEN 迁移到 GitHub App/OIDC；SWR/OBS secret 收敛到受保护 environment；加 owner/生命周期元数据；归档历史 workflow；给 PR E2E 建立绿色路径与周度基线。</td><td>高价值凭证分布从 20 个文件降到少数受控入口；注册表从 145 条开始收敛；PR 反馈从“0 成功样本”恢复为可度量。</td><td>PAT_TOKEN 20 个文件；145 记录 / 57 当前；E2E 样本 0 成功 / 26 失败 / 41 取消</td></tr></tbody></table></div></section>
+<div class="grid-2" style="margin-top:16px">
+  <section class="card "><div class="card-head"><h3>用数据验收</h3><p>从基线到目标</p></div><div class="table-wrap"><table class="data-table" aria-label="治理指标"><thead><tr><th>指标</th><th>基线</th><th>30–60 天</th><th>90 天</th></tr></thead><tbody><tr><td>Action SHA 固定率</td><td>5.3%</td><td>80.6%（top 6）</td><td>100%</td></tr><tr><td>permissions 声明率</td><td>66.7%</td><td>100%</td><td>100%</td></tr><tr><td>job timeout 覆盖率</td><td>8.0%</td><td>100%</td><td>100%</td></tr><tr><td>PR / nightly concurrency 覆盖率</td><td>54.4%</td><td>100%</td><td>100%</td></tr><tr><td>Top 10 失败占比</td><td>78.8%</td><td><60%</td><td><50%</td></tr><tr><td>Nightly-A5 失败率</td><td>86.1%</td><td>完成分类与 quarantine</td><td><20%</td></tr><tr><td>PR E2E 绿色路径</td><td>样本 0 成功</td><td>建立周度基线</td><td>>50% 完成运行成功</td></tr><tr><td>重复 dispatch</td><td>未度量</td><td>运行账本 + 幂等键</td><td>0</td></tr><tr><td>NPU 队列 p95</td><td>未度量</td><td>采集 queue time</td><td>按容量设定 SLO</td></tr></tbody></table></div><p class="tiny muted" style="margin-top:8px">“Top 10 失败占比”和“Nightly-A5 失败率”来自近 30 天样本；PR E2E 的“0 成功”是最近 100 次样本的结果，不代表历史永远为 0，但足以作为恢复绿色路径的起点。</p></section>
+  <section class="card "><div class="card-head"><h3>如果只能做三件事</h3><p>最小可行动作</p></div><div class="callout critical" style="margin-bottom:10px"><strong>1. 固定 top 6 action 到 SHA。</strong> 覆盖 229 / 284（80.6%）的引用，一次性把最大的供应链缺口收掉一半以上。</div><div class="callout warn" style="margin-bottom:10px"><strong>2. 给 172 个 job 补 timeout，给 26 个文件补 concurrency。</strong> 这是 NPU 容量治理的最低成本动作；优先 <code>pr_test</code>、Nightly-A3/A2、<code>pr_nightly_command</code> 和四个高跑量 bot。</div><div class="callout good"><strong>3. 把 9 个设备变体收敛成一个 reusable workflow + matrix。</strong> 设备变体占 81.7% 的 dispatch 输入；这是维护面最大、也最容易被社区理解的整合。</div></section>
+</div>
+</section>
+<section class="section" id="appendix"><div class="section-head"><h2>附录：方法与口径</h2><span class="num">APPENDIX</span></div>
+<div class="grid-2">
+  <section class="card "><div class="card-head"><h3>方法与数据来源</h3><p>保证可复现</p></div><div class="table-wrap"><table class="data-table stack-mobile" aria-label="方法与数据来源"><thead><tr><th>项目</th><th>说明</th></tr></thead><tbody><tr><td>对比对象</td><td><a href="https://github.com/openclaw/openclaw" target="_blank" rel="noreferrer">openclaw/openclaw</a> · <a href="https://github.com/vllm-project/vllm-ascend" target="_blank" rel="noreferrer">vllm-project/vllm-ascend</a></td></tr><tr><td>快照</td><td>2026-11-16；OpenClaw 129 个当前 YAML，vLLM-Ascend 57 个当前 YAML</td></tr><tr><td>workflow 来源</td><td>GitHub Contents API <code>.github/workflows</code>；OpenClaw 129 个，vLLM 57 个</td></tr><tr><td>Actions 注册表</td><td>OpenClaw 348 条记录（129 当前 + 219 历史）；vLLM 145 条（57 当前 + 88 历史）</td></tr><tr><td>运行样本</td><td>每个当前 workflow 最近 100 次；OpenClaw 8,837 条，vLLM 4,017 条</td></tr><tr><td>生命周期运行量</td><td>OpenClaw ≥1,184,810；vLLM ≥295,169；API 单 workflow 上限 40,000</td></tr><tr><td>静态解析</td><td>Python 3 + PyYAML 6；处理 YAML 1.1 把 <code>on</code> 解析为布尔值</td></tr></tbody></table></div></section>
+  <section class="card "><div class="card-head"><h3>术语表</h3><p>读图前先对齐</p></div><div class="table-wrap"><table class="data-table stack-mobile" aria-label="术语表"><thead><tr><th>术语</th><th>含义</th></tr></thead><tbody><tr><td>workflow_dispatch</td><td>手动触发表单，可在 GitHub UI、gh CLI 或 REST API 触发，支持 inputs。</td></tr><tr><td>repository_dispatch</td><td>由外部/机器人事件触发；vLLM 用它承接 PR 评论命令。</td></tr><tr><td>workflow_call</td><td>被另一个 workflow 调用，用于复用；vLLM 的 <code>_</code> 前缀文件即此用途。</td></tr><tr><td>workflow_run</td><td>监听另一个 workflow 的完成事件；vLLM 用它把 E2E 结果写成 PR 评论。</td></tr><tr><td>SHA 固定</td><td>action 的 <code>uses</code> ref 为 40 位 commit SHA；tag/branch 视为未固定。</td></tr><tr><td>concurrency</td><td>同一组内串行/取消；防止事件风暴下重复执行。</td></tr><tr><td>timeout-minutes</td><td>job 级硬超时；防止挂起任务长期占用 runner。</td></tr></tbody></table></div></section>
+</div>
+<section class="card "><div class="card-head"><h3>口径与限制</h3><p>先看边界，再看结论</p></div><ul class="small" style="margin:0;padding-left:20px;color:var(--ink-2)"><li style="margin-bottom:7px"><strong>运行总量是下限。</strong> Actions API 对单个 workflow 的 <code>total_count</code> 上限为 40,000；OpenClaw 有 23 个封顶，vLLM 有 3 个。</li><li style="margin-bottom:7px"><strong>近 30 天是样本。</strong> 每个 workflow 最多取最近 100 次；高频 workflow 的 30 天量会被截断，适合比较失败集中度，不适合精确总量。</li><li style="margin-bottom:7px"><strong>skipped / cancelled 不是失败。</strong> 成功率统一按 <code>success / (success + failure)</code>，cancelled 与 skipped 另列。</li><li style="margin-bottom:7px"><strong>分类是人工映射。</strong> OpenClaw 14 类、vLLM 7 类；跨类别复用不重复计数。</li><li style="margin-bottom:7px"><strong>vLLM 的 <code>_nightly_image_build</code> 时长异常。</strong> 部分运行记录从 2025-12 创建、2026-11 才更新，约 340 天，已从慢任务表排除。</li><li><strong>OpenClaw 的 122 vs 129。</strong> 本报告使用其 129 个当前文件的全量分析；提问中的 122 与当前 main 快照相差 7 个。</li></ul></section>
+</section>
+
+<footer class="report-footer">
+  <p><strong>OpenClaw × vLLM-Ascend Workflow Comparison</strong> · 基于两个公开仓库的 GitHub Actions YAML 与每个 workflow 最近 100 次运行样本。快照 2026-11-16。</p>
+  <p>报告为自包含单文件，支持明暗主题、表格视图与键盘焦点；所有数值可在附录口径下由公开 API 重新计算。比较结论针对 workflow 设计与治理，不评价两个项目的技术路线或社区价值。</p>
+</footer>
+</main>
+</div>
+</div>
+<div id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // Theme
+  const root = document.documentElement;
+  const themeBtn = document.getElementById('theme-toggle');
+  let saved = null;
+  try { saved = localStorage.getItem('oc-report-theme'); } catch (e) { saved = null; }
+  if (saved === 'dark' || saved === 'light') {
+    root.dataset.theme = saved;
+  }
+  function syncThemeButton() {
+    if (!themeBtn) return;
+    const dark = root.dataset.theme === 'dark' ||
+      (!root.dataset.theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    themeBtn.setAttribute('aria-pressed', String(dark));
+    themeBtn.textContent = dark ? '☀ 明亮' : '☾ 暗色';
+  }
+  syncThemeButton();
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const dark = root.dataset.theme === 'dark' ||
+        (!root.dataset.theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      root.dataset.theme = dark ? 'light' : 'dark';
+      try { localStorage.setItem('oc-report-theme', root.dataset.theme); } catch (e) { /* file:// may block storage */ }
+      syncThemeButton();
+    });
+  }
+
+  // Tooltip
+  const tip = document.getElementById('tooltip');
+  let active = null;
+  function showTip(el) {
+    if (!tip) return;
+    const text = el.getAttribute('data-tip');
+    if (!text) return;
+    tip.textContent = text;
+    tip.classList.add('show');
+    const r = el.getBoundingClientRect();
+    const x = Math.min(Math.max(12, r.left + r.width / 2), window.innerWidth - 12);
+    const y = Math.max(12, r.top);
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+    active = el;
+  }
+  function hideTip() {
+    if (tip) tip.classList.remove('show');
+    active = null;
+  }
+  document.addEventListener('pointerover', (e) => {
+    const el = e.target.closest('[data-tip]');
+    if (el) showTip(el);
+  });
+  document.addEventListener('pointerout', (e) => {
+    const el = e.target.closest('[data-tip]');
+    if (el && el !== e.relatedTarget?.closest?.('[data-tip]')) hideTip();
+  });
+  document.addEventListener('focusin', (e) => {
+    const el = e.target.closest('[data-tip]');
+    if (el) showTip(el);
+  });
+  document.addEventListener('focusout', (e) => {
+    const el = e.target.closest('[data-tip]');
+    if (el) hideTip();
+  });
+  window.addEventListener('scroll', hideTip, { passive: true });
+
+  // Scrollspy
+  const tocLinks = Array.from(document.querySelectorAll('.toc a[href^="#"]'));
+  const sections = tocLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  if ('IntersectionObserver' in window && sections.length) {
+    const byId = new Map(tocLinks.map(a => [a.getAttribute('href').slice(1), a]));
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => a.classList.remove('active'));
+          const link = byId.get(entry.target.id);
+          if (link) link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-15% 0px -72% 0px', threshold: 0.01 });
+    sections.forEach(s => obs.observe(s));
+  }
+
+  // Inventory table
+  const tbody = document.querySelector('#inventory-table tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr.wf-row'));
+  const pairs = rows.map(row => [row, row.nextElementSibling]);
+  const search = document.getElementById('wf-search');
+  const cat = document.getElementById('wf-cat');
+  const trig = document.getElementById('wf-trigger');
+  const gap = document.getElementById('wf-gap');
+  const zero = document.getElementById('wf-zero');
+  const sort = document.getElementById('wf-sort');
+  const count = document.getElementById('wf-count');
+  const reset = document.getElementById('wf-reset');
+
+  function collapseAll() {
+    pairs.forEach(([row, detail]) => {
+      const btn = row.querySelector('.expand');
+      if (btn) { btn.setAttribute('aria-expanded', 'false'); btn.textContent = '+'; }
+      if (detail) detail.hidden = true;
+    });
+  }
+
+  function applyFilters() {
+    const q = (search?.value || '').trim().toLowerCase();
+    const c = cat?.value || '';
+    const t = trig?.value || '';
+    const g = !!gap?.checked;
+    const z = !!zero?.checked;
+    let visible = 0;
+    pairs.forEach(([row]) => {
+      const ok = (!q || (row.dataset.search || '').includes(q)) &&
+        (!c || row.dataset.category === c) &&
+        (!t || (row.dataset.triggers || '').split('|').includes(t)) &&
+        (!g || row.dataset.gap === '1') &&
+        (!z || row.dataset.zero === '1');
+      row.hidden = !ok;
+      if (ok) visible++;
+    });
+    // Hide all detail rows after a filter change.
+    pairs.forEach(([, detail]) => { if (detail) detail.hidden = true; });
+    if (count) count.textContent = visible + ' / ' + rows.length + ' 个 workflow';
+  }
+
+  function sortRows() {
+    const key = sort?.value || 'file';
+    const sorted = pairs.slice().sort((a, b) => {
+      const ra = a[0], rb = b[0];
+      if (key === 'runs') return Number(rb.dataset.runs || 0) - Number(ra.dataset.runs || 0);
+      if (key === 'fail') return Number(rb.dataset.fail || 0) - Number(ra.dataset.fail || 0);
+      if (key === 'lines') return Number(rb.dataset.lines || 0) - Number(ra.dataset.lines || 0);
+      if (key === 'name') return (ra.dataset.name || '').localeCompare(rb.dataset.name || '', 'zh');
+      return (ra.dataset.file || '').localeCompare(rb.dataset.file || '');
+    });
+    sorted.forEach(([row, detail]) => {
+      tbody.appendChild(row);
+      if (detail) tbody.appendChild(detail);
+    });
+    pairs.sort((a, b) => sorted.indexOf(a) - sorted.indexOf(b));
+  }
+
+  pairs.forEach(([row, detail]) => {
+    const btn = row.querySelector('.expand');
+    if (!btn || !detail) return;
+    btn.addEventListener('click', () => {
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', String(open));
+      btn.textContent = open ? '−' : '+';
+      detail.hidden = !open;
+    });
+  });
+
+  [search, cat, trig, gap, zero].forEach(el => {
+    if (!el) return;
+    const evt = el.tagName === 'INPUT' && el.type === 'search' ? 'input' : 'change';
+    el.addEventListener(evt, () => { collapseAll(); applyFilters(); });
+  });
+  if (sort) sort.addEventListener('change', () => { collapseAll(); sortRows(); applyFilters(); });
+  if (reset) {
+    reset.addEventListener('click', () => {
+      if (search) search.value = '';
+      if (cat) cat.value = '';
+      if (trig) trig.value = '';
+      if (gap) gap.checked = false;
+      if (zero) zero.checked = false;
+      if (sort) sort.value = 'file';
+      collapseAll();
+      sortRows();
+      applyFilters();
+    });
+  }
+
+  sortRows();
+  applyFilters();
+})();
+</script>
+</body>
+</html>
