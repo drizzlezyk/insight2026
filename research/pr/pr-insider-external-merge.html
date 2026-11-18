@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenClaw · 合并 PR 的作者结构与自合率（2026-09-13–11-13）</title>
+<meta name="description" content="OpenClaw 2026-09-13 至 11-13 已合并 PR 的内部/外部作者结构，以及内部作者的自合率。">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f6f5f1;
+  --surface:#ffffff;
+  --surface-soft:#fbfaf7;
+  --ink:#0b0b0b;
+  --ink-2:#52514e;
+  --muted:#8a8880;
+  --rule:#e5e3dd;
+  --rule-soft:#f0eee8;
+  --accent:#0f766e;
+  --accent-soft:#e5f2ef;
+  --series-1:#2a78d6;
+  --series-2:#eb6834;
+  --series-3:#1baf7a;
+  --series-gray:#b9b7ae;
+  --track:#eeede8;
+  --on-series-1:#ffffff;
+  --on-series-2:#0b0b0b;
+  --on-series-3:#0b0b0b;
+  --on-gray:#0b0b0b;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#141413;
+    --surface:#1e1e1c;
+    --surface-soft:#232322;
+    --ink:#f0efec;
+    --ink-2:#c3c2b7;
+    --muted:#939188;
+    --rule:#383835;
+    --rule-soft:#2c2c29;
+    --accent:#7dd3c7;
+    --accent-soft:#173b38;
+    --series-1:#3987e5;
+    --series-2:#d95926;
+    --series-3:#199e70;
+    --series-gray:#6f6e66;
+    --track:#2e2e2b;
+    --on-series-1:#ffffff;
+    --on-series-2:#ffffff;
+    --on-series-3:#ffffff;
+    --on-gray:#ffffff;
+  }
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font:14px/1.65 "Microsoft YaHei","PingFang SC",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:44px 32px 72px}
+.eyebrow{font-size:11px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase;font-weight:700}
+h1{font-size:31px;line-height:1.25;margin:10px 0 10px;letter-spacing:-.015em;font-weight:750}
+.lede{color:var(--ink-2);font-size:15px;margin:0 0 8px;max-width:900px}
+.meta{color:var(--muted);font-size:12px;margin:0 0 30px}
+.rule{height:1px;background:var(--rule);margin:28px 0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 4px}
+.kpi{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px 17px 14px}
+.kpi .v{font-size:27px;line-height:1.15;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--ink-2);margin-top:6px}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:3px}
+.kpi .v small{font-size:14px;font-weight:600;color:var(--ink-2);margin-left:2px}
+.section{margin-top:38px}
+.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:4px}
+.kicker{font-size:10.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;font-weight:700}
+h2{font-size:19px;line-height:1.35;margin:2px 0 4px;letter-spacing:-.01em}
+.secdesc{color:var(--ink-2);font-size:13px;margin:0 0 16px;max-width:860px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:20px 22px 18px;margin:14px 0}
+.card-title{font-size:13px;font-weight:700;margin:0 0 2px}
+.card-sub{font-size:12px;color:var(--muted);margin:0 0 16px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11.5px;color:var(--ink-2);margin:10px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block;flex:0 0 auto}
+.stack-label{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:16px 0 6px}
+.stack-label .name{font-size:12px;font-weight:700}
+.stack-label .n{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stack{display:flex;height:44px;border-radius:4px;overflow:hidden;background:var(--track)}
+.seg{display:flex;align-items:center;justify-content:center;min-width:0;border-right:2px solid var(--surface);position:relative}
+.seg:last-child{border-right:0}
+.seg:first-child{border-radius:4px 0 0 4px}
+.seg:last-child{border-radius:0 4px 4px 0}
+.seg .pv{font-size:12px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.on1{background:var(--series-1);color:var(--on-series-1)}
+.on2{background:var(--series-2);color:var(--on-series-2)}
+.on3{background:var(--series-3);color:var(--on-series-3)}
+.ong{background:var(--series-gray);color:var(--on-gray)}
+.meter-list{margin-top:4px}
+.meter-row{display:grid;grid-template-columns:190px 1fr 62px;align-items:center;gap:12px;padding:7px 0}
+.meter-name{font-size:12px;color:var(--ink-2);line-height:1.35}
+.meter-name b{color:var(--ink);font-weight:700}
+.meter-name small{display:block;color:var(--muted);font-size:10.5px;font-variant-numeric:tabular-nums}
+.meter-track{height:14px;background:var(--track);border-radius:4px;overflow:hidden}
+.meter-fill{height:100%;background:var(--series-1);border-radius:4px}
+.meter-val{text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.meter-val.zero{color:var(--series-2)}
+.axis{display:grid;grid-template-columns:190px 1fr 62px;gap:12px;margin-top:4px;color:var(--muted);font-size:10px}
+.axis .ticks{display:flex;justify-content:space-between;border-top:1px solid var(--rule);padding-top:4px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 0}
+th{text-align:left;font-weight:650;color:var(--muted);font-size:10.5px;letter-spacing:.02em;padding:0 8px 7px;border-bottom:1px solid var(--rule)}
+td{padding:8px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+tr.total td{font-weight:700;border-top:1px solid var(--rule)}
+.lab{font-weight:650}
+.sub{color:var(--muted);font-size:11px}
+.callout{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 25%, var(--rule));border-radius:10px;padding:16px 18px;margin:16px 0;font-size:13px;color:var(--ink-2)}
+.callout b{color:var(--ink)}
+ul{margin:8px 0 0 18px;padding:0}
+li{margin:6px 0;color:var(--ink-2)}
+li b{color:var(--ink)}
+.caveat{background:var(--surface-soft);border:1px solid var(--rule);border-radius:10px;padding:18px 20px;font-size:12.5px;color:var(--ink-2)}
+.caveat b{color:var(--ink)}
+.src{color:var(--muted);font-size:11px;line-height:1.7}
+.src a{color:var(--accent)}
+code{background:var(--rule-soft);border-radius:4px;padding:1px 5px;font-size:11px}
+.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--rule)}
+@media (max-width:900px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .meter-row,.axis{grid-template-columns:150px 1fr 56px}
+}
+@media (max-width:640px){
+  .wrap{padding:30px 18px 50px}
+  h1{font-size:24px}
+  .kpis{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi .v{font-size:22px}
+  .seg .pv{display:none}
+  .stack{height:30px}
+  .meter-row,.axis{grid-template-columns:1fr;gap:4px}
+  .meter-track{grid-column:1}
+  .meter-val{grid-column:1;text-align:left}
+  .axis .ticks{grid-column:1}
+  .axis .spacer{display:none}
+}
+@media print{
+  body{background:#fff}
+  .wrap{max-width:none;padding:0}
+  .card,.kpi{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">OpenClaw × ClawSweeper · Merged PR Authorship</div>
+  <h1>人类作者中，89% 来自有合入权限的人，11% 来自外部；内部 PR 98.6% 自行合入</h1>
+  <p class="lede">按 <code>merged_at</code> 统计 2026-09-13 至 2026-11-13 的已合并 PR。先看“内部 vs 外部”，再拆“官方名单 vs 名单外有权限者”，最后看内部 PR 的自合率。</p>
+  <p class="meta">数据快照 2026-11-17 · GitHub GraphQL Search（逐日分片，避免 1,000 条上限）· 33,032 个已合并 PR，按编号去重</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">33,032</div><div class="l">已合并 PR</div><div class="s">62 天 · 含机器人</div></div>
+    <div class="kpi"><div class="v">88.9<small>%</small></div><div class="l">内部作者占比</div><div class="s">人类作者 29,441 中的 26,177</div></div>
+    <div class="kpi"><div class="v">98.6<small>%</small></div><div class="l">内部 PR 自行合入</div><div class="s">25,806 / 26,177</div></div>
+    <div class="kpi"><div class="v">614</div><div class="l">外部唯一作者</div><div class="s">占 653 位人类作者的 94%</div></div>
+  </div>
+
+  <div class="rule"></div>
+
+  <section class="section">
+    <div class="kicker">01 · Authorship</div>
+    <h2>人类作者的 89% 来自有合入权限的人，但官方名单只解释 28%</h2>
+    <p class="secdesc">“内部”按实际权限的行为代理判定：同仓库分支（有 push）、窗口内执行过 merge、或在官方 Foundation / Core 名单上。机器人单列，不进入人类分母。</p>
+
+    <div class="card">
+      <p class="card-title">全部已合并 PR：内部 / 外部 / 机器人</p>
+      <p class="card-sub">分母 33,032 · 内部 79.3% · 外部 9.9% · 机器人 10.9%</p>
+
+      <div class="stack-label"><span class="name">全部已合并 PR</span><span class="n">n = 33,032</span></div>
+      <div class="stack" role="img" aria-label="全部已合并 PR：内部 79.3%，外部 9.9%，机器人 10.9%">
+        <div class="seg on1" style="width:79.25%" title="内部（有合入权限）：26,177 · 79.3%"><span class="pv">79.3%</span></div>
+        <div class="seg on2" style="width:9.88%" title="外部（无合入权限）：3,264 · 9.9%"><span class="pv">9.9%</span></div>
+        <div class="seg ong" style="width:10.87%" title="机器人：3,591 · 10.9%"><span class="pv">10.9%</span></div>
+      </div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--series-1)"></i>内部 · 有合入权限</span>
+        <span><i class="sw" style="background:var(--series-2)"></i>外部 · 无合入权限</span>
+        <span><i class="sw" style="background:var(--series-gray)"></i>机器人</span>
+      </div>
+
+      <div class="stack-label" style="margin-top:22px"><span class="name">只看人类作者：官方名单 vs 名单外有权限 vs 外部</span><span class="n">n = 29,441</span></div>
+      <div class="stack" role="img" aria-label="人类作者：官方名单 28.3%，名单外有权限 60.6%，外部 11.1%">
+        <div class="seg on1" style="width:28.34%" title="官方 Foundation / Core：8,343 · 28.3%"><span class="pv">28.3%</span></div>
+        <div class="seg on3" style="width:60.57%" title="名单外有合入权限：17,834 · 60.6%（其中 steipete 17,625）"><span class="pv">60.6%</span></div>
+        <div class="seg on2" style="width:11.09%" title="外部无合入权限：3,264 · 11.1%"><span class="pv">11.1%</span></div>
+      </div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--series-1)"></i>官方 Foundation / Core</span>
+        <span><i class="sw" style="background:var(--series-3)"></i>名单外有合入权限</span>
+        <span><i class="sw" style="background:var(--series-2)"></i>外部无合入权限</span>
+      </div>
+    </div>
+
+    <table aria-label="合并 PR 作者结构">
+      <thead><tr><th>作者类型</th><th class="num">合并 PR</th><th class="num">占全部</th><th class="num">占人类</th><th class="num">唯一作者</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">内部 · 有合入权限</td><td class="num">26,177</td><td class="num">79.3%</td><td class="num">88.9%</td><td class="num">39</td></tr>
+        <tr><td class="lab">外部 · 无合入权限</td><td class="num">3,264</td><td class="num">9.9%</td><td class="num">11.1%</td><td class="num">614</td></tr>
+        <tr><td class="lab">机器人</td><td class="num">3,591</td><td class="num">10.9%</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr class="total"><td>合计</td><td class="num">33,032</td><td class="num">100%</td><td class="num">100%</td><td class="num">653 人类</td></tr>
+      </tbody>
+    </table>
+
+    <table aria-label="内部作者细分" style="margin-top:18px">
+      <thead><tr><th>内部细分</th><th class="num">唯一作者</th><th class="num">合并 PR</th><th class="num">占人类</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">官方 Foundation / Core 名单</td><td class="num">29</td><td class="num">8,343</td><td class="num">28.3%</td></tr>
+        <tr><td class="lab">名单外有合入权限</td><td class="num">10</td><td class="num">17,834</td><td class="num">60.6%</td></tr>
+        <tr><td class="sub">— 其中 steipete</td><td class="num">1</td><td class="num">17,625</td><td class="num">59.9%</td></tr>
+        <tr><td class="lab">外部无合入权限</td><td class="num">614</td><td class="num">3,264</td><td class="num">11.1%</td></tr>
+        <tr class="total"><td>合计</td><td class="num">653</td><td class="num">29,441</td><td class="num">100%</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout"><b>关键不是 89%，而是 89% 的构成。</b>官方名单只覆盖 28.3%；另外 60.6% 来自名单外的有权限账号，其中 <code>steipete</code> 一人 59.9%。如果把“社区内部”定义成官方名单，会得到 28.3% 的结论；如果定义成“有合入权限”，才是 88.9%。</div>
+  </section>
+
+  <section class="section">
+    <div class="kicker">02 · Self-merge</div>
+    <h2>内部 PR 的默认动作是自己合：98.6%</h2>
+    <p class="secdesc">自合 = PR 作者账号与 <code>merged_by</code> 账号严格相等。外部 PR 的自合率为 0：没有权限的人只能等内部人代合。</p>
+
+    <div class="card">
+      <div class="meter-list" role="img" aria-label="内部 PR 自合率：全部内部 98.6%，官方名单 96.8%，名单外有权限 99.4%，steipete 99.4%，外部 0%">
+        <div class="meter-row">
+          <div class="meter-name"><b>全部内部</b><small>25,806 / 26,177</small></div>
+          <div class="meter-track"><div class="meter-fill" style="width:98.58%" title="全部内部：25,806 / 26,177 · 98.58%"></div></div>
+          <div class="meter-val">98.6%</div>
+        </div>
+        <div class="meter-row">
+          <div class="meter-name"><b>官方 Foundation / Core</b><small>8,079 / 8,343</small></div>
+          <div class="meter-track"><div class="meter-fill" style="width:96.84%" title="官方名单：8,079 / 8,343 · 96.84%"></div></div>
+          <div class="meter-val">96.8%</div>
+        </div>
+        <div class="meter-row">
+          <div class="meter-name"><b>名单外有合入权限</b><small>17,727 / 17,834</small></div>
+          <div class="meter-track"><div class="meter-fill" style="width:99.40%" title="名单外有权限：17,727 / 17,834 · 99.40%"></div></div>
+          <div class="meter-val">99.4%</div>
+        </div>
+        <div class="meter-row">
+          <div class="meter-name"><b>其中 steipete</b><small>17,524 / 17,625</small></div>
+          <div class="meter-track"><div class="meter-fill" style="width:99.43%" title="steipete：17,524 / 17,625 · 99.43%"></div></div>
+          <div class="meter-val">99.4%</div>
+        </div>
+        <div class="meter-row">
+          <div class="meter-name"><b>外部（对比）</b><small>0 / 3,264 · 无合入权限</small></div>
+          <div class="meter-track"><div class="meter-fill" style="width:0%" title="外部：0 / 3,264 · 0%"></div></div>
+          <div class="meter-val zero">0%</div>
+        </div>
+        <div class="axis"><div class="spacer"></div><div class="ticks"><span>0%</span><span>50%</span><span>100%</span></div><div></div></div>
+      </div>
+    </div>
+
+    <table aria-label="分组自合率">
+      <thead><tr><th>分组</th><th class="num">已合并 PR</th><th class="num">自行合入</th><th class="num">自合率</th><th class="num">非自合</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">全部内部</td><td class="num">26,177</td><td class="num">25,806</td><td class="num">98.58%</td><td class="num">371</td></tr>
+        <tr><td class="lab">官方 Foundation / Core</td><td class="num">8,343</td><td class="num">8,079</td><td class="num">96.84%</td><td class="num">264</td></tr>
+        <tr><td class="lab">名单外有合入权限</td><td class="num">17,834</td><td class="num">17,727</td><td class="num">99.40%</td><td class="num">107</td></tr>
+        <tr><td class="sub">— 其中 steipete</td><td class="num">17,625</td><td class="num">17,524</td><td class="num">99.43%</td><td class="num">101</td></tr>
+        <tr><td class="lab">外部（对比）</td><td class="num">3,264</td><td class="num">0</td><td class="num">0%</td><td class="num">3,264</td></tr>
+      </tbody>
+    </table>
+
+    <div class="card" style="margin-top:18px">
+      <p class="card-title">那 371 个非自合的内部 PR，是谁合的？</p>
+      <p class="card-sub">内部 PR 的独立合入是例外，不是默认。</p>
+      <div class="legend" style="margin-top:0">
+        <span><b>roboclaw-bot</b> 139</span>
+        <span><b>fuller-stack-dev</b> 56</span>
+        <span><b>steipete</b> 39</span>
+        <span><b>vincentkoc</b> 38</span>
+        <span><b>RomneyDa</b> 37</span>
+        <span><b>clawsweeper</b> 28</span>
+        <span>其余维护者 / 机器人 34</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <p class="card-title">对照：外部 PR 全部由内部人 / 机器人代合</p>
+      <p class="card-sub">外部 3,264 个已合并 PR，自合 0 个。</p>
+      <div class="legend" style="margin-top:0">
+        <span><b>obviyus</b> 1,630</span>
+        <span><b>steipete</b> 768</span>
+        <span><b>roboclaw-bot</b> 292</span>
+        <span><b>RomneyDa</b> 113</span>
+        <span><b>altaywtf</b> 94</span>
+        <span>其余维护者 / 机器人 367</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="kicker">03 · Reading</div>
+    <h2>这意味着什么</h2>
+    <ul>
+      <li><b>内部 PR 是自助合并，不是“同事代合”。</b>全部内部 98.6%，官方名单 96.8%，名单外有权限 99.4%。独立合入只有 371 个，且其中 167 个还是机器人。</li>
+      <li><b>外部 PR 是“等人代合”。</b>外部 3,264 个 PR 的自合率为 0；主要由 <code>obviyus</code>（1,630）、<code>steipete</code>（768）和机器人（292）合入。</li>
+      <li><b>官方名单解释不了实际权力结构。</b>官方 Foundation / Core 只占 28.3%；<code>steipete</code> 一人在名单外贡献 59.9%。讨论“社区内部”时，必须区分官方身份和实际合入权限。</li>
+      <li><b>自合 ≠ 没有 review。</b>ClawSweeper、CI、其他维护者可能已经审过；这里只反映最后点“Merge”的账号。若目标是强制独立复核，需要显式设计第二人合入或 review 门禁，而不是依赖习惯。</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <div class="kicker">04 · Method</div>
+    <h2>口径与边界</h2>
+    <div class="caveat">
+      <p><b>时间窗口：</b>按 <code>merged_at</code> 统计 2026-09-13 至 2026-11-13（含边界，UTC），共 62 天；包含窗口前创建、窗口内合并的 PR。</p>
+      <p><b>内部判定（行为代理）：</b>PR 的 head 仓库 = base 仓库（同仓库分支，说明有 push 权限）∪ 作者在窗口内作为 <code>merged_by</code> 出现（说明有 merge 权限）∪ 作者在官方 Foundation / Core 名单（openclaw.org/people，43 个 GitHub 账号，其中 29 人出现在合并 PR 作者里）。其余人类作者判为外部。</p>
+      <p><b>自合判定：</b>PR 作者 login 与 <code>merged_by</code> login 忽略大小写后严格相等。它不等于“无 review”，只表示最后执行合并的账号。</p>
+      <p><b>机器人：</b>剔除 <code>roboclaw-bot</code> 2,909、<code>openclaw-mantis</code> 617、<code>tideclaw-bot</code> 41、<code>dependabot</code> 10、<code>openclaw-macos-publisher</code> 8、<code>clawsweeper</code> 4、<code>ycmjbot-bot</code> 1、<code>jarvis-stephens-bot</code> 1，共 3,591 个 PR。GraphQL 有时把 <code>openclaw-mantis[bot]</code> 返回成 <code>openclaw-mantis</code>，已按 REST 的 Bot 类型修正。</p>
+      <p><b>稳健性：</b>只用同仓库分支是 87.8%；只用 <code>merged_by</code> 是 88.8%；加上 <code>author_association</code> 的 MEMBER / COLLABORATOR / OWNER 只多 1 个 PR（88.9%）。外部作者中 99.3% 是 <code>CONTRIBUTOR</code>/<code>NONE</code>，1 个 MEMBER；17 个外部 PR 的 fork 已删除，按外部计。少量疑似 agent 账号（&lt;35 个 PR）可能仍有噪声。</p>
+      <p><b>限制：</b>GitHub 不向无 push 权限的 token 暴露 collaborator 列表，所以“有合入权限”是行为代理，不是权限 API 的精确值；同仓库分支说明 push，但分支保护下未必人人可 merge。一个只从 fork 提交、且窗口内没合过任何 PR 的写权限持有者，可能被误判为外部。</p>
+    </div>
+  </section>
+
+  <div class="foot">
+    <p class="src">数据：GitHub GraphQL Search · <code>repo:openclaw/openclaw is:pr merged:2026-09-13..2026-11-13</code>，逐日分片并分页；33,032 个已合并 PR，按编号去重。官方名单：<a href="https://openclaw.org/people">openclaw.org/people</a>（30 Core Maintainers + 13 Foundation，抓取于 2026-11-17）。</p>
+    <p class="src">本地文件：<code>research/pr/merged-prs-20260913-20261113.json</code> · <code>research/pr/analyze_merged_prs.py</code> · <code>research/pr/openclaw_people.html</code></p>
+  </div>
+
+</div>
+</body>
+</html>

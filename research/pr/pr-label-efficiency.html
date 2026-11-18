@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenClaw PR · 五个评分轴的合并率区间</title>
+<style>
+:root{--ink:#16191E;--mute:#6B7380;--faint:#9AA1AC;--rule:#E2E6EA;--teal:#0F766E;--tealb:#E5F2EF;--bg:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.65 "Microsoft YaHei",system-ui,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:40px 32px 72px}
+.eyebrow{font-size:11.5px;letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
+h1{font-size:30px;line-height:1.25;margin:10px 0 8px;letter-spacing:-.01em}
+.lede{color:var(--mute);font-size:15px;margin:0 0 6px}
+.meta{color:var(--faint);font-size:12px;margin-bottom:28px}
+.rule{height:1px;background:var(--rule);margin:26px 0}
+.card{border:1px solid var(--rule);border-radius:10px;padding:22px 22px 14px;margin:22px 0}
+h2{font-size:15px;margin:0 0 6px}
+.tag{font-size:11px;font-weight:400;color:var(--mute);background:var(--tealb);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:2px}
+.secdesc{color:var(--mute);font-size:12.5px;margin:0 0 14px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:600;color:var(--faint);font-size:11px;padding:0 8px 8px;border-bottom:1px solid var(--rule)}
+td{padding:8px;border-bottom:1px solid #F2F4F5;vertical-align:top}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.lab{font-weight:600}
+tr.dim td{color:var(--faint);font-weight:400}
+td.note{color:var(--faint);font-size:11px}
+.bar{display:block;height:4px;background:#EEF1F3;border-radius:2px;margin-top:5px}
+.bar i{display:block;height:4px;background:var(--teal);border-radius:2px}
+.key{display:flex;gap:28px;flex-wrap:wrap;margin:4px 0 0}
+.key div{flex:1 1 200px}
+.key b{display:block;font-size:26px;letter-spacing:-.02em}
+.key span{color:var(--mute);font-size:12px}
+.caveat{background:#FAFAF8;border:1px solid var(--rule);border-radius:10px;padding:18px 22px;font-size:12.5px;color:var(--mute)}
+.caveat b{color:var(--ink)}
+ul{margin:8px 0 0 18px;padding:0}
+li{margin:4px 0}
+code{background:#F4F5F5;border-radius:4px;padding:1px 5px;font-size:11.5px}
+</style></head><body><div class="wrap">
+
+<div class="eyebrow">OPENCLAW × CLAWSWEEPER · PULL REQUEST · LABEL EFFICIENCY</div>
+<h1>PR 的五个评分轴，谁真的决定「会不会被合并」</h1>
+<p class="lede">D 层（主评审）五个维度的逐标签合并率区间。同一分母：合并率 = 已合并 ÷ 当前带该标签的全部 PR。</p>
+<p class="meta">数据：GitHub Search API · repo openclaw/openclaw · is:pr · 拉取 2026-11-16 · 与 2026-11-12 报告口径一致（ready for maintainer look 85.5% vs 85.6%）</p>
+
+<div class="card">
+  <h2>区间总览 <span class="tag">n ≥ 250 的标签计入区间</span></h2>
+  <p class="secdesc">条越长，这个维度越能分开「会被合并」和「不会被合并」。排序即极差。</p>
+  <svg viewBox="0 0 980 264" width="100%" role="img" aria-label="五个评分轴的合并率区间">
+<line x1="210.0" y1="0" x2="210.0" y2="230" stroke="#E2E6EA" stroke-width="1"/>
+<text x="210.0" y="250" fill="#9AA1AC" font-size="11" text-anchor="middle">0</text>
+<line x1="378.5" y1="0" x2="378.5" y2="230" stroke="#E2E6EA" stroke-width="1"/>
+<text x="378.5" y="250" fill="#9AA1AC" font-size="11" text-anchor="middle">25</text>
+<line x1="547.0" y1="0" x2="547.0" y2="230" stroke="#E2E6EA" stroke-width="1"/>
+<text x="547.0" y="250" fill="#9AA1AC" font-size="11" text-anchor="middle">50</text>
+<line x1="715.5" y1="0" x2="715.5" y2="230" stroke="#E2E6EA" stroke-width="1"/>
+<text x="715.5" y="250" fill="#9AA1AC" font-size="11" text-anchor="middle">75</text>
+<line x1="884.0" y1="0" x2="884.0" y2="230" stroke="#E2E6EA" stroke-width="1"/>
+<text x="884.0" y="250" fill="#9AA1AC" font-size="11" text-anchor="middle">100</text>
+<text x="0" y="13.0" fill="#16191E" font-size="13" font-weight="600">评级</text>
+<text x="0" y="30.0" fill="#9AA1AC" font-size="10">7 档</text>
+<line x1="210.0" y1="17.0" x2="884.0" y2="17.0" stroke="#EEF1F3" stroke-width="6"/>
+<line x1="348.7" y1="17.0" x2="785.4" y2="17.0" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+<circle cx="348.7" cy="17.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<circle cx="785.4" cy="17.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<text x="338.7" y="6.0" fill="#6B7380" font-size="11" text-anchor="end">20.6</text>
+<text x="795.4" y="6.0" fill="#6B7380" font-size="11">85.4</text>
+<text x="934" y="21.0" fill="#16191E" font-size="14" font-weight="700" text-anchor="end">65 pt</text>
+<text x="0" y="59.0" fill="#16191E" font-size="13" font-weight="600">状态</text>
+<text x="0" y="76.0" fill="#9AA1AC" font-size="10">8 态</text>
+<line x1="210.0" y1="63.0" x2="884.0" y2="63.0" stroke="#EEF1F3" stroke-width="6"/>
+<line x1="377.7" y1="63.0" x2="786.5" y2="63.0" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+<circle cx="377.7" cy="63.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<circle cx="786.5" cy="63.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<text x="367.7" y="52.0" fill="#6B7380" font-size="11" text-anchor="end">24.9</text>
+<text x="796.5" y="52.0" fill="#6B7380" font-size="11">85.5</text>
+<text x="934" y="67.0" fill="#16191E" font-size="14" font-weight="700" text-anchor="end">61 pt</text>
+<text x="0" y="105.0" fill="#16191E" font-size="13" font-weight="600">证明</text>
+<text x="0" y="122.0" fill="#9AA1AC" font-size="10">6 标签</text>
+<line x1="210.0" y1="109.0" x2="884.0" y2="109.0" stroke="#EEF1F3" stroke-width="6"/>
+<line x1="434.4" y1="109.0" x2="836.7" y2="109.0" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+<circle cx="434.4" cy="109.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<circle cx="836.7" cy="109.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<text x="424.4" y="98.0" fill="#6B7380" font-size="11" text-anchor="end">33.3</text>
+<text x="846.7" y="98.0" fill="#6B7380" font-size="11">93.0</text>
+<text x="934" y="113.0" fill="#16191E" font-size="14" font-weight="700" text-anchor="end">60 pt</text>
+<text x="0" y="151.0" fill="#16191E" font-size="13" font-weight="600">合并风险</text>
+<text x="0" y="168.0" fill="#9AA1AC" font-size="10">8 类</text>
+<line x1="210.0" y1="155.0" x2="884.0" y2="155.0" stroke="#EEF1F3" stroke-width="6"/>
+<line x1="466.1" y1="155.0" x2="663.8" y2="155.0" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+<circle cx="466.1" cy="155.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<circle cx="663.8" cy="155.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<text x="456.1" y="144.0" fill="#6B7380" font-size="11" text-anchor="end">38.0</text>
+<text x="673.8" y="144.0" fill="#6B7380" font-size="11">67.3</text>
+<text x="934" y="159.0" fill="#16191E" font-size="14" font-weight="700" text-anchor="end">29 pt</text>
+<text x="0" y="197.0" fill="#16191E" font-size="13" font-weight="600">优先级</text>
+<text x="0" y="214.0" fill="#9AA1AC" font-size="10">4 档</text>
+<line x1="210.0" y1="201.0" x2="884.0" y2="201.0" stroke="#EEF1F3" stroke-width="6"/>
+<line x1="618.9" y1="201.0" x2="735.2" y2="201.0" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+<circle cx="618.9" cy="201.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<circle cx="735.2" cy="201.0" r="5.5" fill="#0F766E" stroke="#fff" stroke-width="2"/>
+<text x="608.9" y="190.0" fill="#6B7380" font-size="11" text-anchor="end">60.7</text>
+<text x="745.2" y="190.0" fill="#6B7380" font-size="11">77.9</text>
+<text x="934" y="205.0" fill="#16191E" font-size="14" font-weight="700" text-anchor="end">17 pt</text>
+</svg>
+</div>
+
+<div class="key">
+  <div><b>65 pt</b><span>评级：最强分水岭，unranked krab 20.6% vs platinum hermit 85.4%</span></div>
+  <div><b>17 pt</b><span>优先级：最扁平，P1 60.7% vs P3 77.9% —— P 不决定合并</span></div>
+  <div><b>29 pt</b><span>合并风险：只有 29 pt，风险类型不决定结局</span></div>
+</div>
+
+<div class="rule"></div>
+
+<section>
+  <h2>评级 <span class="tag">7 档</span></h2>
+  <p class="secdesc">PR readiness 6 档 + off-meta　合并率区间 <b>20.6% – 85.4%</b>（极差 65 pt）</p>
+  <table><thead><tr><th>标签</th><th class="num">总数</th><th class="num">已合并</th><th class="num">合并率</th><th>说明</th></tr></thead><tbody>
+<tr><td class="lab">platinum hermit</td><td class="num">33,284</td><td class="num">28,413</td><td class="num"><b>85.4%</b><br><span class="bar"><i style="width:85.4%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">diamond lobster</td><td class="num">6,550</td><td class="num">5,510</td><td class="num"><b>84.1%</b><br><span class="bar"><i style="width:84.1%"></i></span></td><td class="note"></td></tr>
+<tr class="dim"><td class="lab">challenger crab</td><td class="num">17</td><td class="num">13</td><td class="num"><b>76.5%</b><br><span class="bar"><i style="width:76.5%"></i></span></td><td class="note">样本 &lt; 250，不进区间</td></tr>
+<tr><td class="lab">gold shrimp</td><td class="num">15,466</td><td class="num">11,128</td><td class="num"><b>72.0%</b><br><span class="bar"><i style="width:72.0%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">silver shellfish</td><td class="num">8,062</td><td class="num">3,551</td><td class="num"><b>44.0%</b><br><span class="bar"><i style="width:44.0%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">off-meta tidepool</td><td class="num">288</td><td class="num">64</td><td class="num"><b>22.2%</b><br><span class="bar"><i style="width:22.2%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">unranked krab</td><td class="num">11,375</td><td class="num">2,341</td><td class="num"><b>20.6%</b><br><span class="bar"><i style="width:20.6%"></i></span></td><td class="note"></td></tr>
+</tbody></table>
+</section>
+<section>
+  <h2>状态 <span class="tag">8 态</span></h2>
+  <p class="secdesc">由 Before merge 派生　合并率区间 <b>24.9% – 85.5%</b>（极差 61 pt）</p>
+  <table><thead><tr><th>标签</th><th class="num">总数</th><th class="num">已合并</th><th class="num">合并率</th><th>说明</th></tr></thead><tbody>
+<tr><td class="lab">ready for maintainer look</td><td class="num">47,539</td><td class="num">40,661</td><td class="num"><b>85.5%</b><br><span class="bar"><i style="width:85.5%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">automerge armed</td><td class="num">479</td><td class="num">380</td><td class="num"><b>79.3%</b><br><span class="bar"><i style="width:79.3%"></i></span></td><td class="note"></td></tr>
+<tr class="dim"><td class="lab">needs maintainer proof decision</td><td class="num">66</td><td class="num">47</td><td class="num"><b>71.2%</b><br><span class="bar"><i style="width:71.2%"></i></span></td><td class="note">样本 &lt; 250，不进区间</td></tr>
+<tr><td class="lab">⏳ waiting on author</td><td class="num">8,581</td><td class="num">5,111</td><td class="num"><b>59.6%</b><br><span class="bar"><i style="width:59.6%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">needs proof</td><td class="num">16,343</td><td class="num">4,125</td><td class="num"><b>25.2%</b><br><span class="bar"><i style="width:25.2%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">⏳ waiting on maintainer</td><td class="num">655</td><td class="num">163</td><td class="num"><b>24.9%</b><br><span class="bar"><i style="width:24.9%"></i></span></td><td class="note"></td></tr>
+<tr class="dim"><td class="lab">re-review loop</td><td class="num">34</td><td class="num">7</td><td class="num"><b>20.6%</b><br><span class="bar"><i style="width:20.6%"></i></span></td><td class="note">样本 &lt; 250，不进区间</td></tr>
+<tr class="dim"><td class="lab">actively grinding</td><td class="num">83</td><td class="num">17</td><td class="num"><b>20.5%</b><br><span class="bar"><i style="width:20.5%"></i></span></td><td class="note">样本 &lt; 250，不进区间</td></tr>
+</tbody></table>
+</section>
+<section>
+  <h2>证明 <span class="tag">6 标签</span></h2>
+  <p class="secdesc">sufficient / override / 媒体子标签（可并存）　合并率区间 <b>33.3% – 93.0%</b>（极差 60 pt）</p>
+  <table><thead><tr><th>标签</th><th class="num">总数</th><th class="num">已合并</th><th class="num">合并率</th><th>说明</th></tr></thead><tbody>
+<tr><td class="lab">override</td><td class="num">299</td><td class="num">278</td><td class="num"><b>93.0%</b><br><span class="bar"><i style="width:93.0%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">screenshot</td><td class="num">5,516</td><td class="num">4,427</td><td class="num"><b>80.3%</b><br><span class="bar"><i style="width:80.3%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">video</td><td class="num">383</td><td class="num">292</td><td class="num"><b>76.2%</b><br><span class="bar"><i style="width:76.2%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">sufficient</td><td class="num">25,838</td><td class="num">18,710</td><td class="num"><b>72.4%</b><br><span class="bar"><i style="width:72.4%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">telegram-e2e</td><td class="num">955</td><td class="num">581</td><td class="num"><b>60.8%</b><br><span class="bar"><i style="width:60.8%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">supplied</td><td class="num">5,662</td><td class="num">1,885</td><td class="num"><b>33.3%</b><br><span class="bar"><i style="width:33.3%"></i></span></td><td class="note"></td></tr>
+</tbody></table>
+</section>
+<section>
+  <h2>合并风险 <span class="tag">8 类</span></h2>
+  <p class="secdesc">退化风险类型　合并率区间 <b>38.0% – 67.3%</b>（极差 29 pt）</p>
+  <table><thead><tr><th>标签</th><th class="num">总数</th><th class="num">已合并</th><th class="num">合并率</th><th>说明</th></tr></thead><tbody>
+<tr><td class="lab">automation</td><td class="num">2,452</td><td class="num">1,651</td><td class="num"><b>67.3%</b><br><span class="bar"><i style="width:67.3%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">compatibility</td><td class="num">15,619</td><td class="num">7,673</td><td class="num"><b>49.1%</b><br><span class="bar"><i style="width:49.1%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">availability</td><td class="num">3,610</td><td class="num">1,721</td><td class="num"><b>47.7%</b><br><span class="bar"><i style="width:47.7%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">other</td><td class="num">1,136</td><td class="num">515</td><td class="num"><b>45.3%</b><br><span class="bar"><i style="width:45.3%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">session-state</td><td class="num">4,671</td><td class="num">2,046</td><td class="num"><b>43.8%</b><br><span class="bar"><i style="width:43.8%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">security-boundary</td><td class="num">6,234</td><td class="num">2,533</td><td class="num"><b>40.6%</b><br><span class="bar"><i style="width:40.6%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">auth-provider</td><td class="num">2,359</td><td class="num">900</td><td class="num"><b>38.2%</b><br><span class="bar"><i style="width:38.2%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">message-delivery</td><td class="num">4,079</td><td class="num">1,550</td><td class="num"><b>38.0%</b><br><span class="bar"><i style="width:38.0%"></i></span></td><td class="note"></td></tr>
+</tbody></table>
+</section>
+<section>
+  <h2>优先级 <span class="tag">4 档</span></h2>
+  <p class="secdesc">impact，不是处理顺序　合并率区间 <b>60.7% – 77.9%</b>（极差 17 pt）</p>
+  <table><thead><tr><th>标签</th><th class="num">总数</th><th class="num">已合并</th><th class="num">合并率</th><th>说明</th></tr></thead><tbody>
+<tr><td class="lab">P3</td><td class="num">19,819</td><td class="num">15,444</td><td class="num"><b>77.9%</b><br><span class="bar"><i style="width:77.9%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">P0</td><td class="num">671</td><td class="num">494</td><td class="num"><b>73.6%</b><br><span class="bar"><i style="width:73.6%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">P2</td><td class="num">43,800</td><td class="num">28,480</td><td class="num"><b>65.0%</b><br><span class="bar"><i style="width:65.0%"></i></span></td><td class="note"></td></tr>
+<tr><td class="lab">P1</td><td class="num">11,650</td><td class="num">7,068</td><td class="num"><b>60.7%</b><br><span class="bar"><i style="width:60.7%"></i></span></td><td class="note"></td></tr>
+</tbody></table>
+</section>
+
+<div class="rule"></div>
+<div class="caveat">
+  <b>口径与局限</b>
+  <ul>
+    <li><b>合并率</b> = <code>merged ÷ 带该标签的 PR 总数</code>。样本含仍 open 的 PR，所以数值略低于「已关闭中合并的比例」。</li>
+    <li><b>标签是当前快照</b>，不是事件流。合并后标签可能被清理，会低估合并率；这与既有报告里 23.9% 的 PR 无 status 标签是同一现象。</li>
+    <li><b>区间只取 n ≥ 250 的标签</b>。被排除的小样本：challenger crab(17)、actively grinding(83)、re-review loop(34)、needs maintainer proof decision(66)；off-meta tidepool(288)、proof: override(299) 刚好入选。</li>
+    <li><b>proof 不是单选轴</b>：<code>📸 screenshot</code> / <code>🎥 video</code> 等媒体子标签可与 <code>sufficient</code> 并存，所以区间是「不同证明形态之间」的差，不是互斥状态。</li>
+    <li><b>相关性不是因果</b>：标签由同一个模型写入，模型判断与最终结果高度一致本身就可能来自共同原因（改动质量）。</li>
+  </ul>
+</div>
+
+</div></body></html>

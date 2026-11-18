@@ -1,0 +1,144 @@
+{
+  "P": {
+    "P0": {
+      "total": 671,
+      "merged": 494
+    },
+    "P1": {
+      "total": 11650,
+      "merged": 7068
+    },
+    "P2": {
+      "total": 43800,
+      "merged": 28480
+    },
+    "P3": {
+      "total": 19819,
+      "merged": 15444
+    }
+  },
+  "rating": {
+    "rating: 🦀 challenger crab": {
+      "total": 17,
+      "merged": 13
+    },
+    "rating: 🦞 diamond lobster": {
+      "total": 6550,
+      "merged": 5510
+    },
+    "rating: 🐚 platinum hermit": {
+      "total": 33284,
+      "merged": 28413
+    },
+    "rating: 🦐 gold shrimp": {
+      "total": 15466,
+      "merged": 11128
+    },
+    "rating: 🦪 silver shellfish": {
+      "total": 8062,
+      "merged": 3551
+    },
+    "rating: 🧂 unranked krab": {
+      "total": 11375,
+      "merged": 2341
+    },
+    "rating: 🌊 off-meta tidepool": {
+      "total": 288,
+      "merged": 64
+    }
+  },
+  "proof": {
+    "proof: sufficient": {
+      "total": 25838,
+      "merged": 18710
+    },
+    "proof: override": {
+      "total": 299,
+      "merged": 278
+    },
+    "proof: supplied": {
+      "total": 5662,
+      "merged": 1885
+    },
+    "proof: 📸 screenshot": {
+      "total": 5516,
+      "merged": 4427
+    },
+    "proof: 🎥 video": {
+      "total": 383,
+      "merged": 292
+    },
+    "proof: telegram-e2e": {
+      "total": 955,
+      "merged": 581
+    }
+  },
+  "merge-risk": {
+    "merge-risk: 🚨 compatibility": {
+      "total": 15619,
+      "merged": 7673
+    },
+    "merge-risk: 🚨 message-delivery": {
+      "total": 4079,
+      "merged": 1550
+    },
+    "merge-risk: 🚨 session-state": {
+      "total": 4671,
+      "merged": 2046
+    },
+    "merge-risk: 🚨 auth-provider": {
+      "total": 2359,
+      "merged": 900
+    },
+    "merge-risk: 🚨 security-boundary": {
+      "total": 6234,
+      "merged": 2533
+    },
+    "merge-risk: 🚨 availability": {
+      "total": 3610,
+      "merged": 1721
+    },
+    "merge-risk: 🚨 automation": {
+      "total": 2452,
+      "merged": 1651
+    },
+    "merge-risk: 🚨 other": {
+      "total": 1136,
+      "merged": 515
+    }
+  },
+  "status": {
+    "status: 👀 ready for maintainer look": {
+      "total": 47539,
+      "merged": 40661
+    },
+    "status: ⏳ waiting on author": {
+      "total": 8581,
+      "merged": 5111
+    },
+    "status: ⏳ waiting on maintainer": {
+      "total": 655,
+      "merged": 163
+    },
+    "status: 📣 needs proof": {
+      "total": 16343,
+      "merged": 4125
+    },
+    "status: 🛠️ actively grinding": {
+      "total": 83,
+      "merged": 17
+    },
+    "status: 🔁 re-review loop": {
+      "total": 34,
+      "merged": 7
+    },
+    "status: 🚀 automerge armed": {
+      "total": 479,
+      "merged": 380
+    },
+    "status: needs maintainer proof decision": {
+      "total": 66,
+      "merged": 47
+    }
+  }
+}

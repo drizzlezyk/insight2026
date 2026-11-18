@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawSweeper Decision Schema 解剖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F7F8; --card: #FFFFFF; --ink: #16191E; --ink-2: #3A4149;
+    --muted: #6B7380; --line: #E2E6EA;
+    --accent: #0F766E; --accent-ink: #0B5D56; --accent-soft: #E5F2EF;
+    --signal: #B45309; --signal-soft: #FBF0E1;
+    --good: #157F3D; --good-soft: #E7F5EC;
+    --shadow: 0 1px 2px rgba(22,25,30,.05), 0 8px 24px rgba(22,25,30,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --paper: #121417; --card: #191C20; --ink: #E7EAEE; --ink-2: #B8BFC8;
+    --muted: #8A93A0; --line: #2A2F36; --accent: #2DD4BF; --accent-ink: #7FEDE0;
+    --accent-soft: #11312C; --signal: #F59E0B; --signal-soft: #2A2110;
+    --good: #4ADE80; --good-soft: #12291B;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4);
+    color-scheme: dark;
+  } }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px; line-height: 1.65; padding-bottom: 56px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  header { padding: 44px 0 10px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif; font-weight: 700; font-size: clamp(28px, 4.8vw, 42px); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 16px; text-wrap: balance; }
+  .lede { font-size: 17px; line-height: 1.65; color: var(--ink-2); max-width: 880px; margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+  .meta li { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 4px 10px; }
+  .meta li b { color: var(--accent-ink); font-weight: 600; }
+
+  section { padding: 36px 0 4px; }
+  .kicker { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 6px; }
+  h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: clamp(21px, 3.1vw, 28px); letter-spacing: -.015em; margin: 0 0 12px; text-wrap: balance; }
+  h3 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 600; font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; color: var(--ink-2); }
+  p strong, li strong { color: var(--ink); font-weight: 600; }
+  ul, ol { margin: 0 0 14px; padding-left: 1.35em; color: var(--ink-2); }
+  li { margin: 5px 0; }
+  code { font-family: "IBM Plex Mono", monospace; font-size: 12.6px; background: var(--accent-soft); color: var(--accent-ink); padding: 1px 5px; border-radius: 5px; word-break: break-word; }
+  a { color: var(--accent-ink); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0 2px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .kpi .n { font-family: "Bricolage Grotesque", sans-serif; font-size: 27px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+  .kpi .n small { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+  .kpi .l { font-size: 12.5px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+
+  .grid2 { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; align-items: start; margin-top: 10px; }
+  .grid2even { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 10px; }
+  .grid2 > *, .grid2even > *, .grid3 > * { min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 8px; }
+  .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
+  .card .num { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--accent-ink); letter-spacing: .1em; margin-bottom: 4px; }
+  .card .ref { display: block; margin-top: 10px; }
+
+  .callout { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--card); border-radius: 10px; padding: 13px 16px; margin: 16px 0; font-size: 14px; color: var(--ink-2); }
+  .callout strong { color: var(--ink); }
+  .callout.warn { border-left-color: var(--signal); background: var(--signal-soft); }
+  .callout.good { border-left-color: var(--good); background: var(--good-soft); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .tablewrap { overflow-x: auto; margin: 12px 0 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 680px; }
+  .tbl th { text-align: left; font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--paper); padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .tbl td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl td:first-child { color: var(--ink); font-weight: 600; }
+  .tbl code { font-size: 11.5px; }
+  .tbl .size { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent-ink); white-space: nowrap; }
+
+  .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items: stretch; margin: 18px 0 8px; }
+  .flow-step { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .flow-step .n { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--accent-ink); letter-spacing: .1em; }
+  .flow-step .t { font-weight: 600; color: var(--ink); font-size: 14px; margin-top: 3px; line-height: 1.4; }
+  .flow-step .d { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+  .flow-step.out { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+  .flow-arrow { display: flex; align-items: center; justify-content: center; padding: 0 7px; color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 15px; }
+
+  .ladder { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items: stretch; gap: 0; margin: 16px 0 6px; }
+  .ld-step { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .ld-step .n { font-family: "Bricolage Grotesque", sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .ld-step .t { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .ld-step.top { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); background: var(--good-soft); }
+  .ld-step.top .n { color: var(--good); }
+  .ld-step.zero { border-color: color-mix(in srgb, var(--signal) 45%, var(--line)); background: var(--signal-soft); }
+  .ld-step.zero .n { color: var(--signal); }
+  .ld-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 15px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; padding: 0; list-style: none; }
+  .chips li { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-2); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+  .chips li.hot { background: var(--signal-soft); border-color: color-mix(in srgb, var(--signal) 40%, var(--line)); color: var(--signal); }
+  .chips li.good { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 40%, var(--line)); color: var(--good); }
+
+  .codeblock { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0 6px; overflow-x: auto; font-family: "IBM Plex Mono", monospace; font-size: 12.4px; line-height: 1.65; color: var(--ink-2); box-shadow: var(--shadow); }
+  .codeblock .k { color: var(--accent-ink); }
+  .codeblock .s { color: var(--good); }
+  .codeblock .n { color: var(--signal); }
+  .codeblock .c { color: var(--muted); }
+
+  .ref { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--muted); }
+  p.ref, p .ref, .callout .ref, .card .ref { white-space: normal; overflow-wrap: anywhere; }
+  .ref a { color: var(--muted); }
+  footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .grid2, .grid2even, .grid3 { grid-template-columns: 1fr; }
+    .flow, .ladder { grid-template-columns: 1fr; gap: 8px; }
+    .flow-arrow, .ld-arrow { padding: 2px 0; }
+  }
+  @media (max-width: 480px) {
+    .kpis { grid-template-columns: 1fr; }
+    body { font-size: 15.5px; }
+  }
+  @media print {
+    body { background: #fff; }
+    .card, .kpi, .tablewrap, .flow-step, .ld-step, .codeblock { box-shadow: none; }
+    section { break-inside: avoid-page; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">CLAWSWEEPER · DECISION SCHEMA · ANATOMY · 2026-11-16</p>
+    <h1>57 个字段的决策合同：<br>ClawSweeper 如何把一次评审变成可执行的动作</h1>
+    <p class="lede">这份 schema 不是给人看的“报告模板”，而是<strong>模型输出与确定性代码之间的接口</strong>：裁决、解释、证据、标签、PR findings、关闭证明、工作路由必须一次写全。它用<strong>全量必填 + 封闭对象 + 枚举约束</strong>，把“模型觉得可以关”翻译成可校验、可审计、可拒绝执行的结构化记录。</p>
+    <ul class="meta">
+      <li>规范 <b>JSON Schema 2020-12</b></li>
+      <li>顶层字段 <b>57 required / 57 properties</b></li>
+      <li>额外字段 <b>0 allowed</b></li>
+      <li>枚举约束 <b>51 处 / 237 个允许值</b></li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="n">57 <small>/ 57</small></div>
+      <div class="l">顶层字段全部必填。没有 optional，也没有“缺省即省略”。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">31 <small>个</small></div>
+      <div class="l">含根对象在内，所有对象层级全部 <code>additionalProperties:false</code>，是封闭世界。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">51 <small>处</small></div>
+      <div class="l">枚举约束，共 237 个允许值（含空值哨兵）。自由文本只负责解释。</div>
+    </div>
+    <div class="kpi">
+      <div class="n">0 <small>条</small></div>
+      <div class="l">条件规则：没有 <code>if/then</code>，跨字段一致性交给下游闸门。</div>
+    </div>
+  </div>
+
+  <section>
+    <p class="kicker">01 · 全局形状</p>
+    <h2>先规定“必须说什么”，再规定“可以怎么说”</h2>
+    <p>schema 的顶层只有五个关键字：<code>$schema</code>、<code>type</code>、<code>additionalProperties</code>、<code>required</code>、<code>properties</code>。没有 <code>$id</code>、没有版本号、没有顶层 description——所有语义都藏在 71 条字段级 description 里。它要解决的不是“怎样写得更漂亮”，而是<strong>下游怎样确定自己没有漏读</strong>。</p>
+
+    <div class="flow" role="img" aria-label="从输入到动作的四段流程：issue/PR 与 checkout 进入 57 字段决策 JSON，再经过 schema 校验与确定性安全闸门，最后产生评论、标签、关闭或工作队列动作">
+      <div class="flow-step">
+        <div class="n">INPUT</div>
+        <div class="t">issue / PR + checkout</div>
+        <div class="d">当前 main、评论、关联项、作者与标签快照</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">DECISION JSON</div>
+        <div class="t">57 个字段一次写全</div>
+        <div class="d">裁决 + 证据 + 标签 + findings + 路由</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="n">GATES</div>
+        <div class="t">schema 校验 + 安全闸门</div>
+        <div class="d">实时重取 GitHub 状态、检查标签/作者/快照漂移</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step out">
+        <div class="n">ACTION</div>
+        <div class="t">评论 / 标签 / 关闭 / 入队</div>
+        <div class="d">只执行被允许且未被拒绝的那一部分</div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>“空”不是“没写”。</strong>schema 为每种空状态规定了固定形状：字符串用 <code>""</code>，数组用 <code>[]</code>，未知对象用 <code>null</code>，无需人工裁决时用 <code>{required:false, kind:"none", question:"", rationale:"", options:[], likelyOwner:{person:""}}</code>。这样记录可以逐字段 diff，也能区分“没有风险”和“模型忘了填风险”。<span class="ref">schema:235-361, 554-624</span></p>
+    </div>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>功能簇</th><th class="size">字段数</th><th>包含字段</th></tr></thead>
+        <tbody>
+          <tr><td>裁决核心</td><td class="size">4</td><td><code>decision</code> <code>closeReason</code> <code>confidence</code> <code>summary</code></td></tr>
+          <tr><td>新人解释</td><td class="size">5</td><td><code>changeSummary</code> <code>changeExample</code> <code>systemContext</code> <code>architectureDiagram</code> <code>bestSolution</code></td></tr>
+          <tr><td>证据与归属</td><td class="size">3</td><td><code>evidence</code> <code>likelyOwners</code> <code>risks</code></td></tr>
+          <tr><td>人工选择与标签</td><td class="size">8</td><td><code>maintainerDecision</code> <code>triagePriority</code> <code>impactLabels</code> <code>mergeRiskLabels</code> <code>maturityLabels</code> <code>mergeRiskOptions</code> <code>reviewMetrics</code> <code>labelJustifications</code></td></tr>
+          <tr><td>Issue 诊断</td><td class="size">10</td><td><code>itemCategory</code> <code>reproductionStatus</code> <code>reproductionConfidence</code> 三个 <code>requires*</code> 布尔、两份 assessment、<code>implementationComplexity</code> <code>autoImplementationCandidate</code></td></tr>
+          <tr><td>根因与策略</td><td class="size">2</td><td><code>rootCauseCluster</code> <code>agentsPolicyStatus</code></td></tr>
+          <tr><td>PR 评审</td><td class="size">10</td><td><code>productReview</code> <code>provenance</code> <code>testingReview</code> <code>reviewFindings</code> <code>securityReview</code> <code>realBehaviorProof</code> <code>prRating</code> <code>featureShowcase</code> <code>overallCorrectness</code> <code>overallConfidenceScore</code></td></tr>
+          <tr><td>关闭与回归</td><td class="size">6</td><td><code>fixedRelease</code> <code>fixedSha</code> <code>fixedAt</code> <code>regressionAssessment</code> <code>regressionProvenance</code> <code>closeComment</code></td></tr>
+          <tr><td>工作路由</td><td class="size">9</td><td><code>workCandidate</code> <code>workConfidence</code> <code>workPriority</code> <code>workReason</code> <code>nextStep</code> <code>workPrompt</code> <code>workClusterRefs</code> <code>workValidation</code> <code>workLikelyFiles</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">02 · 裁决核心</p>
+    <h2>先给结论，再给 17 种可解释的关闭理由</h2>
+    <p>四个字段构成最小裁决：<code>decision</code> 只有 <code>close</code> / <code>keep_open</code>；<code>confidence</code> 只有 <code>high</code> / <code>medium</code> / <code>low</code>；<code>summary</code> 承担面向人的一句话结论。<code>closeReason</code> 则把“为什么关”拆成 17 个枚举值，其中 16 个是真实理由，最后一个是显式的 <code>none</code>。</p>
+
+    <div class="codeblock" role="img" aria-label="裁决核心 JSON 示例">
+<span class="c">// 最小裁决形状（字段均为必填）</span>
+{
+  <span class="k">"decision"</span>: <span class="s">"close"</span>,
+  <span class="k">"closeReason"</span>: <span class="s">"implemented_on_main"</span>,
+  <span class="k">"confidence"</span>: <span class="s">"high"</span>,
+  <span class="k">"summary"</span>: <span class="s">"The requested behavior already ships on main; closing as implemented."</span>
+}
+    </div>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>理由族</th><th class="size">数量</th><th>枚举值</th></tr></thead>
+        <tbody>
+          <tr><td>已在 main 实现</td><td class="size">2</td><td><code>implemented_on_main</code> <code>mostly_implemented_on_main</code></td></tr>
+          <tr><td>无法复现</td><td class="size">1</td><td><code>cannot_reproduce</code></td></tr>
+          <tr><td>重复 / 被替代</td><td class="size">1</td><td><code>duplicate_or_superseded</code></td></tr>
+          <tr><td>PR 质量 / 停滞</td><td class="size">4</td><td><code>low_signal_unmergeable_pr</code> <code>stalled_unproven_pr</code> <code>abandoned_pr</code> <code>obsolete_fix_pr</code></td></tr>
+          <tr><td>产品 / 范围</td><td class="size">4</td><td><code>unconfirmed_product_direction</code> <code>unsponsored_feature_request</code> <code>clawhub</code> <code>not_actionable_in_repo</code></td></tr>
+          <tr><td>版本 / 环境过期</td><td class="size">1</td><td><code>stale_version_bug</code></td></tr>
+          <tr><td>信息 / 连贯性</td><td class="size">2</td><td><code>incoherent</code> <code>stale_insufficient_info</code></td></tr>
+          <tr><td>作者预算</td><td class="size">1</td><td><code>author_pr_budget_exceeded</code></td></tr>
+          <tr><td>不关闭</td><td class="size">1</td><td><code>none</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p><strong>枚举的意义是“把拒绝理由也标准化”。</strong><code>none</code> 不是漏填，而是一个合法状态；它通常与 <code>keep_open</code> 配对。但注意：schema 本身<strong>没有</strong> <code>if decision=keep_open then closeReason=none</code> 这样的条件约束——配对关系由下游确定性代码保证。这是整份 schema 的典型分工：<strong>这里管形状，代码管一致性</strong>。<span class="ref">schema:69-89</span></p>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>产品 / 范围类理由还多一道人工闸门。</strong>按 <code>prompts/review-close-reasons.md</code>，<code>unconfirmed_product_direction</code>、<code>unsponsored_feature_request</code>、<code>clawhub</code>、<code>not_actionable_in_repo</code> 只是建议：评审必须同时设置 <code>maintainerDecision.required=true</code> 与 <code>kind=product_direction</code>，而且 <code>apply</code> 从不执行这些产品拒绝，仍要维护者走普通手动关闭流程。schema 给出理由枚举，prose 与代码决定它能不能落地。<span class="ref">prompts/review-close-reasons.md</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">03 · 唯一显式交还决定权的字段</p>
+    <h2><code>maintainerDecision</code>：要么明确“无需裁决”，要么给出 2–3 个可选项</h2>
+    <p>这是整份 schema 里最像“产品设计”的部分。它用一个两分支的 <code>anyOf</code> 强制模型区分两件事：<strong>没有未决问题</strong>，和<strong>有未决问题但证据无法替人做决定</strong>。不允许用一段模糊的 prose 蒙混过去。</p>
+
+    <div class="grid2even">
+      <div class="card">
+        <div class="num">BRANCH A · 无需裁决</div>
+        <h3>空决策也是完整对象</h3>
+        <ul>
+          <li><code>required: false</code>（唯一允许的布尔值）</li>
+          <li><code>kind: "none"</code></li>
+          <li><code>question: ""</code>、<code>rationale: ""</code></li>
+          <li><code>options: []</code>（上限 0）</li>
+          <li><code>likelyOwner.person: ""</code></li>
+        </ul>
+        <p class="ref">schema:235-291</p>
+      </div>
+      <div class="card">
+        <div class="num">BRANCH B · 需要维护者拍板</div>
+        <h3>问题、理由、选项、推荐、负责人</h3>
+        <ul>
+          <li><code>required: true</code></li>
+          <li><code>kind</code> ∈ <code>product_direction</code> / <code>security_boundary</code> / <code>proof_sufficiency</code> / <code>release_inclusion</code> / <code>merge_risk</code> / <code>manual_review</code></li>
+          <li><code>question</code> 与 <code>rationale</code> 必须非空</li>
+          <li><code>options</code> 2–3 个，每项含 <code>title</code>、<code>body</code>、<code>recommended</code></li>
+          <li><code>likelyOwner.person</code> 必须来自 <code>likelyOwners</code></li>
+        </ul>
+        <p class="ref">schema:292-361</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>“恰好一个推荐项”写在 description 里，不写在 schema 里。</strong>选项的 <code>recommended</code> 只是布尔值，schema 没有 <code>minContains/maxContains</code> 去强制“有且仅有一个 true”。同样，<code>likelyOwner</code> 是否真的出现在 <code>likelyOwners</code> 里，也要靠代码交叉检查。读这份 schema 时要始终区分：<strong>哪些是机器强制的，哪些是写给模型和 reviewer 的规范</strong>。<span class="ref">schema:319-360</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">04 · 解释层与证据链</p>
+    <h2>让新人看懂，同时让 reviewer 能逐行复核</h2>
+    <p>解释层不是“补充说明”，而是决策的一部分。<code>changeSummary</code> 要求用一句中性的话说明 PR 改了什么或 issue 要什么；<code>changeExample</code> 要求给出带真实值的 <code>scenario</code> / <code>before</code> / <code>after</code>；<code>systemContext</code> 说明子系统在系统中的位置与输入输出；<code>architectureDiagram</code> 则限定为 4–8 个节点的纯 Mermaid flowchart，禁止 fences、click、URL、HTML 与 init/style 指令。</p>
+
+    <div class="grid2">
+      <div>
+        <h3><code>evidence</code>：一条证据 = 一个可复核定位符</h3>
+        <ul>
+          <li><code>repo</code>：核验过的 <code>owner/repo</code>，未知时为 <code>null</code></li>
+          <li><code>label</code> / <code>detail</code>：证据类别与具体结论</li>
+          <li><code>file</code> / <code>line</code>：精确到行；不适用时为 <code>null</code></li>
+          <li><code>command</code>：单行、只读命令；多行时为 <code>null</code></li>
+          <li><code>sha</code>：完整 commit SHA，禁止用目标项依赖上的 SHA 冒充</li>
+        </ul>
+        <p class="ref">schema:127-162</p>
+      </div>
+      <div>
+        <h3><code>likelyOwners</code>：1–5 人，角色中性</h3>
+        <ul>
+          <li><code>person</code>：GitHub handle 或姓名，禁止邮箱</li>
+          <li><code>role</code>：feature owner、area contributor、reviewer、merger；只有有证据时才能写 maintainer</li>
+          <li><code>commits</code> / <code>files</code>：相关提交与文件</li>
+          <li><code>confidence</code>：high / medium / low</li>
+          <li><code>history</code>：指向此人在 review checkout 上写过/提交过的一行；无则 <code>null</code></li>
+        </ul>
+        <p class="ref">schema:163-223</p>
+      </div>
+    </div>
+
+    <div class="callout good">
+      <p><strong>这套证据结构的核心是“可证伪”。</strong>不是“我看了代码”，而是“在哪个 repo、哪个文件、哪一行、哪个 SHA、用什么只读命令看到的”。<code>history</code> 还把“谁熟悉这块”从模糊印象变成 <code>commitSha + sourcePath + sourceLine + actor</code> 的锚点。<span class="ref">schema:203-222</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">05 · 标签系统</p>
+    <h2>标签不是装饰：每个标签都要有理由，而且数量有上限</h2>
+    <p>ClawSweeper 把“分诊”拆成四个正交维度：优先级、影响面、合并风险、成熟度。它们分别有独立的枚举与上限，最后再由 <code>labelJustifications</code> 逐项解释。这个设计把 GitHub 标签从“维护者手工贴的便利贴”变成了<strong>可被 schema 约束的决策输出</strong>。</p>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>字段</th><th>适用范围</th><th class="size">上限</th><th>允许值 / 语义</th></tr></thead>
+        <tbody>
+          <tr><td><code>triagePriority</code></td><td>issue / PR</td><td class="size">1</td><td><code>P0</code> 紧急（数据丢失、安全绕过、崩溃循环、核心不可用）；<code>P1</code> 紧急回归；<code>P2</code> 普通；<code>P3</code> 低风险清理/文档/打磨；<code>none</code> 不打标</td></tr>
+          <tr><td><code>impactLabels</code></td><td>仅 issue</td><td class="size">≤ 3</td><td>9 值：data-loss、security、crash-loop、message-loss、session-state、auth-provider、ux-release-blocker、ux-friction、other</td></tr>
+          <tr><td><code>mergeRiskLabels</code></td><td>仅 PR</td><td class="size">≤ 3</td><td>8 值（字符串内含 🚨）：compatibility、message-delivery、session-state、auth-provider、security-boundary、availability、automation、other</td></tr>
+          <tr><td><code>maturityLabels</code></td><td>仅 issue</td><td class="size">≤ 1</td><td>仅 <code>maturity:stable</code>：M4/M5 主 owner 面上的契约行为损坏</td></tr>
+          <tr><td><code>mergeRiskOptions</code></td><td>有未决风险时</td><td class="size">≤ 3</td><td>每项含 <code>title</code> / <code>body</code> / <code>category</code>（fix_before_merge、accept_risk、pause_or_close）/ <code>recommended</code></td></tr>
+          <tr><td><code>reviewMetrics</code></td><td>PR 事实</td><td class="size">—</td><td><code>label</code> / <code>value</code> / <code>reason</code>，例如 production vs test LOC 及增长是否合理</td></tr>
+          <tr><td><code>labelJustifications</code></td><td>每个已选标签</td><td class="size">—</td><td>22 个标签值；<code>reason</code> 必填；选 <code>other</code> 时必须点名真实影响/风险</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p><strong>上限是治理手段。</strong>影响面最多 3 个、合并风险最多 3 个、成熟度最多 1 个，避免“把所有标签都贴上”这种无效分诊。<code>labelJustifications</code> 的 22 个枚举值正好覆盖 P0–P3 + 9 个 impact + 1 个 maturity + 8 个 merge-risk；但它<strong>没有</strong>在 schema 层强制“每个已选标签恰好一条 justification”，这仍是下游的一致性检查。</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">06 · Issue 诊断</p>
+    <h2>把“能不能复现、该不该做、能不能自动修”拆成独立问题</h2>
+    <p>Issue 分支的字段不是一串同质标签，而是一条诊断流水线：先分类，再判断复现，再判断是否引入新能力/新配置/产品决策，最后给出可实施性与根因聚类。这样下游才能分别回答：<strong>这是不是 bug？我们能不能看到？值不值得做？能不能交给自动修复？</strong></p>
+
+    <div class="grid3">
+      <div class="card">
+        <div class="num">STEP 1 · 分类</div>
+        <h3><code>itemCategory</code></h3>
+        <ul class="chips">
+          <li>bug</li><li>regression</li><li>feature</li><li>skill</li><li>docs</li><li>cleanup</li><li>support</li><li>admin</li><li>security</li><li>unclear</li>
+        </ul>
+        <p class="ref">schema:502-517</p>
+      </div>
+      <div class="card">
+        <div class="num">STEP 2 · 复现</div>
+        <h3><code>reproductionStatus</code></h3>
+        <ul class="chips">
+          <li class="good">reproduced</li><li>source_reproducible</li><li>not_reproduced</li><li>unclear</li><li>not_applicable</li>
+        </ul>
+        <p><code>reproduced</code> 指当前 main 上的高置信复现；<code>source_reproducible</code> 指源码路径成立但没有失败运行。另有 <code>reproductionConfidence</code> 与公开的 <code>reproductionAssessment</code>。</p>
+        <p class="ref">schema:518-544</p>
+      </div>
+      <div class="card">
+        <div class="num">STEP 3 · 变更性质</div>
+        <h3>三个显式布尔</h3>
+        <ul>
+          <li><code>requiresNewFeature</code></li>
+          <li><code>requiresNewConfigOption</code>：新增配置项、flag、setting、env var 或 knob</li>
+          <li><code>requiresProductDecision</code></li>
+        </ul>
+        <p>再加 <code>solutionAssessment</code> 回答“这是不是最佳解法”，以及 <code>implementationComplexity</code>（small / medium / large / unclear / not_applicable）。</p>
+        <p class="ref">schema:527-549</p>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="num">STEP 4 · 可自动化</div>
+        <h3><code>autoImplementationCandidate</code></h3>
+        <ul>
+          <li><code>none</code>：不适合自动实现</li>
+          <li><code>strict_bug</code>：仅在严格意义上的 bug 场景进入自动修复候选</li>
+        </ul>
+        <p class="ref">schema:550-553</p>
+      </div>
+      <div class="card">
+        <div class="num">STEP 5 · 根因聚类</div>
+        <h3><code>rootCauseCluster</code></h3>
+        <ul>
+          <li><code>confidence</code>：high / medium / low</li>
+          <li><code>canonicalRef</code>：至多一个证据支持的 canonical 项；可为 <code>null</code></li>
+          <li><code>currentItemRelationship</code>：canonical、duplicate、same_root_cause、partial_overlap、adjacent_distinct、superseded、fixed_by_candidate、independent、security_route、needs_human</li>
+          <li><code>summary</code> ≤ 500 字符；<code>members</code> ≤ 12，每项含 <code>ref</code> / <code>relationship</code> / <code>reason</code> ≤ 300 字符</li>
+        </ul>
+        <p class="ref">schema:554-624</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p><strong><code>agentsPolicyStatus</code> 记录仓库策略的发现与应用状态：</strong><code>found_applied</code>、<code>found_not_applicable</code>、<code>not_found</code>、<code>conflict_not_applied</code>、<code>unreadable_or_unclear</code>。它不直接参与关闭裁决，但为“这次评审有没有读到并遵守仓库附则”留下了一个可审计的状态位。<span class="ref">schema:625-641</span></p>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>反“看起来像”条款：</strong>根因关系必须由证据支持，<strong>不能仅凭标题、标签或 gitcrawl 相似度</strong>成立；成员列表排除当前项本身。这是整份 schema 里最明确的“反相关性”规则之一。<span class="ref">schema:555-557</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">07 · PR 评审</p>
+    <h2>证明质量、补丁质量、产品判断，三条线分开打分</h2>
+    <p>PR 分支把“这个 PR 好不好”拆成多个不可互相替代的维度：测试证明路径、真实行为证据、引入的 bug、安全问题、产品价值、是否尊重既有意图，最后才合成一个总体等级。这样 reviewer 能看到分数背后的分歧，而不是只看到一个 S/A/B/C。</p>
+
+    <h3><code>testingReview.proofPath</code>：证明强度阶梯</h3>
+    <div class="ladder" role="img" aria-label="证明路径强度阶梯：从最强到最弱依次为 shipped_entry_point、in_process_harness、unit_only、none">
+      <div class="ld-step top"><div class="n">1</div><div class="t"><b>shipped_entry_point</b><br>从真实入口验证用户可见行为</div></div>
+      <div class="ld-arrow">›</div>
+      <div class="ld-step"><div class="n">2</div><div class="t"><b>in_process_harness</b><br>真实代码，单进程 harness</div></div>
+      <div class="ld-arrow">›</div>
+      <div class="ld-step"><div class="n">3</div><div class="t"><b>unit_only</b><br>只覆盖单元</div></div>
+      <div class="ld-arrow">›</div>
+      <div class="ld-step zero"><div class="n">4</div><div class="t"><b>none</b><br>PR 里的测试跑的是 harness 或 unit，不算入口证明</div></div>
+    </div>
+    <p class="ref">schema:707-746</p>
+    <p>另有一个 <code>not_applicable</code>（不适用）。<code>testingReview</code> 还包含 <code>lowValueTests</code>（≤ 10 项）与 <code>missingE2e</code>（缺失的 shipped-entry-point 场景；无则空字符串）。</p>
+
+    <div class="grid2even">
+      <div class="card">
+        <h3><code>reviewFindings</code>：补丁引入的 bug</h3>
+        <ul>
+          <li><code>title</code>：祈使句，≤ 80 字符</li>
+          <li><code>body</code>：具体 bug 与为何会坏</li>
+          <li><code>priority</code>：0=P0 critical，1=P1 high，2=P2 normal，3=P3 low</li>
+          <li><code>confidenceScore</code>：0–1</li>
+          <li><code>file</code>、<code>lineStart</code>、<code>lineEnd</code></li>
+          <li><code>lateFinding</code>：代码自上次评审 head 以来未变、问题当时同样可见</li>
+        </ul>
+        <p class="ref">schema:747-799</p>
+      </div>
+      <div class="card">
+        <h3><code>realBehaviorProof</code>：真实行为证据</h3>
+        <ul>
+          <li><code>status</code>：sufficient / missing / mock_only / insufficient / not_applicable / override</li>
+          <li><code>evidenceKind</code>：screenshot / recording / terminal / logs / live_output / linked_artifact / none / not_applicable</li>
+          <li><code>needsContributorAction</code>：sufficient / override / not_applicable 时必须为 false</li>
+          <li><code>dataModelCompatibility</code>：sufficient（含已验证无需迁移）/ insufficient / not_applicable</li>
+        </ul>
+        <p class="ref">schema:847-898</p>
+      </div>
+    </div>
+
+    <div class="grid2even">
+      <div class="card">
+        <h3><code>prRating</code>：三层评级</h3>
+        <ul>
+          <li><code>proofTier</code>：只看证明质量</li>
+          <li><code>patchTier</code>：正确性、findings、安全、范围、验证</li>
+          <li><code>overallTier</code>：取两者中<strong>较弱</strong>的一个，再加产品判断</li>
+          <li>枚举：S / A / B / C / D / F / NA</li>
+          <li><code>nextSteps</code>：0–3 条“升级动作”</li>
+          <li><code>overallConfidenceScore</code>：独立的 0–1 总体置信度</li>
+        </ul>
+        <p class="ref">schema:899-932</p>
+      </div>
+      <div class="card">
+        <h3>其他 PR 判断</h3>
+        <ul>
+          <li><code>productReview</code>：kind（9 值）、userProblem、fixScope（complete / partial / not_applicable）、worthIt（yes / no / needs_maintainer / not_applicable）、reason</li>
+          <li><code>securityReview</code>：cleared / needs_attention / not_applicable，concerns 含 severity 与 0–1 置信度</li>
+          <li><code>provenance</code>：≤ 8 项，<code>verdict</code> 为 respects / overrides_with_reason / overrides_without_reason / unknown</li>
+          <li><code>featureShowcase</code>：只做正向展示，不是 gate</li>
+          <li><code>overallCorrectness</code>：只有列出 P0–P2 finding 时才能写 <code>patch is incorrect</code></li>
+        </ul>
+        <p class="ref">schema:642-706, 800-846, 933-958</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>“低价值测试”有明确定义：</strong>镜像代码、断言 mock 或调用次数、重复覆盖、钉死偶然措辞/默认值、只测 helper——这些都计入 <code>testingReview.lowValueTests</code>（≤ 10 项，每项要写文件与理由）。这不是“测试越多越好”的评审，而是“证明是否触及真实入口”的评审。<span class="ref">schema:707-746</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">08 · 关闭证据与回归</p>
+    <h2>“已修复”必须落到 release、SHA、时间和那一条引入行</h2>
+    <p>对 <code>implemented_on_main</code> / <code>mostly_implemented_on_main</code>，schema 要求 <code>fixedSha</code>（修复 commit）；若 <code>fixedRelease</code> 为 <code>null</code>（仅 main），则还要 <code>fixedAt</code>（ISO-8601）。<code>closeComment</code> 则规定了公开评论的骨架：开头一句结论、空行、证据 bullet（原因、Codex review、被 credited 的讨论、路径、release、SHA 或修复时间），证据薄弱时附上 reopen 邀请并点名缺什么。</p>
+
+    <div class="grid2even">
+      <div class="card">
+        <div class="num">REGRESSION · 是不是回归</div>
+        <h3><code>regressionAssessment</code></h3>
+        <ul>
+          <li><code>confidence</code>：<code>suspected</code>（1 类直接证据）/ <code>probable</code>（2 类）</li>
+          <li><code>supportingEvidence</code> 1–3 项：<code>reproduction</code>、<code>reviewed_change</code>、<code>failure_trace</code>、<code>known_regression_link</code></li>
+        </ul>
+        <p><strong>时间、历史、标题相似、相关性都不算证据。</strong></p>
+        <p class="ref">schema:971-991</p>
+      </div>
+      <div class="card">
+        <div class="num">PROVENANCE · 是谁引入的</div>
+        <h3><code>regressionProvenance</code></h3>
+        <ul>
+          <li><code>repo</code></li>
+          <li><code>pullRequestNumber</code> / <code>pullRequestUrl</code></li>
+          <li><code>mergeCommitSha</code>：40 位十六进制</li>
+          <li><code>sourcePath</code> / <code>sourceLine</code></li>
+        </ul>
+        <p>定位的是“在 review revision 上引入那条责任源码行”的已合并 PR；未知时整体为 <code>null</code>。</p>
+        <p class="ref">schema:992-1027</p>
+      </div>
+    </div>
+
+    <div class="callout good">
+      <p><strong>两层溯源，避免“大概是谁弄坏的”。</strong>第一层 <code>regressionAssessment</code> 判断“现在是否构成回归、证据够不够”；第二层 <code>regressionProvenance</code> 精确到“哪个已合并 PR、哪个 merge commit、哪一行”。两层都允许 <code>null</code>，但一旦给出，就必须是可复核的强标识。</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">09 · 工作路由</p>
+    <h2>“建议怎么做”与“谁有权去做”被彻底分开</h2>
+    <p>最后九个字段负责把结论路由到下一步，但它们刻意不授予任何执行权限。<code>workCandidate</code> 只有三种：<code>none</code>、<code>manual_review</code>、<code>queue_fix_pr</code>；<code>workConfidence</code> 与 <code>workPriority</code> 各为 high / medium / low；<code>workReason</code> 同时承担路由理由与 issue 的 next-action 指引。</p>
+
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>字段</th><th>作用</th><th>关键约束</th></tr></thead>
+        <tbody>
+          <tr><td><code>nextStep</code></td><td>PR 的下一步意图</td><td>两分支：<code>{kind:"none", text:""}</code> 或 <code>{kind:"required"|"maintainer", text:非空}</code>。<strong>只是意图，不是修复/合并授权。</strong>legacy <code>required</code> 记录始终视为 contributor work，与 prose 无关</td></tr>
+          <tr><td><code>workPrompt</code></td><td>可直接交给执行者的任务提示</td><td>自由文本</td></tr>
+          <tr><td><code>workClusterRefs</code></td><td>相关工作簇引用</td><td>字符串数组，用来限定上下文</td></tr>
+          <tr><td><code>workValidation</code></td><td>完成工作的验证要求</td><td>字符串数组</td></tr>
+          <tr><td><code>workLikelyFiles</code></td><td>最可能改动的文件</td><td>字符串数组，用来估计爆炸半径</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>能力（capability）不等于权限（authority）。</strong>schema 可以让模型写出“该怎么修、改哪些文件、怎么验证”，但 <code>nextStep</code> 的 description 明确写着：never authority to fix or merge。真正的写操作仍要经过下游的 <code>apply</code> 闸门：重取 live GitHub 状态、检查标签/作者/配对 issue/PR/快照漂移。结构化输出越完整，越不能被误读为执行许可。<span class="ref">schema:1044-1102</span></p>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">10 · 设计哲学与边界</p>
+    <h2>它强在哪里，以及它故意不管什么</h2>
+
+    <div class="grid3">
+      <div class="card">
+        <div class="num">01 · TOTALITY</div>
+        <h3>全量必填</h3>
+        <p>57/57 必填，31 个对象全部封闭。记录之间可以逐字段比较，不存在“这个字段这次没出现”的歧义。</p>
+      </div>
+      <div class="card">
+        <div class="num">02 · ENUMS FIRST</div>
+        <h3>枚举优先</h3>
+        <p>51 处枚举、237 个允许值。自由文本只用于 detail、summary、reason 这类解释性内容，关键状态不允许即兴发挥。</p>
+      </div>
+      <div class="card">
+        <div class="num">03 · EVIDENCE</div>
+        <h3>证据可复核</h3>
+        <p>repo + file + line + full SHA + 单行只读 command。证据不是链接集合，而是可定位、可重放的检查点。</p>
+      </div>
+      <div class="card">
+        <div class="num">04 · CONFIDENCE</div>
+        <h3>置信度分层</h3>
+        <p>high/medium/low、0–1 分数、S–F 等级、suspected/probable。结论与“有多确定”始终一起输出。</p>
+      </div>
+      <div class="card">
+        <div class="num">05 · AUTHORITY</div>
+        <h3>角色与权限分离</h3>
+        <p>模型可以建议、聚类、写 workPrompt，但 <code>maintainerDecision</code> 把未决选择交还给人，<code>nextStep</code> 不授予写权限。</p>
+      </div>
+      <div class="card">
+        <div class="num">06 · BOUNDS</div>
+        <h3>边界化输出</h3>
+        <p>owners 1–5、impact/merge-risk ≤3、cluster members ≤12、provenance ≤8、nextSteps ≤3。限制数量就是限制噪音。</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p><strong>要看清 schema 的边界：它管形状，不管一致性。</strong>例如 <code>closeReason=none</code> 与 <code>decision=keep_open</code> 的配对、<code>fixedSha</code> 对 <code>implemented_on_main</code> 的依赖、<code>options</code> 中“恰好一个 recommended”、<code>labelJustifications</code> 与已选标签的一一对应，都只写在 description 里，没有 <code>if/then</code>、<code>dependentRequired</code> 或 <code>minContains/maxContains</code> 来强制。它们由确定性代码、apply gate 和测试来保证。</p>
+    </div>
+
+    <div class="callout">
+      <p><strong>这也是一种演进成本。</strong>没有 <code>$id</code>、没有版本字段，且所有对象都 <code>additionalProperties:false</code>：新增一个字段意味着所有生产者都必须同步产出，否则记录不再合法。schema 用“严格”换来了可审计性，代价是变更必须显式协调。读它时，既要看它约束了什么，也要看它把哪些责任留给了代码。</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>来源：<a href="https://github.com/openclaw/clawsweeper/blob/main/schema/clawsweeper-decision.schema.json">openclaw/clawsweeper · schema/clawsweeper-decision.schema.json</a>（main 分支，2026-11-16 快照）。结构统计由本地 JSON 解析得出：57 个顶层属性全部 required；31 个含 properties 的对象全部 <code>additionalProperties:false</code> 且属性全 required；递归统计 51 处 enum、237 个允许值、142 个叶子字段。产品背景参考 ClawSweeper README 与 docs 索引。</p>
+  </footer>
+
+</div>
+</body>
+</html>
