@@ -4,6 +4,8 @@
 
 > 核验说明：本文引用的本地副本与 `https://raw.githubusercontent.com/openclaw/clawsweeper/main/` 对应文件逐字节一致（SHA-256 相同），行号按上游 `main` 计。核验快照：`openclaw/clawsweeper@c0b05e40f8fec5fa6087f9d1283b921e4bf61f0c`（2026-11-16）。
 
+> 可视化版本：[pr-priority-labels-prompt-basis.html](pr-priority-labels-prompt-basis.html)；配套 issue 报告：[issue-priority-labels-prompt-basis.html](issue-priority-labels-prompt-basis.html)。
+
 ---
 
 ## 0. 先分清三个 “P0–P3”
