@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw PR「优先级」· P0–P3 标签的 prompt 依据与代码落点</title>
+<style>
+  :root {
+    --ink:#1c1e24; --muted:#6b6f7a; --line:#e7e1d8; --paper:#fbf8f3; --card:#fffdf9;
+    --lob:#d94f2b; --lob-soft:#f6ded6; --teal:#2b7a78; --teal-soft:#dcecea; --gold:#c99a2e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1100px; margin:0 auto; padding:56px 28px 96px; }
+  .kicker { font-size:12px; letter-spacing:.18em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  h1 { font-size:32px; line-height:1.28; margin:10px 0 14px; letter-spacing:-.01em; }
+  h1 em { font-style:normal; color:var(--lob); }
+  .lede { font-size:16px; color:#3c3f47; max-width:900px; }
+  .lede code, p code, li code, td code, th code, .cap code, .src { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#f1ece3; padding:1px 6px; border-radius:5px; color:#3a3d45; }
+  .meta { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  .meta span { background:#f1ece3; border-radius:999px; padding:4px 12px; }
+  section { margin-top:52px; }
+  h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 8px; }
+  h2 b { color:var(--ink); }
+  .secdesc { font-size:14px; color:#54575f; margin:0 0 18px; max-width:900px; }
+  .callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:12px; padding:16px 22px; margin:20px 0 0; }
+  .callout p { margin:0; font-size:14px; color:#3c3f47; }
+  .callout p + p { margin-top:8px; }
+  .callout p b { color:var(--ink); }
+  .callout.warn { border-left-color:var(--lob); }
+  .callout.gold { border-left-color:var(--gold); }
+  .callout.dark { background:#20222a; border-color:#20222a; border-left-color:#e8835d; }
+  .callout.dark p { color:#e8e4dc; }
+  .callout.dark b { color:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:0 8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px 8px; border-bottom:1px solid #f0eae1; vertical-align:top; }
+  td.lab { font-family:ui-monospace,Menlo,monospace; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.desc { color:#3c3f47; min-width:280px; }
+  .tablewrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .lbl { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .lbl .dot { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .chip { font-size:11px; background:#f2ede4; color:#4a4d55; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.g { background:#e7f2e8; color:#1f6b2f; }
+  .chip.y { background:#f7ecce; color:#8a6a1c; }
+  .chip.r { background:var(--lob-soft); color:#a3341a; }
+  .chip.t { background:var(--teal-soft); color:#1f5b59; }
+  .conduit { display:grid; grid-template-columns:1fr 40px 1fr; gap:10px; align-items:center; margin:0 0 18px; }
+  .conduit .box { background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 15px; font-size:12.5px; }
+  .conduit .box .h { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:4px; }
+  .conduit .box code { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--ink); font-weight:600; }
+  .conduit .arrow { text-align:center; color:var(--lob); font-weight:700; }
+  .prompt { background:#20222a; color:#e8e4dc; border-radius:12px; padding:18px 20px; font-size:13px; line-height:1.75; }
+  .prompt code { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:#e8835d; background:none; padding:0; }
+  .prompt .h { font-size:11px; letter-spacing:.1em; color:#9aa0a6; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .card .n { font-size:11px; letter-spacing:.12em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  .card h3 { margin:6px 0 6px; font-size:15px; }
+  .card p { margin:0; font-size:13px; color:#54575f; }
+  .card ul { margin:8px 0 0 18px; padding:0; font-size:13px; color:#3c3f47; }
+  .card li { margin:3px 0; }
+  .card code { font-size:.9em; }
+  .flow { display:grid; gap:10px; }
+  .step { display:grid; grid-template-columns:36px 1fr; gap:14px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; }
+  .step .no { font-family:ui-monospace,Menlo,monospace; font-size:12px; font-weight:700; color:#fff; background:var(--lob); border-radius:8px; height:26px; display:flex; align-items:center; justify-content:center; }
+  .step h3 { margin:0 0 3px; font-size:14px; }
+  .step p { margin:0; font-size:13px; color:#54575f; }
+  .step .src { display:inline-block; margin-top:6px; font-size:11px; }
+  .concl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .concl .c { background:#20222a; color:#f3efe8; border-radius:14px; padding:20px; }
+  .concl .c .n { font-size:12px; color:#e8835d; font-weight:700; letter-spacing:.12em; }
+  .concl .c p { margin:8px 0 0; font-size:13px; color:#d9d3c9; }
+  .eq { background:var(--card); border:1px solid var(--line); border-left:5px solid var(--lob); border-radius:14px; padding:20px 24px; margin:24px 0 0; }
+  .eq .t { font-size:11px; letter-spacing:.12em; color:var(--lob); font-weight:700; text-transform:uppercase; }
+  .eq p { margin:8px 0 0; font-size:15px; color:#2f323a; }
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); line-height:1.8; }
+  a { color:var(--teal); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  @media (max-width:900px) {
+    .grid3, .concl { grid-template-columns:1fr 1fr; }
+    .conduit { grid-template-columns:1fr; }
+    .conduit .arrow { transform:rotate(90deg); }
+  }
+  @media (max-width:640px) {
+    .wrap { padding:36px 16px 72px; }
+    .grid3, .grid2, .concl { grid-template-columns:1fr; }
+    h1 { font-size:24px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">OpenClaw 社区洞察 · PR 优先级</div>
+  <h1>PR 的 <b><em>P0–P3</em></b> 标签：没有专属 rubric，<br>只有共享的一行</h1>
+  <p class="lede">PR 侧并没有自己的 <code>triagePriority</code> 评分表。唯一直接规定 item 优先级的是 issue 与 PR 共享的 <code>prompts/review-item.md:51</code>；PR 专属 prompt 里出现的 P0–P3 全部是 <code>reviewFindings[].priority</code>（单条 finding 的等级），不是 GitHub 上的 P0/P1/P2/P3 标签。schema 只给五档一句话定义，代码只做 <code>triagePriority</code> → 同名标签的确定性映射。</p>
+  <div class="meta">
+    <span>上游核验 <code>openclaw/clawsweeper@c0b05e4</code></span>
+    <span>核验日期 2026-11-16</span>
+    <span>对照 <code>prompts/</code> · <code>schema/</code> · <code>src/</code></span>
+  </div>
+
+  <div class="eq">
+    <div class="t">一句话结论</div>
+    <p>PR 的 P 标签不来自 finding 等级，也不来自 <code>workPriority</code>；它只来自顶层字段 <code>triagePriority</code>，而这个字段的判定标准只有共享 prompt 的一行字。</p>
+  </div>
+
+  <!-- 00 -->
+  <section>
+    <h2><b>00 · 先分清三个“P0–P3”</b></h2>
+    <p class="secdesc">同一个仓库里有三套看起来都像“优先级”的东西，但只有第一套会变成 GitHub 标签。把三者混在一起，是读 PR prompt 时最常见的误判来源。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>概念</th><th>字段</th><th>取值</th><th>作用域</th><th>变成标签？</th><th>主要依据</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>item 优先级</b></td>
+          <td><code>triagePriority</code></td>
+          <td><code>P0</code> / <code>P1</code> / <code>P2</code> / <code>P3</code> / <code>none</code></td>
+          <td>整个 issue 或 PR；顶层必填</td>
+          <td><span class="chip g">是</span> 一一映射为同名 <code>P0</code>–<code>P3</code>；<code>none</code> 表示不挂</td>
+          <td class="src">schema:19,363-366<br>policy:242-274<br>label-selection:72-83</td>
+        </tr>
+        <tr>
+          <td><b>finding 等级</b></td>
+          <td><code>reviewFindings[].priority</code></td>
+          <td>整数 <code>0</code> / <code>1</code> / <code>2</code> / <code>3</code></td>
+          <td>单条 review finding；issue 恒为 <code>[]</code></td>
+          <td><span class="chip r">否</span></td>
+          <td class="src">schema:747-776<br>review-item-pr:34-36</td>
+        </tr>
+        <tr>
+          <td><b>工作优先级</b></td>
+          <td><code>workPriority</code></td>
+          <td><code>high</code> / <code>medium</code> / <code>low</code></td>
+          <td>maintainer 工作分诊（工作道）</td>
+          <td><span class="chip r">否</span></td>
+          <td class="src">schema:56,1040-1043<br>decision-parser:1002</td>
+        </tr>
+      </tbody>
+    </table></div>
+
+    <div class="grid3" style="margin-top:16px">
+      <div class="card">
+        <div class="n">关系 01</div>
+        <h3>P 标签只有一个来源</h3>
+        <p><code>priorityLabelForTriage</code> 只读 <code>TriagePriority</code>；<code>syncPriorityLabel</code> 也只接收 <code>triagePriority</code>。它从不读取 <code>reviewFindings</code>。</p>
+      </div>
+      <div class="card">
+        <div class="n">关系 02</div>
+        <h3>finding 等级管“必不必做”</h3>
+        <p>P0–P2 是 required work，P3 是 advice 且 never blocks merge；<code>patch is incorrect</code> 只在列出的 P0–P2 finding 阻止 merge 时成立。</p>
+      </div>
+      <div class="card">
+        <div class="n">关系 03</div>
+        <h3>两者被要求“分开判断”</h3>
+        <p>prompt 明确要求 item 优先级与 finding 优先级分开；但也<b>没有</b>规定两者必须一致，代码不做一致性校验。</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p><b><code>workPriority</code> 与 P 标签无关。</b>prompt 里没有以字段名出现；schema 只给枚举、没有描述；parser 只做 <code>high/medium/low</code> 校验。它不在任何标签映射或 apply 路径中。</p>
+    </div>
+  </section>
+
+  <!-- 01 -->
+  <section>
+    <h2><b>01 · 标签从哪来</b> prompt → schema → 代码</h2>
+
+    <h3 style="font-size:15px;margin:0 0 6px">1.1 文件分工：共享 core + 按 item kind 注入</h3>
+    <p class="secdesc"><code>review-item.md</code> 是共享 core，在第 29 行留出 <code>{{item_kind_review}}</code> 槽位，由代码按 <code>item.kind</code> 注入 issue 或 PR 段落。因此“PR prompt 里没写”并不等于“PR 不判优先级”。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>文件</th><th>角色</th><th>关键证据</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">prompts/review-item.md</td><td>共享 core；含唯一的 <code>triagePriority</code> 指令</td><td class="src">:29 槽位 · :51 判定行</td></tr>
+        <tr><td class="lab">prompts/review-item-pr.md</td><td>PR-only 段落，首行即 <code>## Pull request review</code></td><td class="src">:1</td></tr>
+        <tr><td class="lab">prompts/review-item-issue.md</td><td>issue-only 段落；PR-only 字段取 issue 值</td><td class="src">:1 · :11</td></tr>
+        <tr><td class="lab">src/clawsweeper-review-core.ts</td><td>读取三份 prompt 并注入槽位</td><td class="src">:225-232 · :287-299</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 style="font-size:15px;margin:26px 0 6px">1.2 全文检索结果：PR prompt 里是“零命中”</h3>
+    <div class="grid3">
+      <div class="card"><div class="n">review-item-pr.md</div><h3>0 次 triagePriority</h3><p>其中的 P0–P3 仅出现在 finding 规则里（<code>:36,38,39,47-49,99</code>）。</p></div>
+      <div class="card"><div class="n">review-item-issue.md</div><h3>0 次 triagePriority</h3><p>issue 段落同样不提这个字段名；它只补品类特有的规则。</p></div>
+      <div class="card"><div class="n">review-item.md</div><h3>唯一一处指令</h3><p>第 51 行同时承担 UX override、四维、CI 例外与理由要求。</p></div>
+    </div>
+
+    <h3 style="font-size:15px;margin:26px 0 6px">1.3 schema 是等级定义的唯一出处</h3>
+    <div class="prompt">
+      <div class="h">schema/clawsweeper-decision.schema.json:363-366 · triagePriority</div>
+      P0: Emergency: data loss, security bypass, crash loop, or unusable core runtime.
+      P1: Urgent regression or broken agent/channel workflow affecting real users now.
+      P2: Normal priority bug or improvement with limited blast radius.
+      P3: Low-risk cleanup, docs, polish, ergonomics, or speculative feature.
+      none: no priority label.
+    </div>
+    <div class="callout">
+      <p><b>它没有被标注 “Issue-only”。</b>对比 <code>impactLabels</code> 的 “Issue-only, at most 3” 与 <code>maturityLabels</code> 的 “Issue-only”（<code>:385,412</code>），<code>triagePriority</code> 从一开始就是 issue 与 PR 共用的 item 级字段。</p>
+    </div>
+
+    <h3 style="font-size:15px;margin:26px 0 6px">1.4 代码只做确定性映射</h3>
+    <div class="conduit">
+      <div class="box"><div class="h">模型输出</div><code>triagePriority</code> ∈ {P0,P1,P2,P3,none}</div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="h">代码查表</div><code>PRIORITY_LABELS</code> → 同名 GitHub 标签</div>
+    </div>
+    <ol style="font-size:13.5px;color:#3c3f47;line-height:1.8;margin:0;padding-left:22px">
+      <li><code>PRIORITY_LABELS</code> 每项含 <code>priority</code>（0–3）、<code>triagePriority</code>、<code>name</code>、颜色与描述；描述与 schema 逐字一致。<span class="src">clawsweeper-policy.ts:242-274</span></li>
+      <li><code>nextPriorityLabels</code> 先移除全部既有 P 标签，再按映射追加一个；<code>none</code> 返回 <code>null</code>，什么都不加。<span class="src">clawsweeper-label-selection.ts:72-83</span></li>
+      <li><code>syncPriorityLabel</code> 计算要删/要加的 P 标签并执行。<span class="src">clawsweeper-label-operations.ts:117-141</span></li>
+      <li>共享 report-label 路径里，<b>无论 issue 还是 PR</b> 都调用 <code>syncPriorityLabel({ triagePriority })</code>；PR 专用 apply 只同步 proof/rating/showcase/status。<span class="src">apply-report-labels.ts:173-181 · apply-pull-request-labels.ts:82-117</span></li>
+    </ol>
+  </section>
+
+  <!-- 02 -->
+  <section>
+    <h2><b>02 · 判定顺序</b> UX override → 四维 → CI 例外 → 理由</h2>
+    <p class="secdesc">共享行 <code>review-item.md:51</code> 的完整结构是一条带前置覆盖规则的判定链，而不是一张打分表。原文如下（节选完整句子）：</p>
+    <div class="prompt">
+      <div class="h">prompts/review-item.md:51 · Labels, UX override first</div>
+      Labels, UX override first: a non-technical first-time or community user blocked in
+      website/download/install/update/setup/onboarding/auth/provider setup/first useful run/in-product
+      recovery with no in-product way forward (recovery needs terminal commands, config or file edits,
+      log inspection, internal knowledge, or maintainer/support help) is <code>P0</code> plus
+      <code>impact:ux-release-blocker</code> … Recoverable docs/support/guessing paths are
+      <code>P1</code>/<code>P2</code> plus <code>impact:ux-friction</code>; cosmetic or fully recoverable
+      in-product confusion is <code>P2</code>/<code>P3</code>; advanced or power-user terminal/config
+      workflows are not promoted. Otherwise choose <code>triagePriority</code> from user impact,
+      severity, confidence, and urgency for the whole item, separately from finding priorities and
+      repairability; failing, pending, or flaky CI raises it only for user-facing automation failures
+      or diff-caused urgent regressions. … justify each selected label once.
+    </div>
+
+    <div class="flow" style="margin-top:18px">
+      <div class="step"><div class="no">01</div><div><h3>先看 UX override</h3><p>命中“非技术用户 + 产品内无路可走”就是 P0，并搭配 <code>impact:ux-release-blocker</code>；可恢复路径降为 P1/P2；纯 cosmetic 为 P2/P3；高级用户的 terminal/config 流程<b>不升级</b>。</p><span class="src">review-item.md:51</span></div></div>
+      <div class="step"><div class="no">02</div><div><h3>否则按整条 item 的四维</h3><p>user impact、severity、confidence、urgency。注意是 “for the whole item”，不是“最高 finding 的等级”。</p><span class="src">review-item.md:51</span></div></div>
+      <div class="step"><div class="no">03</div><div><h3>CI 只能按例外升 P</h3><p>failing/pending/flaky CI 只有在“用户可见的自动化失败”或“diff 导致的紧急回归”时才提高优先级；单纯红/挂起/flaky 不行。</p><span class="src">review-item.md:51 · review-item-pr.md:52,96</span></div></div>
+      <div class="step"><div class="no">04</div><div><h3>每个选中的标签写一条理由</h3><p>“justify each selected label once”。schema 与 parser 会强制 P/impact/maturity/merge-risk 标签与 justification 集合精确匹配。</p><span class="src">review-item.md:51 · schema:460-500 · parser:305-355</span></div></div>
+    </div>
+
+    <h3 style="font-size:15px;margin:28px 0 6px">UX override 的四种情形</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>情形</th><th>结果</th><th>原文要点</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>非技术背景的首次/社区用户，在 website/download/install/update/setup/onboarding/auth/provider setup/first useful run/in-product recovery 被卡住，且<b>产品内无路可走</b></td>
+          <td><span class="chip r">P0</span> + <code>impact:ux-release-blocker</code></td>
+          <td>恢复需要 terminal、改配置/文件、看日志、内部知识或维护者支持；同时要求 <code>bestSolution</code>/<code>workReason</code> 推荐 Doctor/Fix button、setup wizard、inline recovery 或 visible command launcher。</td>
+        </tr>
+        <tr>
+          <td>可恢复的 docs / support / guessing 路径</td>
+          <td><span class="chip y">P1</span>/<span class="chip y">P2</span> + <code>impact:ux-friction</code></td>
+          <td>“Recoverable docs/support/guessing paths”</td>
+        </tr>
+        <tr>
+          <td>纯 cosmetic，或完全可在产品内恢复的 confusion</td>
+          <td><span class="chip">P2</span>/<span class="chip">P3</span></td>
+          <td>“cosmetic or fully recoverable in-product confusion”</td>
+        </tr>
+        <tr>
+          <td>advanced / power-user 的 terminal、config 工作流</td>
+          <td><b>不升级</b></td>
+          <td>“advanced or power-user terminal/config workflows are not promoted”</td>
+        </tr>
+      </tbody>
+    </table></div>
+
+    <div class="callout warn">
+      <p><b>对 PR 来说，UX override 只能落地一半。</b>它要求同时挂 <code>impact:ux-release-blocker</code>/<code>impact:ux-friction</code>，但 schema 标注 impact 为 Issue-only，代码在 PR 上把 impact 置空。因此 PR 只得到 P 部分，impact 部分被丢弃——这是 prompt 与代码之间最明显的错位。</p>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section>
+    <h2><b>03 · 等级依据表</b> schema 定义 vs PR finding 例子</h2>
+    <p class="secdesc">PR prompt 里确实有 P1/P2/P3 的 finding 场景，但那是 <b>finding 等级</b>的例子，不是 item 标签的例子。P0 甚至没有任何 PR 侧的具体例子，只能回到 schema 的“Emergency”定义。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>等级</th><th>schema 定义</th><th>PR prompt 中的具体例子（finding 语境）</th><th>硬边界</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="lab"><span class="lbl"><span class="dot" style="background:#B60205"></span>P0</span></td>
+          <td class="desc">Emergency: data loss, security bypass, crash loop, or unusable core runtime.</td>
+          <td>没有给出任何具体 PR 例子。PR prompt 只写 “P0-P2 rank impact”；schema 对 finding <code>0</code> 只写 “0=P0 critical”。</td>
+          <td>required work；列出的 P0 finding 可使 <code>overallCorrectness: "patch is incorrect"</code>。</td>
+        </tr>
+        <tr>
+          <td class="lab"><span class="lbl"><span class="dot" style="background:#D93F0B"></span>P1</span></td>
+          <td class="desc">Urgent regression or broken agent/channel workflow affecting real users now.</td>
+          <td>重新实现配置/docs/CLI flags/env vars/现有 API/plugins/skills/setup 已有的能力；upgrade 会 break setups、覆盖 config/preferences、静默替换行为、产生竞争性 source of truth；plugin API 的机械修复。</td>
+          <td>required work；plugin API 机械修复可 <code>queue_fix_pr</code>。</td>
+        </tr>
+        <tr>
+          <td class="lab"><span class="lbl"><span class="dot" style="background:#FBCA04"></span>P2</span></td>
+          <td class="desc">Normal priority bug or improvement with limited blast radius.</td>
+          <td>新增 <code>AGENTS.md</code>/skill/prompt 规则但未引用 incident；smallest complete fix 中不必要的 production machinery；为 speculative/极不可能 race 或 security edge case 增加 machinery（且无具体 failure mode）；upgrade 行为本身保持但缺 migration/docs/upgrade proof。</td>
+          <td>required work。</td>
+        </tr>
+        <tr>
+          <td class="lab"><span class="lbl"><span class="dot" style="background:#8C959F"></span>P3</span></td>
+          <td class="desc">Low-risk cleanup, docs, polish, ergonomics, or speculative feature.</td>
+          <td>非 production 的 test scaffolding/多余结构；只有一个 caller、提前抽出的 helper；low-risk discoverability 或 docs gap。</td>
+          <td><b>advice</b>，never blocks merge or changes the verdict；但窄小的机械 blocker 仍可为 <code>queue_fix_pr</code>，“even when process-only or P3”。</td>
+        </tr>
+        <tr>
+          <td class="lab"><span class="lbl"><span class="dot" style="background:#c9c3b8"></span>none</span></td>
+          <td class="desc">no priority label.</td>
+          <td>无。</td>
+          <td>代码移除所有 P 标签且不添加；prompt <b>未规定</b>何时该用 <code>none</code> 而不是 P3。</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <div class="callout">
+      <p><b>补充：</b>finding 的 P3 是 “a real low-impact defect”，不是“随便的建议”；P0–P2 “rank impact”，P3 只是不阻塞 merge。把 finding 例子直接当作 item 标签判据，会高估 P 标签的严格程度。</p>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <h2><b>04 · 与 finding priority 的关系</b> 独立选择，不自动继承</h2>
+    <div class="grid2">
+      <div class="card">
+        <div class="n">finding 侧</div>
+        <h3>P0–P2 必做，P3 建议</h3>
+        <p>“A finding is required work at P0-P2 and advice at P3, which never blocks merge or changes the verdict.” finding 还必须有 actual introduced trigger、causal link、failing input and wrong result。</p>
+      </div>
+      <div class="card">
+        <div class="n">item 侧</div>
+        <h3>四维独立判断</h3>
+        <p>prompt 的措辞是 “separately from finding priorities and repairability”。schema 把 <code>triagePriority</code> 与 <code>reviewFindings</code> 放在两个独立字段；代码只映射前者，parser 也不比较两者。</p>
+      </div>
+    </div>
+
+    <div class="callout gold" style="margin-top:16px">
+      <p><b>实践含义：</b>一个 PR 可以含 P0/P1 finding，但 item 仍被标为 P2/P3，只要该 PR 整体对用户的影响/紧迫性不高；反过来，一个紧急用户问题对应的 PR 即使只有 P2 级实现瑕疵，也可以获得较高的 item 优先级。prompt 没有“取 finding 最大值”或“不得低于最高 finding”的规则。</p>
+    </div>
+
+    <div class="callout warn">
+      <p><b>未解决的语义边界：</b>对 PR，<code>triagePriority</code> 衡量的是“这个改动要解决的问题有多重要”，还是“这个 PR 自身引入的缺陷有多严重”？schema 描述偏 issue 语境（“bug or improvement”），prompt 只说 “for the whole item”，代码直接透传，没有澄清。</p>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section>
+    <h2><b>05 · 不能仅凭这些因素升 P</b></h2>
+    <p class="secdesc">下表把“明确针对优先级标签的规则”与“相邻但并非针对优先级的规则”分开。只有 CI 一行是 prompt 对 <code>triagePriority</code> 的显式限制；其余多为 finding、work lane 或 rating 规则，不能当作 P 的正向判据。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>因素</th><th>相关原文</th><th>它实际约束什么</th><th>对 P 标签的结论</th></tr></thead>
+      <tbody>
+        <tr><td><b>process / style / naming / taste</b><br>PR-body paperwork</td><td>“Process, style, naming, and taste are not merge work: keep them out of findings, <code>risks</code>, and a required <code>nextStep</code> …”</td><td>finding、<code>risks</code>、required <code>nextStep</code></td><td>prompt 未直接写“不得升 P”；但它不属于四维，不能作为 user impact/severity/urgency 的证据。窄小 process-only 修复可进 <code>queue_fix_pr</code>，那是工作道，不是优先级。</td></tr>
+        <tr><td><b>CI 失败/挂起/flaky 本身</b></td><td>“failing, pending, or flaky CI raises it only for user-facing automation failures or diff-caused urgent regressions”</td><td><b>直接约束 <code>triagePriority</code></b></td><td>只有“用户可见的自动化失败”或“diff 导致的紧急回归”才能升 P；单纯红/挂起/flaky 不行。</td></tr>
+        <tr><td><b><code>maintainer</code> 标签</b></td><td>keep-open guard 包含 <code>maintainer</code> 等 protected label，但 “not by itself a clean review verdict”；<code>maintainer</code> label 也不是 <code>manual_review</code> 的理由</td><td>close policy、work lane</td><td>不是 P 的依据；prompt 未赋予它提升 item 优先级的效力。</td></tr>
+        <tr><td><b><code>size:*</code> 大标签 / broad surface</b></td><td>“The <code>maintainer</code> label, a large <code>size:*</code> label, broad surface, or ordinary review expectations are no reason for <code>manual_review</code>”</td><td>PR work lane 的 <code>manual_review</code> 判定</td><td>这是 work-lane 规则，不是 P 标签规则；规模本身不在四维中。</td></tr>
+        <tr><td><b>ordinary review expectations</b></td><td>同上</td><td>work lane</td><td>不能仅凭“通常要 review”升 P。</td></tr>
+        <tr><td><b>workflow state</b><br>draft、protected labels、pending maintainer action</td><td>“Workflow state (draft, protected labels, a pending maintainer action) never lowers a tier”</td><td><code>prRating.overallTier</code></td><td>这是 rating 规则；prompt 未说它会升/降 P。draft/conflict/stale head 可作为 <code>manual_review</code> 的理由，仍是 work lane。</td></tr>
+        <tr><td><b>finding 等级本身</b></td><td>“separately from finding priorities and repairability”；finding P0–P2 必做、P3 建议</td><td>finding 的 required/advice</td><td>高等级 finding 不等于高 item P；必须回到“整个 item”的四维重新判断。</td></tr>
+        <tr><td><b>title / label 相似性</b></td><td>用 regex、keyword lists 或 string matching 作决定是 finding；“title similarity … are no evidence”；“a similar title proves nothing”</td><td>finding、regression assessment、late-finding</td><td>prompt 未直接把它写成 P 规则；但它不是 user impact/severity 的证据，不能作为升 P 的依据。</td></tr>
+        <tr><td><b>证据不足 / 工具不可用</b></td><td>“unavailable evidence is neither a pass nor a contributor defect”；“claim no more certainty than the evidence”</td><td>finding 与置信度</td><td>不能因“CI 看不到/工具失败”升 P；confidence 维度要求不夸大确定性。</td></tr>
+        <tr><td><b>maintainer-authored / owner decision</b></td><td>maintainer-authored 的方向视为 owner decision</td><td>product review 的决策归属</td><td>与 P 标签无关；prompt 未说 owner 身份提高优先级。</td></tr>
+        <tr><td><b>protected label</b><br><code>security</code>、<code>release-blocker</code> 等</td><td>阻止关闭与 cleanup，但不单独构成 clean verdict</td><td>close policy</td><td>与 P 标签无关；需要独立证据判断影响。</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn">
+      <p><b>不要混淆：</b>上表中 <code>size:*</code>、broad surface、<code>maintainer</code> label、ordinary review expectations、workflow state 的原文都明确指向 <code>manual_review</code> 或 <code>prRating</code>，不是 <code>triagePriority</code>。准确说法是：它们不属于共享行给出的四个正向维度，且 prompt 没有授权用它们提升 P。</p>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section>
+    <h2><b>06 · 代码强制层</b> 一标签一理由，精确匹配</h2>
+    <div class="grid2">
+      <div class="card">
+        <div class="n">强制 01</div>
+        <h3><code>labelJustifications</code> 集合相等</h3>
+        <p>每个对象含 <code>label</code> + <code>reason</code>；parser 要求数组、拒绝重复 label，并分别检查 missing selected labels 与 unselected labels，任一不匹配直接抛错。</p>
+        <p style="margin-top:8px"><span class="src">schema:460-500 · parser:305-355,1033</span></p>
+      </div>
+      <div class="card">
+        <div class="n">强制 02</div>
+        <h3>枚举只接受五档</h3>
+        <p><code>requireEnum(..., TRIAGE_PRIORITIES, ...)</code> 只接受 <code>P0</code>/<code>P1</code>/<code>P2</code>/<code>P3</code>/<code>none</code>；映射表硬编码 0→P0、1→P1、2→P2、3→P3，没有模糊匹配。</p>
+        <p style="margin-top:8px"><span class="src">parser:912-916 · policy:602</span></p>
+      </div>
+      <div class="card">
+        <div class="n">强制 03</div>
+        <h3><code>none</code> 会清掉旧标签</h3>
+        <p><code>nextPriorityLabels</code> 先过滤全部 <code>PRIORITY_LABEL_NAMES</code>，再按映射追加；<code>none</code> 返回 null，所以结果是“没有 P 标签”，而不是保留旧值。</p>
+        <p style="margin-top:8px"><span class="src">label-selection:72-83 · test/pr-label-policy:668-672</span></p>
+      </div>
+      <div class="card">
+        <div class="n">强制 04</div>
+        <h3>PR 抑制 impact/maturity，但 P 仍生效</h3>
+        <p><code>nextPriorityLabels</code> 无条件应用；<code>nextImpactLabels</code>/<code>nextMaturityLabels</code> 在 PR 时收到 <code>[]</code>。apply 路径同样如此。</p>
+        <p style="margin-top:8px"><span class="src">label-presentation:106-110 · apply-report-labels:173-199</span></p>
+      </div>
+    </div>
+
+    <div class="callout gold">
+      <p><b>范围细节：</b>精确匹配只覆盖 <code>triagePriority</code>、<code>impactLabels</code>、<code>mergeRiskLabels</code>、<code>maturityLabels</code> 四类 review label。PR 的 <code>rating:</code>、<code>status:</code>、<code>proof:</code> 等标签的 justification 由 presentation 层另行生成，不要求模型在 <code>labelJustifications</code> 里逐条列出。</p>
+    </div>
+
+    <div class="prompt" style="margin-top:16px">
+      <div class="h">测试固定的 justification 示例</div>
+      <code>triage_priority: "P1"</code> → <code>{"label":"P1","reason":"The PR changes an active channel workflow affecting real users."}</code><br>
+      渲染结果为 “Label justifications:” 下的 <code>- `P1`: …</code>。理由直接引用 P1 定义中的 “active … workflow affecting real users”，而不是复述 finding。
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section>
+    <h2><b>07 · 边界与容易误读的地方</b></h2>
+    <div class="grid2">
+      <div class="card"><div class="n">01</div><h3>PR 没有专属 rubric</h3><p>唯一指令是共享的 <code>review-item.md:51</code>；PR-only prompt 里的 P0–P3 全是 finding 等级。不要把它当成 PR 标签清单。</p></div>
+      <div class="card"><div class="n">02</div><h3>P0 finding 例子缺失</h3><p>PR prompt 给出了 P1/P2/P3 finding 的具体场景，但没有任何 P0 finding 的具体 PR 例子；P0 只能依赖 schema 的 “Emergency” 与 “0=P0 critical”。</p></div>
+      <div class="card"><div class="n">03</div><h3><code>none</code> 没有细化标准</h3><p>schema 只说 “no priority label”；prompt 没有说明何时该用 <code>none</code> 而非 P3。可确定的只有代码行为：移除全部 P 标签。</p></div>
+      <div class="card"><div class="n">04</div><h3>UX override 与 PR 不兼容</h3><p>它要求同时挂 impact 标签，但 impact 是 Issue-only，代码在 PR 上置空。对 PR 应整体跳过还是只取 P 部分，prompt 未规定；代码只能执行后者。</p></div>
+      <div class="card"><div class="n">05</div><h3>共享行可能是唯一指令</h3><p><code>review-item.md:51</code> 同时承担 UX override、四维、CI 例外和理由要求；没有第二处解释或决策树。若该行被修改，PR 与 issue 的 P 标签行为会一起改变。</p></div>
+      <div class="card"><div class="n">06</div><h3>语义对象未定义</h3><p>对 PR，它是“改动要解决的问题有多重要”，还是“PR 引入的问题有多严重”？schema 偏 issue 语境，prompt 只说 “for the whole item”，代码直接透传。</p></div>
+      <div class="card"><div class="n">07</div><h3><code>workPriority</code> 不是隐藏来源</h3><p>prompt 未以字段名提及，schema 无描述；不要把它当作 P 标签的第二个来源。</p></div>
+      <div class="card"><div class="n">08</div><h3>精确匹配 ≠ 语义正确</h3><p>parser 只保证“选中的 label 与 justification 集合完全一致”，不保证理由质量，也不保证 <code>triagePriority</code> 与 finding 等级/PR 评级自洽。</p></div>
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section>
+    <h2><b>08 · 来源清单</b> URL + 行号</h2>
+    <p class="secdesc">上游 raw 基址：<code>https://raw.githubusercontent.com/openclaw/clawsweeper/main/</code>。行号按核验快照 <code>c0b05e4</code> 计。</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>来源</th><th>关键行号</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">prompts/review-item.md</td><td class="src">29 · 35 · 51 · 53</td><td>共享 core；唯一 <code>triagePriority</code> 指令（UX override + 四维 + CI + 理由）</td></tr>
+        <tr><td class="lab">prompts/review-item-pr.md</td><td class="src">1 · 21 · 34-39 · 47-49 · 52 · 57 · 95-100</td><td>PR-only 段落；finding P0–P3 与 merge/rating/work-lane 规则</td></tr>
+        <tr><td class="lab">prompts/review-item-issue.md</td><td class="src">1 · 11</td><td>issue-only 段落；PR-only 字段在 issue 上的取值</td></tr>
+        <tr><td class="lab">schema/clawsweeper-decision.schema.json</td><td class="src">19,25,56 · 363-366 · 368-386 · 387-413 · 460-500 · 747-799 · 949-953 · 971-973 · 1040-1043</td><td>等级定义与字段约束</td></tr>
+        <tr><td class="lab">src/clawsweeper-review-core.ts</td><td class="src">225-232 · 287-299</td><td>读取 core/issue/PR prompt；注入槽位</td></tr>
+        <tr><td class="lab">src/clawsweeper-policy.ts</td><td class="src">242-274 · 602</td><td><code>PRIORITY_LABELS</code> 与 <code>TRIAGE_PRIORITIES</code></td></tr>
+        <tr><td class="lab">src/clawsweeper-label-selection.ts</td><td class="src">42-52 · 72-83</td><td><code>priorityLabelForTriage</code> / <code>nextPriorityLabels</code></td></tr>
+        <tr><td class="lab">src/clawsweeper-label-operations.ts</td><td class="src">117-141</td><td><code>syncPriorityLabel</code> 实际增删</td></tr>
+        <tr><td class="lab">src/clawsweeper-apply-report-labels.ts</td><td class="src">156-210</td><td>共享 apply；<code>syncPriorityLabel</code> 173-181；PR 时 impact/maturity 置空 182-199</td></tr>
+        <tr><td class="lab">src/clawsweeper-apply-pull-request-labels.ts</td><td class="src">82-117</td><td>PR 专用 apply 仅同步 proof/rating/showcase/status</td></tr>
+        <tr><td class="lab">src/clawsweeper-label-presentation.ts</td><td class="src">100-110 · 156-163 · 272-333</td><td>PR 时 impact/maturity 传 <code>[]</code>，priority 仍应用；PR 标签理由另行生成</td></tr>
+        <tr><td class="lab">src/clawsweeper-decision-parser.ts</td><td class="src">305-355 · 912-916 · 1002 · 1031-1033</td><td>justification 去重与精确匹配；枚举校验；<code>workPriority</code></td></tr>
+        <tr><td class="lab">test/pr-label-policy.test.ts</td><td class="src">646-666 · 668-672</td><td>P 描述只在 schema；映射与 <code>none</code> 行为</td></tr>
+        <tr><td class="lab">test/pr-review-labels.test.ts</td><td class="src">822-838 · 900-903</td><td>逐标签 justification 示例与渲染断言</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 结论 -->
+  <section>
+    <h2><b>结论</b></h2>
+    <div class="concl">
+      <div class="c"><div class="n">1 · 一个字段</div><p>P 标签只来自 <code>triagePriority</code>；finding 等级与 <code>workPriority</code> 都不会变成 P 标签。</p></div>
+      <div class="c"><div class="n">2 · 一行判据</div><p>PR 没有专属评分表，只有共享的 <code>review-item.md:51</code>：UX override 优先，否则按整条 item 的四维判断。</p></div>
+      <div class="c"><div class="n">3 · 一层错位</div><p>UX override 要求的 impact 标签在 PR 上被代码置空；PR 只落地 P 部分，prompt 未规定这种情形怎么处理。</p></div>
+    </div>
+  </section>
+
+  <footer>
+    分析底稿：<a href="pr-priority-labels-prompt-basis.md">pr-priority-labels-prompt-basis.md</a> · 上游核验快照 <code>openclaw/clawsweeper@c0b05e40f8fec5fa6087f9d1283b921e4bf61f0c</code>（2026-11-16），本文引用文件与上游 <code>main</code> 的对应版本逐字节一致。<br>
+    中文解读为作者注记。生成于 2026-11-18 · 配套：<a href="issue-priority-labels-prompt-basis.html">Issue 优先级判定</a> · <a href="priority-labels.html">优先级维度</a> · <a href="clawsweeper-label-taxonomy.html">全维度分类法</a>
+  </footer>
+
+</div>
+</body>
+</html>
