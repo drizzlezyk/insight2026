@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clawsweeper 到底在哪里调用 Codex —— 源码级调用链报告</title>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --surface:#ffffff;
+    --ink:#111827;
+    --ink-2:#374151;
+    --muted:#6b7280;
+    --line:#e5e7eb;
+    --accent:#c2410c;
+    --accent-soft:#fff1e8;
+    --navy:#0f172a;
+    --navy-2:#1e293b;
+    --code-ink:#e2e8f0;
+    --code-muted:#94a3b8;
+    --green:#047857;
+    --green-soft:#ecfdf5;
+    --blue:#1d4ed8;
+    --blue-soft:#eff6ff;
+    --amber:#b45309;
+    --amber-soft:#fffbeb;
+    --radius:14px;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--sans);font-size:16px;line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+  /* ---------- hero ---------- */
+  .hero{
+    background:linear-gradient(135deg,#0f172a 0%,#1e293b 58%,#3b1d0e 100%);
+    color:#f8fafc;padding:64px 0 52px;position:relative;overflow:hidden;
+  }
+  .hero::after{
+    content:"";position:absolute;right:-120px;top:-120px;width:420px;height:420px;
+    background:radial-gradient(circle,rgba(194,65,12,.35),transparent 68%);
+  }
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:#fdba74;font-weight:700;margin-bottom:18px;
+  }
+  .eyebrow::before{content:"";width:26px;height:2px;background:#c2410c;display:inline-block}
+  .hero h1{font-size:clamp(30px,4.3vw,50px);line-height:1.16;margin:0 0 18px;letter-spacing:-.02em;font-weight:800}
+  .hero h1 em{font-style:normal;color:#fdba74}
+  .hero p.lead{font-size:18px;color:#cbd5e1;max-width:820px;margin:0 0 26px}
+  .meta{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+    padding:6px 12px;border-radius:999px;font-size:13px;color:#e2e8f0;
+    font-family:var(--mono);
+  }
+  /* ---------- layout ---------- */
+  .layout{display:grid;grid-template-columns:236px minmax(0,1fr);gap:44px;padding:44px 0 90px}
+  nav.toc{position:sticky;top:24px;align-self:start;font-size:14px}
+  nav.toc .toc-title{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:12px}
+  nav.toc a{display:block;color:var(--ink-2);padding:6px 12px;border-left:2px solid transparent;border-radius:0 6px 6px 0}
+  nav.toc a:hover{background:#eceef2;text-decoration:none}
+  nav.toc a.active{color:var(--accent);border-left-color:var(--accent);background:var(--accent-soft);font-weight:600}
+  main{min-width:0}
+  section{scroll-margin-top:24px;margin-bottom:52px}
+  h2{font-size:26px;letter-spacing:-.01em;margin:0 0 6px;display:flex;align-items:baseline;gap:12px}
+  h2 .num{font-family:var(--mono);font-size:14px;color:var(--accent);font-weight:700}
+  h3{font-size:18px;margin:28px 0 10px}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:15px}
+  /* ---------- cards ---------- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;margin:18px 0}
+  .card.tight{padding:18px 22px}
+  .verdict{
+    background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--accent);
+    border-radius:10px;padding:22px 26px;margin:0 0 26px;
+  }
+  .verdict .kicker{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:800;margin-bottom:8px}
+  .verdict p{margin:0;font-size:17px}
+  .verdict code{background:var(--accent-soft);color:#9a3412;padding:1px 6px;border-radius:5px;font-family:var(--mono);font-size:.9em}
+  /* ---------- chain ---------- */
+  .chain{display:flex;flex-direction:column;gap:0;margin:6px 0 0}
+  .step{
+    display:grid;grid-template-columns:44px minmax(0,1fr);gap:16px;position:relative;padding:0 0 22px;
+  }
+  .step:last-child{padding-bottom:0}
+  .step .dot{
+    width:36px;height:36px;border-radius:50%;background:var(--navy);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+    font-size:13px;font-weight:700;z-index:1;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line);
+  }
+  .step.hot .dot{background:var(--accent);box-shadow:0 0 0 1px #fed7aa,0 0 0 6px #fff7ed}
+  .step:not(:last-child)::before{
+    content:"";position:absolute;left:17px;top:36px;bottom:0;width:2px;background:var(--line);
+  }
+  .step .body{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+  .step.hot .body{border-color:#fdba74;background:#fffdfb}
+  .step .who{font-family:var(--mono);font-size:13px;color:var(--muted);margin-bottom:4px;word-break:break-all}
+  .step .what{font-size:15px;color:var(--ink-2)}
+  .step .what strong{color:var(--ink)}
+  /* ---------- code ---------- */
+  .code{
+    background:var(--navy);border-radius:10px;margin:14px 0;overflow:hidden;
+    border:1px solid #1e293b;
+  }
+  .code .bar{
+    display:flex;justify-content:space-between;gap:12px;align-items:center;
+    padding:9px 16px;background:var(--navy-2);border-bottom:1px solid #334155;
+    font-family:var(--mono);font-size:12px;color:var(--code-muted);
+  }
+  .code .bar .loc{color:#fdba74}
+  .code pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.62;color:var(--code-ink);tab-size:2}
+  .code pre code{font-family:inherit}
+  .c-kw{color:#c084fc}
+  .c-str{color:#86efac}
+  .c-fn{color:#7dd3fc}
+  .c-com{color:#64748b;font-style:italic}
+  .c-num{color:#fbbf24}
+  .c-const{color:#fca5a5}
+  /* ---------- tables ---------- */
+  .tbl{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 0}
+  .tbl th{
+    text-align:left;padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--line);
+    font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  }
+  .tbl td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl code,.inline{font-family:var(--mono);font-size:12.5px;background:#f1f5f9;padding:1px 6px;border-radius:5px;color:#0f172a;word-break:break-all}
+  .tbl td:first-child{white-space:nowrap}
+  /* ---------- callouts ---------- */
+  .note,.warn,.good{border-radius:10px;padding:15px 18px;margin:16px 0;font-size:14.5px;border:1px solid}
+  .note{background:var(--blue-soft);border-color:#dbeafe;color:#1e3a8a}
+  .warn{background:var(--amber-soft);border-color:#fde68a;color:#78350f}
+  .good{background:var(--green-soft);border-color:#a7f3d0;color:#065f46}
+  .note strong,.warn strong,.good strong{font-weight:700}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .stat .n{font-size:26px;font-weight:800;letter-spacing:-.02em;font-family:var(--mono)}
+  .stat .l{font-size:13px;color:var(--muted)}
+  .pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;font-weight:600;font-family:var(--mono)}
+  .pill.core{background:var(--accent-soft);color:#9a3412}
+  .pill.aux{background:#f1f5f9;color:#475569}
+  .pill.win{background:#eff6ff;color:#1d4ed8}
+  ul.clean{padding-left:20px;margin:10px 0}
+  ul.clean li{margin:6px 0}
+  footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+  @media (max-width:960px){
+    .layout{grid-template-columns:1fr;gap:0;padding-top:24px}
+    nav.toc{display:none}
+    .grid2{grid-template-columns:1fr}
+    .wrap{padding:0 18px}
+    .hero{padding:48px 0 40px}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Source-level trace · Clawsweeper × Codex</div>
+    <h1>Clawsweeper 到底在哪里<br><em>真正调用 Codex</em></h1>
+    <p class="lead">
+      从 CLI 的 <code style="font-family:var(--mono);color:#fdba74">review</code> 命令一路追到
+      <code style="font-family:var(--mono);color:#fdba74">child_process.spawn()</code>：完整调用链、参数拼装、
+      进程隔离、超时与输出捕获、以及决策校验失败后的第二轮 <code style="font-family:var(--mono);color:#fdba74">resume</code>。
+    </p>
+    <div class="meta">
+      <span class="chip">@openclaw/clawsweeper 0.3.3</span>
+      <span class="chip">commit e7fd669 · 2026-11-12</span>
+      <span class="chip">TypeScript · Node.js</span>
+      <span class="chip">静态源码审阅</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <nav class="toc" id="toc">
+    <div class="toc-title">目录</div>
+    <a href="#verdict">结论</a>
+    <a href="#chain">调用链</a>
+    <a href="#files">核心文件地图</a>
+    <a href="#args">参数是怎么拼的</a>
+    <a href="#worker">为什么要 worker 进程</a>
+    <a href="#spawn">唯一的 spawn 原子点</a>
+    <a href="#timeout">超时与进程树清理</a>
+    <a href="#output">输出捕获与结果文件</a>
+    <a href="#repair">决策失败后的第二轮</a>
+    <a href="#binary">二进制解析与 Windows 细节</a>
+    <a href="#env">环境变量与安全边界</a>
+    <a href="#others">其他调用入口</a>
+    <a href="#method">方法与证据</a>
+  </nav>
+
+  <main>
+
+    <section id="verdict">
+      <div class="verdict">
+        <div class="kicker">一句话结论</div>
+        <p>
+          Clawsweeper 实际启动 Codex 的<strong>唯一原子点</strong>是
+          <code>src/codex-spawn.ts</code> 中 <code>spawnCodex()</code> 里的
+          <code>child_process.spawn(invocation.command, invocation.args, …)</code>。
+          所有业务路径都先汇聚到 <code>runAgentProcess()</code> → <code>runCodexProcess()</code>，
+          再由后者拉起 <code>codex-process-worker.js</code> 子进程，worker 内才真正 <code>spawn</code> 出
+          <code>codex exec</code>。
+        </p>
+      </div>
+
+      <div class="grid2">
+        <div class="stat"><div class="n">1</div><div class="l">真正 spawn 的位置（codex-spawn.ts:108）</div></div>
+        <div class="stat"><div class="n">4</div><div class="l">层封装：业务 → runner → 进程 API → worker</div></div>
+        <div class="stat"><div class="n">2</div><div class="l">次 Codex turn：主审查 + 决策修复</div></div>
+        <div class="stat"><div class="n">0</div><div class="l">业务的直接 shell 拼接（全部 args 数组）</div></div>
+      </div>
+
+      <div class="note" style="margin-top:22px">
+        <strong>关键区分：</strong>
+        <code class="inline">runCodex</code> 是 Clawsweeper 自己的业务函数名（做 prompt、schema、proof、env 准备），
+        它<strong>不是</strong> Codex 二进制。真正把进程拉起来的是
+        <code class="inline">runCodexProcess → codex-process-worker → spawnCodex → spawn()</code>。
+      </div>
+    </section>
+
+    <section id="chain">
+      <h2><span class="num">01</span>完整调用链</h2>
+      <p class="sub">以 GitHub 上的 <code class="inline">clawsweeper review</code> 为例。箭头下方标注了对应源码位置。</p>
+
+      <div class="chain">
+        <div class="step">
+          <div class="dot">1</div>
+          <div class="body">
+            <div class="who">src/clawsweeper-runtime.ts:716 · reviewCommand(args)</div>
+            <div class="what">CLI 命令表把 <strong>review</strong> 映射到 <code>reviewCommand</code>，包一层 mutation receipt 后进入审查工作流。</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="dot">2</div>
+          <div class="body">
+            <div class="who">src/clawsweeper-review-command-workflow.ts:204 · reviewCommand(args)</div>
+            <div class="what">解析参数、准备 review 上下文与租约；对每个待审 item 调用 <code>runPreparedReviewItem</code>。</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="dot">3</div>
+          <div class="body">
+            <div class="who">src/clawsweeper-review-item.ts:38 → 162 → 175</div>
+            <div class="what"><code>runPreparedReviewItem</code> 在输出预算内调用 <code>produceReviewOutput(...)</code>，回调里执行 <code>runCodex({...})</code>（业务层 Codex 审查）。</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="dot">4</div>
+          <div class="body">
+            <div class="who">src/clawsweeper-review-core.ts:814 · runCodex(options)</div>
+            <div class="what">
+              准备 prompt、输出路径、环境变量、Codex 配置与参数；先做一次只读 checkout 校验（<code>runReviewCheckoutInspection</code>），
+              然后在 <strong>937 行</strong>调用 <code>runAgentProcess(...)</code>。
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="dot">5</div>
+          <div class="body">
+            <div class="who">src/agent-runner.ts:64 · runAgentProcess(options)</div>
+            <div class="what">
+              选择 runner（默认 <code>codex</code>，可切 <code>openclaw</code>）；对输入做安全扫描；
+              当 <code>runner === "codex"</code> 时用 <code>codexAgentArgs()</code> 组装参数并调用 <code>runCodexProcess(...)</code>（103–125 行）。
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="dot">6</div>
+          <div class="body">
+            <div class="who">src/codex-process.ts:48 · runCodexProcess(options)</div>
+            <div class="what">
+              写临时 <code>options.json</code>，用 <code>spawnSync(process.execPath, [codex-process-worker.js, optionsPath])</code>
+              启动一个<strong>短命 Node worker 进程</strong>，再从 <code>result.json</code> 反序列化结果（93 行）。
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="dot">7</div>
+          <div class="body">
+            <div class="who">src/codex-process-worker.ts:138 · runTurn(args)</div>
+            <div class="what">
+              worker 读取 options → 打开 stdout/stderr 捕获文件 → <strong>142 行</strong>调用
+              <code>spawnCodex(args, { cwd, env })</code>，并用 <code>pipeline(input, child.stdin)</code> 把 prompt
+              写入 Codex 的 stdin。
+            </div>
+          </div>
+        </div>
+        <div class="step hot">
+          <div class="dot">8</div>
+          <div class="body">
+            <div class="who">src/codex-spawn.ts:100 · spawnCodex(args, options)</div>
+            <div class="what">
+              解析可执行文件路径，然后 <strong>108 行</strong>：
+              <code>spawn(invocation.command, invocation.args, { stdio:["pipe","pipe","pipe"], detached: platform!=="win32", … })</code>。
+              这是整个仓库里真正创建 Codex OS 进程的代码。
+            </div>
+          </div>
+        </div>
+        <div class="step hot">
+          <div class="dot">9</div>
+          <div class="body">
+            <div class="who">进程边界 · codex exec …</div>
+            <div class="what">实际执行的二进制是 <code>codex</code>（或 <code>CODEX_BIN</code> / Windows 桌面版 <code>codex.exe</code>），参数以 <code>exec … -</code> 结尾，prompt 从 stdin 读入。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="files">
+      <h2><span class="num">02</span>核心文件地图</h2>
+      <p class="sub">按“离 Codex 进程的远近”排序。前三张是真正的执行核心，其余是业务编排。</p>
+
+      <div class="card tight" style="padding:0;overflow:hidden">
+        <table class="tbl">
+          <thead>
+            <tr><th>文件</th><th>行数</th><th>角色</th><th>关键位置</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>src/codex-spawn.ts</code></td><td>138</td>
+              <td><span class="pill core">执行核心</span> 解析二进制 + 创建 / 终止 OS 进程</td>
+              <td><code>spawnCodex</code> :100 · <code>spawn()</code> :108 · <code>terminateCodexProcessTree</code> :61</td>
+            </tr>
+            <tr>
+              <td><code>src/codex-process-worker.ts</code></td><td>238</td>
+              <td><span class="pill core">执行核心</span> worker 主循环：stdin 管道、超时、输出、第二轮修复</td>
+              <td><code>runTurn</code> :138 · <code>spawnCodex</code> :142 · <code>pipeline</code> :161</td>
+            </tr>
+            <tr>
+              <td><code>src/codex-process.ts</code></td><td>202</td>
+              <td><span class="pill core">执行核心</span> 父进程同步 API，负责起 worker、收结果</td>
+              <td><code>runCodexProcess</code> :48 · <code>spawnSync</code> :93</td>
+            </tr>
+            <tr>
+              <td><code>src/agent-runner.ts</code></td><td>422</td>
+              <td><span class="pill aux">编排</span> runner 选择、参数组装、输入扫描</td>
+              <td><code>runAgentProcess</code> :64 · <code>codexAgentArgs</code> :381</td>
+            </tr>
+            <tr>
+              <td><code>src/clawsweeper-review-core.ts</code></td><td>—</td>
+              <td><span class="pill aux">业务</span> 组装 review prompt / schema / sandbox 配置</td>
+              <td><code>runCodex</code> :814 · <code>runAgentProcess</code> :937</td>
+            </tr>
+            <tr>
+              <td><code>src/command.ts</code></td><td>—</td>
+              <td><span class="pill win">平台</span> Windows PATH / PATHEXT / <code>.cmd</code> 解析</td>
+              <td><code>resolveSpawnCommand</code> :280 · <code>cmd.exe /c</code> :308</td>
+            </tr>
+            <tr>
+              <td><code>src/codex-output-capture.ts</code></td><td>103</td>
+              <td><span class="pill aux">辅助</span> 有界落盘 + 尾部保留</td>
+              <td>默认 128 MiB 文件 / 64 KiB tail</td>
+            </tr>
+            <tr>
+              <td><code>src/codex-output-last-message.ts</code></td><td>52</td>
+              <td><span class="pill aux">辅助</span> 从 stdout 解析最终消息（无 <code>--json</code> 的人读模式）</td>
+              <td><code>OutputLastMessageParser</code></td>
+            </tr>
+            <tr>
+              <td><code>src/codex-env.ts</code></td><td>101</td>
+              <td><span class="pill aux">安全</span> 凭证剥离、模型参数与脱敏</td>
+              <td><code>codexEnv</code> · <code>codexModelArgs</code> · <code>redactInternalCodexModel</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="args">
+      <h2><span class="num">03</span>参数是怎么拼出来的</h2>
+      <p class="sub">最终命令行 = <code class="inline">codexAgentArgs()</code> 的基础参数 + 业务层 <code class="inline">codexExtraArgs</code>。</p>
+
+      <h3>3.1 runner 选择与分发</h3>
+      <div class="code">
+        <div class="bar"><span>src/agent-runner.ts</span><span class="loc">:38–41 · :103–125（节选）</span></div>
+<pre><code><span class="c-kw">export function</span> <span class="c-fn">agentRunner</span>(env: NodeJS.ProcessEnv = process.env): AgentRunner {
+  <span class="c-kw">const</span> value = env.CLAWSWEEPER_RUNNER?.trim() || <span class="c-str">"codex"</span>;
+  <span class="c-kw">if</span> (value === <span class="c-str">"codex"</span> || value === <span class="c-str">"openclaw"</span>) <span class="c-kw">return</span> value;
+  <span class="c-kw">throw new</span> <span class="c-fn">Error</span>(<span class="c-str">`Invalid CLAWSWEEPER_RUNNER: ${value}...`</span>);
+}
+
+<span class="c-com">// runAgentProcess() 内部：</span>
+<span class="c-kw">if</span> (runner === <span class="c-str">"codex"</span>) {
+  <span class="c-kw">const</span> args = <span class="c-fn">codexAgentArgs</span>(options);
+  <span class="c-kw">const</span> managedOutput = options.outputLastMessageBytes !== <span class="c-kw">undefined</span> &amp;&amp; outputPath !== <span class="c-kw">undefined</span>;
+  <span class="c-kw">return</span> <span class="c-fn">runCodexProcess</span>({
+    args: managedOutput ? <span class="c-fn">managedCodexStdoutArgs</span>(args) : args,
+    cwd: options.cwd,
+    env: options.env,
+    input: options.prompt,          <span class="c-com">// &lt;- prompt 走 stdin</span>
+    timeoutMs: options.timeoutMs,
+    ...
+  });
+}</code></pre>
+      </div>
+
+      <h3>3.2 基础参数：永远以 <code class="inline">exec</code> 开头，以 <code class="inline">-</code> 结尾</h3>
+      <div class="code">
+        <div class="bar"><span>src/agent-runner.ts</span><span class="loc">:381–396</span></div>
+<pre><code><span class="c-kw">export function</span> <span class="c-fn">codexAgentArgs</span>(options: RunAgentProcessOptions): string[] {
+  <span class="c-kw">const</span> extraArgs = [...(options.codexExtraArgs ?? [])];
+  <span class="c-kw">const</span> hasOrderedModelArgs = extraArgs.includes(<span class="c-str">"--model"</span>);
+  <span class="c-kw">const</span> hasOrderedReasoningConfig = extraArgs.some((value) =&gt;
+    <span class="c-str">/^model_reasoning_effort\s*=/</span>.test(value),
+  );
+  <span class="c-kw">const</span> reasoningEffort = options.reasoningEffort?.trim();
+  <span class="c-kw">return</span> [
+    <span class="c-str">"exec"</span>,
+    ...(hasOrderedModelArgs ? [] : <span class="c-fn">codexModelArgs</span>(options.model)),
+    ...(reasoningEffort &amp;&amp; !hasOrderedReasoningConfig
+      ? [<span class="c-str">"-c"</span>, <span class="c-str">`model_reasoning_effort=${JSON.stringify(reasoningEffort)}`</span>]
+      : []),
+    ...extraArgs,
+  ];
+}</code></pre>
+      </div>
+
+      <h3>3.3 业务层追加的参数（review 主路径）</h3>
+      <div class="code">
+        <div class="bar"><span>src/clawsweeper-review-core.ts</span><span class="loc">:913–970（节选）</span></div>
+<pre><code><span class="c-kw">const</span> codexConfig = [<span class="c-str">'approval_policy="never"'</span>];
+<span class="c-kw">if</span> (options.sandboxMode === <span class="c-str">"clawsweeper-review"</span>) {
+  <span class="c-com">// Legacy --sandbox 会抑制托管代理启动，故改用 permissions profile</span>
+  codexConfig.push(<span class="c-str">'default_permissions="clawsweeper-review"'</span>);
+}
+<span class="c-kw">if</span> (options.forcedLoginMethod) codexConfig.unshift(<span class="c-str">`forced_login_method="${...}"`</span>);
+<span class="c-kw">else if</span> (!options.preserveCodexAuth) codexConfig.unshift(<span class="c-fn">codexLoginConfig</span>());
+<span class="c-kw">if</span> (options.serviceTier) codexConfig.unshift(<span class="c-str">`service_tier="${options.serviceTier}"`</span>);
+
+<span class="c-kw">const</span> result = <span class="c-fn">runAgentProcess</span>({
+  label: <span class="c-str">`review-${options.item.number}-attempt-1`</span>,
+  prompt,
+  model: options.model,
+  reasoningEffort: options.reasoningEffort,
+  codexExtraArgs: [
+    ...codexConfig.flatMap((config) =&gt; [<span class="c-str">"-c"</span>, config]),
+    <span class="c-str">"-C"</span>, options.openclawDir,
+    <span class="c-str">"--output-schema"</span>, CLAWSWEEPER_DECISION_SCHEMA_PATH,
+    <span class="c-str">"--output-last-message"</span>, outputPath,
+    <span class="c-str">"--json"</span>,
+    ...(options.sandboxMode === <span class="c-str">"clawsweeper-review"</span>
+      ? [] : [<span class="c-str">"--sandbox"</span>, options.sandboxMode]),
+    <span class="c-str">"--add-dir"</span>, proofScratchDir,
+    <span class="c-str">"-"</span>,
+  ],
+  ...
+  decisionRepair: { item: { repo, number, kind } },
+});</code></pre>
+      </div>
+
+      <h3>3.4 等价命令行</h3>
+      <div class="code">
+        <div class="bar"><span>实际形态（示意；模型名未配置时省略 --model）</span><span class="loc">schema 路径见 clawsweeper-repository-paths.ts:20</span></div>
+<pre><code>codex exec \
+  -c 'service_tier="fast"' \
+  -c 'forced_login_method="api"' \
+  -c 'approval_policy="never"' \
+  -c 'default_permissions="clawsweeper-review"' \
+  -c 'model_reasoning_effort="medium"' \
+  -C &lt;openclawDir&gt; \
+  --output-schema &lt;schema/decision.json&gt; \
+  --output-last-message &lt;workDir&gt;/&lt;n&gt;.json \
+  --json \
+  --add-dir &lt;proofScratchDir&gt; \
+  -  &lt; prompt.md</code></pre>
+      </div>
+
+      <div class="note">
+        <strong>两个细节：</strong>
+        ① 模型参数只在 <code class="inline">model</code> 不是公开占位符 <code class="inline">"internal"</code> 时才追加；
+        ② 维护者 / 有 write 权限的 item 会得到 <code class="inline">service_tier="fast"</code>，见 <code class="inline">src/codex-item-profile.ts</code>。
+      </div>
+    </section>
+
+    <section id="worker">
+      <h2><span class="num">04</span>为什么要多一层 worker 进程</h2>
+      <p class="sub"><code class="inline">runCodexProcess</code> 是同步 API，但它并不是直接在调用方进程里 spawn Codex。</p>
+
+      <div class="card">
+        <p style="margin-top:0"><code>runCodexProcess()</code> 做三件事：</p>
+        <ul class="clean">
+          <li>创建临时目录 <code class="inline">mkdtemp("clawsweeper-codex-process-")</code>，把参数、路径、超时写进 <code class="inline">options.json</code>（权限 <code class="inline">0600</code>）。</li>
+          <li>用 <code class="inline">spawnSync(process.execPath, [codex-process-worker.js, optionsPath])</code> 起一个 Node 子进程，把 prompt 作为 <code class="inline">input</code> 交给它。</li>
+          <li>worker 结束后读取 <code class="inline">result.json</code>，校验大小（<code class="inline">64 KiB + 12 × tailBytes</code>），反序列化返回。</li>
+        </ul>
+        <p style="margin-bottom:0">这样上层拿到的是<strong>一个同步的、有界的、可判定失败的结果对象</strong>，而 Codex 的异步生命周期被隔离在 worker 里。</p>
+      </div>
+
+      <div class="code">
+        <div class="bar"><span>src/codex-process.ts</span><span class="loc">:48–99（节选）</span></div>
+<pre><code><span class="c-kw">export function</span> <span class="c-fn">runCodexProcess</span>(options: {...}): CodexProcessResult {
+  <span class="c-kw">const</span> workDir = <span class="c-fn">mkdtempSync</span>(<span class="c-fn">join</span>(<span class="c-fn">tmpdir</span>(), <span class="c-str">"clawsweeper-codex-process-"</span>));
+  <span class="c-kw">const</span> optionsPath = <span class="c-fn">join</span>(workDir, <span class="c-str">"options.json"</span>);
+  <span class="c-kw">const</span> resultPath = <span class="c-fn">join</span>(workDir, <span class="c-str">"result.json"</span>);
+  <span class="c-kw">try</span> {
+    <span class="c-fn">writeFileSync</span>(optionsPath, JSON.stringify({
+      args: [...options.args],
+      command: <span class="c-fn">codexProcessCommand</span>(options.env, process.platform, options.cwd),
+      timeoutMs: options.timeoutMs,
+      resultPath, stdoutPath, stderrPath,
+      tailBytes, maxOutputFileBytes,
+      ...
+    }), { encoding: <span class="c-str">"utf8"</span>, mode: <span class="c-num">0o600</span> });
+
+    <span class="c-kw">const</span> worker = <span class="c-fn">spawnSync</span>(process.execPath, [CODEX_PROCESS_WORKER_PATH, optionsPath], {
+      cwd: options.cwd,
+      env: options.env,
+      input: options.input,                 <span class="c-com">// prompt → worker stdin</span>
+      stdio: [<span class="c-str">"pipe"</span>, <span class="c-str">"ignore"</span>, <span class="c-str">"ignore"</span>],
+      timeout: options.timeoutMs + <span class="c-num">10_000</span>,   <span class="c-com">// worker 的硬兜底</span>
+    });
+    <span class="c-com">// …读取 result.json、校验大小、反序列化…</span>
+  } <span class="c-kw">finally</span> {
+    <span class="c-fn">rmSync</span>(workDir, { recursive: <span class="c-kw">true</span>, force: <span class="c-kw">true</span> });
+  }
+}</code></pre>
+      </div>
+
+      <div class="good">
+        <strong>收益：</strong>调用方不需要处理 Codex 的流、信号和僵尸进程；worker 即使被强杀，父进程也只看到“没写 result.json”，可安全归类为进程失败，而不会误信被截断的 stderr。
+      </div>
+    </section>
+
+    <section id="spawn">
+      <h2><span class="num">05</span>唯一的 spawn 原子点</h2>
+      <p class="sub">worker 内部的 <code class="inline">runTurn()</code>：spawn、接流、写 stdin、收集最终消息。</p>
+
+      <div class="code">
+        <div class="bar"><span>src/codex-process-worker.ts</span><span class="loc">:138–163</span></div>
+<pre><code><span class="c-kw">function</span> <span class="c-fn">runTurn</span>(args: readonly string[]): Promise&lt;TurnResult&gt; {
+  <span class="c-kw">const</span> outputLastMessage = options.outputLastMessageBytes
+    ? <span class="c-kw">new</span> <span class="c-fn">OutputLastMessageParser</span>(options.outputLastMessageBytes)
+    : <span class="c-kw">null</span>;
+  <span class="c-kw">const</span> current = <span class="c-fn">spawnCodex</span>(args, { cwd: process.cwd(), env: process.env });
+  child = current;
+
+  current.stdout.on(<span class="c-str">"data"</span>, (chunk: Buffer) =&gt; {
+    outputLastMessage?.append(chunk);
+    <span class="c-fn">appendCodexOutputCapture</span>(stdout, chunk);
+  });
+  current.stderr.on(<span class="c-str">"data"</span>, (chunk: Buffer) =&gt; {
+    <span class="c-com">// 第一屏含 "OpenAI Codex v…" 与会话 id，用于第二轮 resume</span>
+    sessionHeader = Buffer.concat([...]);
+    <span class="c-fn">appendCodexOutputCapture</span>(stderr, chunk);
+  });
+  current.stdin.on(<span class="c-str">"error"</span>, () =&gt; {});
+  <span class="c-fn">pipeline</span>(input, current.stdin, (error) =&gt; {   <span class="c-com">// prompt -&gt; codex stdin</span>
+    <span class="c-kw">if</span> (error &amp;&amp; !terminating &amp;&amp; !spawnError) stdinError = error;
+  });
+  current.once(<span class="c-str">"error"</span>, (error) =&gt; { spawnError = error; });
+  current.once(<span class="c-str">"close"</span>, (status, signal) =&gt; { <span class="c-com">/* 汇总 status / signal / EPIPE / 超时 */</span> });
+  <span class="c-kw">return</span> promise;
+}</code></pre>
+      </div>
+
+      <div class="code">
+        <div class="bar"><span>src/codex-spawn.ts</span><span class="loc">:100–123</span></div>
+<pre><code><span class="c-kw">export function</span> <span class="c-fn">spawnCodex</span>(
+  args: readonly string[],
+  options: { cwd: string; env: NodeJS.ProcessEnv },
+): ChildProcessWithoutNullStreams {
+  <span class="c-kw">const</span> invocation = <span class="c-fn">codexSpawnInvocation</span>(args, options.env, process.platform, options.cwd);
+  <span class="c-kw">const</span> child = <span class="c-fn">spawn</span>(invocation.command, invocation.args, {
+    cwd: options.cwd,
+    env: options.env,
+    stdio: [<span class="c-str">"pipe"</span>, <span class="c-str">"pipe"</span>, <span class="c-str">"pipe"</span>],
+    detached: process.platform !== <span class="c-str">"win32"</span>,   <span class="c-com">// POSIX: 独立进程组，便于整组清理</span>
+    windowsHide: <span class="c-kw">true</span>,
+    ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: <span class="c-kw">true</span> } : {}),
+  });
+  <span class="c-kw">if</span> (process.platform !== <span class="c-str">"win32"</span>) {
+    child.once(<span class="c-str">"exit"</span>, () =&gt; {
+      <span class="c-com">// 正常退出也要清掉可能仍持有管道的后代进程</span>
+      <span class="c-kw">if</span> (!gracefulTerminations.has(child)) <span class="c-fn">signalProcessGroup</span>(child.pid, <span class="c-str">"SIGKILL"</span>);
+    });
+  }
+  <span class="c-kw">return</span> child;
+}</code></pre>
+      </div>
+
+      <div class="warn">
+        <strong>搜索结论：</strong>在 <code class="inline">src/</code> 中检索 <code class="inline">spawn(</code> / <code class="inline">\bcodex\b</code>，
+        除 <code class="inline">codex-spawn.ts</code> 外没有第二处直接创建 Codex 进程的代码。
+        <code class="inline">openclaw-process.ts</code> 是另一条 runner 路径，不调用 <code class="inline">codex</code> 二进制。
+      </div>
+    </section>
+
+    <section id="timeout">
+      <h2><span class="num">06</span>超时与进程树清理</h2>
+      <p class="sub">超时控制在 worker 里，而不是只依赖 <code class="inline">spawnSync.timeout</code>。</p>
+
+      <div class="code">
+        <div class="bar"><span>src/codex-process-worker.ts</span><span class="loc">:67–82</span></div>
+<pre><code><span class="c-kw">const</span> timeout = <span class="c-fn">setTimeout</span>(() =&gt; {
+  timeoutError = <span class="c-kw">new</span> <span class="c-fn">Error</span>(<span class="c-str">`Codex process timed out after ${options.timeoutMs}ms`</span>);
+  (timeoutError <span class="c-kw">as</span> NodeJS.ErrnoException).code = <span class="c-str">"ETIMEDOUT"</span>;
+  <span class="c-kw">if</span> (child) forceKillTimer = <span class="c-fn">terminateCodexProcessTree</span>(child);
+}, options.timeoutMs);
+
+<span class="c-kw">for</span> (<span class="c-kw">const</span> signal <span class="c-kw">of</span> [<span class="c-str">"SIGINT"</span>, <span class="c-str">"SIGTERM"</span>, <span class="c-str">"SIGHUP"</span>] <span class="c-kw">as const</span>) {
+  process.on(signal, () =&gt; {
+    <span class="c-kw">if</span> (terminating) <span class="c-kw">return</span>;
+    terminating = <span class="c-kw">true</span>;
+    <span class="c-kw">if</span> (!child) <span class="c-kw">return</span>;
+    input.unpipe(child.stdin);
+    child.stdin.end();
+    forceKillTimer = <span class="c-fn">terminateCodexProcessTree</span>(child, signal);
+  });
+}</code></pre>
+      </div>
+
+      <div class="code">
+        <div class="bar"><span>src/codex-spawn.ts</span><span class="loc">:61–86</span></div>
+<pre><code><span class="c-kw">export function</span> <span class="c-fn">terminateCodexProcessTree</span>(child, signal = <span class="c-str">"SIGTERM"</span>, forceAfterMs = <span class="c-num">1_000</span>) {
+  <span class="c-kw">if</span> (process.platform === <span class="c-str">"win32"</span>) {
+    <span class="c-kw">if</span> (child.pid) {
+      <span class="c-fn">spawnSync</span>(<span class="c-fn">windowsSystemExecutable</span>(<span class="c-str">"taskkill.exe"</span>, process.env),
+        [<span class="c-str">"/pid"</span>, String(child.pid), <span class="c-str">"/t"</span>, <span class="c-str">"/f"</span>], { stdio: <span class="c-str">"ignore"</span>, windowsHide: <span class="c-kw">true</span> });
+    }
+    <span class="c-kw">return undefined</span>;
+  }
+  <span class="c-kw">if</span> (signal !== <span class="c-str">"SIGKILL"</span>) gracefulTerminations.add(child);
+  <span class="c-fn">signalProcessGroup</span>(child.pid, signal);
+  <span class="c-kw">if</span> (signal === <span class="c-str">"SIGKILL"</span>) <span class="c-kw">return undefined</span>;
+  <span class="c-kw">const</span> timer = <span class="c-fn">setTimeout</span>(() =&gt; <span class="c-fn">signalProcessGroup</span>(child.pid, <span class="c-str">"SIGKILL"</span>), forceAfterMs);
+  timer.unref();
+  <span class="c-kw">return</span> timer;
+}</code></pre>
+      </div>
+
+      <div class="note">
+        <strong>平台差异：</strong>Windows 用 <code class="inline">taskkill /pid &lt;pid&gt; /t /f</code> 整棵树强杀；
+        POSIX 先给进程组发 SIGTERM，1 秒后再 SIGKILL。Codex 自己的子进程（git、ripgrep 等）也随之回收。
+      </div>
+    </section>
+
+    <section id="output">
+      <h2><span class="num">07</span>输出捕获与结果文件</h2>
+      <p class="sub">输出有两条通道：日志文件流，以及受管结果文件。</p>
+
+      <h3>7.1 stdout / stderr：有界落盘 + 保留尾部</h3>
+      <div class="card">
+        <ul class="clean" style="margin:0">
+          <li><strong>日志文件</strong>最多写 <code class="inline">maxOutputFileBytes</code>（默认 128 MiB），超出后截断并保留尾部。</li>
+          <li><strong>返回给调用方</strong>的只有 <code class="inline">tailBytes</code>（默认 64 KiB），避免把整段 Codex JSONL 塞进内存。</li>
+          <li>文件由 <code class="inline">codex-output-capture.ts</code> 管理，截断时写入 <code class="inline">...[Codex output truncated; final tail follows]...</code> 标记。</li>
+        </ul>
+      </div>
+
+      <h3>7.2 最终决策：stdout 解析，而不是让 Codex 直接写文件</h3>
+      <div class="code">
+        <div class="bar"><span>src/agent-runner.ts</span><span class="loc">:418–422</span></div>
+<pre><code><span class="c-kw">function</span> <span class="c-fn">managedCodexStdoutArgs</span>(args: readonly string[]): string[] {
+  <span class="c-kw">const</span> index = args.<span class="c-fn">lastIndexOf</span>(<span class="c-str">"--output-last-message"</span>);
+  <span class="c-kw">const</span> withoutFile = index &lt; <span class="c-num">0</span> ? [...args] : [...args.slice(<span class="c-num">0</span>, index), ...args.slice(index + <span class="c-num">2</span>)];
+  <span class="c-kw">return</span> withoutFile.<span class="c-fn">filter</span>((arg) =&gt; arg !== <span class="c-str">"--json"</span> &amp;&amp; arg !== <span class="c-str">"--experimental-json"</span>);
+}</code></pre>
+      </div>
+      <p>
+        调用方设置 <code class="inline">outputLastMessageBytes</code> 时，Clawsweeper 会从命令中<strong>移除</strong>
+        <code class="inline">--output-last-message &lt;path&gt;</code> 和 <code class="inline">--json</code>，
+        改为由 worker 从 Codex 的人读 stdout 中解析出最终消息（<code class="inline">OutputLastMessageParser</code>），
+        再以 <code class="inline">O_EXCL | 0600</code> 独占写入受管路径。
+      </p>
+      <div class="good">
+        <strong>为什么：</strong>Codex 进程不能决定文件最终落到哪里，也不能覆盖已有文件（<code class="inline">wx</code>）；
+        写入后会 <code class="inline">fstat</code> 校验“是普通文件且字节数完全一致”，失败时只删除自己创建的 inode。
+      </div>
+      <div class="code">
+        <div class="bar"><span>src/codex-process-worker.ts</span><span class="loc">:210–230</span></div>
+<pre><code><span class="c-kw">function</span> <span class="c-fn">writeManagedResult</span>(path: string, text: string): void {
+  <span class="c-kw">const</span> file = <span class="c-fn">openSync</span>(path, <span class="c-str">"wx"</span>, <span class="c-num">0o600</span>);   <span class="c-com">// 独占创建</span>
+  <span class="c-kw">const</span> owned = <span class="c-fn">fstatSync</span>(file);
+  <span class="c-kw">try</span> {
+    <span class="c-fn">writeFileSync</span>(file, text, <span class="c-str">"utf8"</span>);
+    <span class="c-kw">const</span> metadata = <span class="c-fn">fstatSync</span>(file);
+    <span class="c-kw">if</span> (!metadata.isFile() || metadata.size !== Buffer.<span class="c-fn">byteLength</span>(text)) {
+      <span class="c-kw">throw new</span> <span class="c-fn">Error</span>(<span class="c-str">"managed Codex result is not an exact regular file"</span>);
+    }
+  } <span class="c-kw">catch</span> (error) {
+    <span class="c-com">// 只删除自己刚创建的 inode，避免误删他人文件</span>
+    <span class="c-kw">const</span> current = <span class="c-fn">lstatSync</span>(path);
+    <span class="c-kw">if</span> (current.dev === owned.dev &amp;&amp; current.ino === owned.ino) <span class="c-fn">rmSync</span>(path);
+    <span class="c-kw">throw</span> error;
+  } <span class="c-kw">finally</span> { <span class="c-fn">closeSync</span>(file); }
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="repair">
+      <h2><span class="num">08</span>决策校验失败后的第二轮 Codex</h2>
+      <p class="sub">这是同一次 <code class="inline">runCodexProcess</code> 内部的第二次 <code class="inline">spawn</code>，不是新的 review。</p>
+
+      <div class="code">
+        <div class="bar"><span>src/codex-process-worker.ts</span><span class="loc">:84–104</span></div>
+<pre><code><span class="c-kw">let</span> turn = <span class="c-kw">await</span> <span class="c-fn">runTurn</span>(options.args);
+<span class="c-kw">const</span> repairError =
+  options.decisionRepair &amp;&amp; !turn.processError &amp;&amp; !turn.outputLastMessageError &amp;&amp; turn.text !== <span class="c-kw">undefined</span>
+    ? <span class="c-fn">decisionOutputError</span>(turn.text, options.decisionRepair.item)   <span class="c-com">// 校验 schema / 决策</span>
+    : <span class="c-kw">undefined</span>;
+<span class="c-kw">const</span> repairThreadId = repairError ? <span class="c-fn">codexExecSessionId</span>(sessionHeader) : <span class="c-kw">undefined</span>;
+
+<span class="c-kw">if</span> (repairError &amp;&amp; repairThreadId &amp;&amp; options.args.at(-<span class="c-num">1</span>) === <span class="c-str">"-"</span> &amp;&amp; !terminating &amp;&amp; !timeoutError) {
+  <span class="c-com">// 同一线程、同一 sandbox / schema / 超时预算的修复回合</span>
+  decisionRepairError = repairError;
+  <span class="c-fn">appendCodexOutputCapture</span>(stderr, Buffer.<span class="c-fn">from</span>(<span class="c-str">"\n[clawsweeper] decision repair turn\n"</span>));
+  stdout.tail = Buffer.<span class="c-fn">alloc</span>(<span class="c-num">0</span>);
+  stderr.tail = Buffer.<span class="c-fn">alloc</span>(<span class="c-num">0</span>);
+  input = Readable.<span class="c-fn">from</span>([<span class="c-fn">decisionRepairPrompt</span>(repairError)]);
+  turn = <span class="c-kw">await</span> <span class="c-fn">runTurn</span>([...options.args.slice(<span class="c-num">0</span>, -<span class="c-num">1</span>), <span class="c-str">"resume"</span>, repairThreadId, <span class="c-str">"-"</span>]);
+}</code></pre>
+      </div>
+
+      <ul class="clean">
+        <li>第一轮失败原因写入 <code class="inline">decisionRepairError</code>，第二轮的结果单独作为返回值；两轮的 stdout/stderr 都保留在日志文件里。</li>
+        <li>会话 id 从 <code class="inline">codex exec</code> 打印的头部（<code class="inline">OpenAI Codex v… / session id: &lt;uuid&gt;</code>）解析，只在 stderr 前 64 KiB 内查找。</li>
+        <li>只有入参以 <code class="inline">"-"</code>（stdin prompt）结尾、且没有终止/超时才允许修复，避免对不完整会话续跑。</li>
+      </ul>
+    </section>
+
+    <section id="binary">
+      <h2><span class="num">09</span>二进制解析与 Windows 细节</h2>
+      <p class="sub">“调用 codex”之前，先要确定 <code class="inline">codex</code> 到底是哪个文件。</p>
+
+      <div class="code">
+        <div class="bar"><span>src/codex-spawn.ts</span><span class="loc">:21–59</span></div>
+<pre><code><span class="c-kw">export function</span> <span class="c-fn">codexProcessCommand</span>(env, platform, cwd): string {
+  <span class="c-kw">const</span> configured = env.CODEX_BIN?.trim();
+  <span class="c-kw">if</span> (configured) <span class="c-kw">return</span> configured;            <span class="c-com">// 显式覆盖优先</span>
+  <span class="c-kw">if</span> (platform === <span class="c-str">"win32"</span>) {
+    <span class="c-kw">try</span> {
+      <span class="c-kw">const</span> pathInvocation = <span class="c-fn">resolveSpawnCommand</span>(<span class="c-str">"codex"</span>, [], { cwd, env, platform, ... });
+      <span class="c-kw">if</span> (<span class="c-fn">windowsInvocationIsSpawnable</span>(pathInvocation)) <span class="c-kw">return</span> <span class="c-str">"codex"</span>;
+    } <span class="c-kw">catch</span> { <span class="c-com">/* 落到桌面版兜底 */</span> }
+    <span class="c-kw">const</span> appBinary = <span class="c-fn">windowsCodexAppBinary</span>(env);
+    <span class="c-kw">if</span> (appBinary) <span class="c-kw">return</span> appBinary;            <span class="c-com">// %LOCALAPPDATA%\OpenAI\Codex\bin\codex.exe</span>
+  }
+  <span class="c-kw">return</span> <span class="c-str">"codex"</span>;
+}
+
+<span class="c-kw">export function</span> <span class="c-fn">codexSpawnInvocation</span>(args, env, platform, cwd) {
+  <span class="c-kw">const</span> configuredCommand = <span class="c-fn">codexProcessCommand</span>(env, platform, cwd);
+  <span class="c-kw">return</span> <span class="c-fn">resolveSpawnCommand</span>(configuredCommand, args, {
+    cwd, env, platform,
+    missingCommandMessage: <span class="c-str">`Unable to resolve Windows Codex command: ${configuredCommand}`</span>,
+  });
+}</code></pre>
+      </div>
+
+      <p><code class="inline">resolveSpawnCommand()</code>（<code class="inline">src/command.ts:280</code>）在 Windows 上会：</p>
+      <ul class="clean">
+        <li>按 <code class="inline">PATHEXT</code>（<code class="inline">.COM;.EXE;.BAT;.CMD</code>）和 <code class="inline">PATH</code> 逐目录解析，并做大小写不敏感匹配。</li>
+        <li>若命中 Node shebang 脚本，改用 <code class="inline">process.execPath &lt;script&gt;</code> 启动。</li>
+        <li>若命中 <code class="inline">.bat/.cmd</code>，包一层 <code class="inline">cmd.exe /d /s /c "…"</code>，并启用 <code class="inline">windowsVerbatimArguments</code>。</li>
+      </ul>
+      <div class="code">
+        <div class="bar"><span>src/command.ts</span><span class="loc">:307–316</span></div>
+<pre><code><span class="c-kw">const</span> shellCommand = [
+  <span class="c-fn">escapeWindowsCommand</span>(<span class="c-fn">normalize</span>(windowsCommand)),
+  ...resolved.args.<span class="c-fn">map</span>(escapeWindowsArgument),
+].<span class="c-fn">join</span>(<span class="c-str">" "</span>);
+<span class="c-kw">return</span> {
+  command: <span class="c-fn">windowsSystemExecutable</span>(<span class="c-str">"cmd.exe"</span>, env),
+  args: [<span class="c-str">"/d"</span>, <span class="c-str">"/s"</span>, <span class="c-str">"/c"</span>, <span class="c-str">`"${shellCommand}"`</span>],
+  windowsVerbatimArguments: <span class="c-kw">true</span>,
+};</code></pre>
+      </div>
+    </section>
+
+    <section id="env">
+      <h2><span class="num">10</span>环境变量与安全边界</h2>
+      <p class="sub">Codex 进程拿到的不是一个干净的 <code class="inline">process.env</code>。</p>
+
+      <div class="card tight" style="padding:0;overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>变量</th><th>作用</th><th>位置</th></tr></thead>
+          <tbody>
+            <tr><td><code>CLAWSWEEPER_RUNNER</code></td><td><code>codex</code>（默认）/ <code>openclaw</code>，决定走哪条 runner</td><td>agent-runner.ts:39</td></tr>
+            <tr><td><code>CODEX_BIN</code></td><td>直接指定 Codex 可执行文件，跳过 PATH 解析</td><td>codex-spawn.ts:26</td></tr>
+            <tr><td><code>CLAWSWEEPER_INTERNAL_MODEL</code></td><td>内部模型名；公开占位符 <code>internal</code> 时不追加 <code>--model</code>，并从日志脱敏</td><td>codex-env.ts</td></tr>
+            <tr><td><code>CLAWSWEEPER_CODEX_LOGIN_METHOD</code></td><td><code>api</code> / <code>chatgpt</code> → <code>forced_login_method</code></td><td>codex-env.ts:14</td></tr>
+            <tr><td><code>CLAWSWEEPER_PROOF_INSPECTION_TOKEN</code></td><td>仅用于 checkout 校验的短生命周期 token，会重新注入子进程</td><td>review-core.ts:801</td></tr>
+            <tr><td><code>GH_TOKEN</code></td><td>只有 codex runner 保留；OpenClaw 的最终子进程白名单会剥离</td><td>agent-runner.ts:60</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>凭证清理（codexEnv）</h3>
+      <div class="code">
+        <div class="bar"><span>src/codex-env.ts</span><span class="loc">:73–99（节选）</span></div>
+<pre><code><span class="c-kw">const</span> env = { ...process.env };
+<span class="c-kw">delete</span> env.GH_TOKEN;
+<span class="c-kw">delete</span> env.GITHUB_TOKEN;
+<span class="c-kw">delete</span> env.REPO_TOKEN;
+<span class="c-kw">delete</span> env.COMMIT_SWEEPER_TARGET_GH_TOKEN;
+<span class="c-kw">delete</span> env.CLAWSWEEPER_PROOF_INSPECTION_TOKEN;
+<span class="c-kw">delete</span> env.CLAWSWEEPER_APP_ID;
+<span class="c-kw">delete</span> env.CLAWSWEEPER_APP_PRIVATE_KEY;
+<span class="c-kw">delete</span> env.CLAWSWEEPER_CRABFLEET_AGENT_TOKEN;
+<span class="c-com">// … 并删除所有 CLAWSWEEPER_*GH_TOKEN / GIT_CONFIG_* …</span>
+<span class="c-kw">if</span> (!options.preserveCodexAuth) {
+  <span class="c-kw">if</span> (env.CLAWSWEEPER_RUNNER !== <span class="c-str">"openclaw"</span>) <span class="c-kw">delete</span> env.OPENAI_API_KEY;
+  <span class="c-kw">delete</span> env.CODEX_API_KEY;
+  <span class="c-kw">delete</span> env.CODEX_ACCESS_TOKEN;
+}
+<span class="c-kw">delete</span> env.CLAWSWEEPER_INTERNAL_MODEL;
+<span class="c-kw">if</span> (ghToken) env.GH_TOKEN = ghToken;      <span class="c-com">// 只放回受控 token</span></code></pre>
+      </div>
+
+      <div class="good">
+        <strong>安全设计：</strong>prompt 在交给 Codex 之前还会经过 <code class="inline">scanAgentInput()</code>（检查工作区、committed range、schema 大小等），
+        Codex 运行时默认 <code class="inline">approval_policy="never"</code>，审查工作区保持只读，proof 产物只能写到 <code class="inline">--add-dir</code> 指定的 scratch 目录。
+      </div>
+    </section>
+
+    <section id="others">
+      <h2><span class="num">11</span>其他调用入口</h2>
+      <p class="sub">它们共享同一条底层链路，只是 <code class="inline">codexExtraArgs</code> 不同。</p>
+
+      <div class="card tight" style="padding:0;overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>入口</th><th>源码位置</th><th>用途</th><th>关键参数差异</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Review（主路径）</td>
+              <td><code>clawsweeper-review-core.ts:814/937</code></td>
+              <td>Issue / PR 审查，产出结构化 decision</td>
+              <td>带 <code>--output-schema</code>、<code>--json</code>、<code>--add-dir</code>，启用 decision repair</td>
+            </tr>
+            <tr>
+              <td>Assist</td>
+              <td><code>clawsweeper-assist.ts:235/265</code></td>
+              <td>维护者追问，生成 markdown 回答</td>
+              <td>只用 <code>--output-last-message</code> + <code>--sandbox</code>，不传 schema</td>
+            </tr>
+            <tr>
+              <td>Local review</td>
+              <td><code>commit-sweeper.ts:271/300</code></td>
+              <td>本地 commit 审查</td>
+              <td>带 <code>--json</code>、按 sha 命名输出</td>
+            </tr>
+            <tr>
+              <td>PR close coverage proof</td>
+              <td><code>pr-close-coverage-proof.ts:272</code></td>
+              <td>证明 PR 已覆盖某个 issue</td>
+              <td>独立 prompt / schema，产出 proof</td>
+            </tr>
+            <tr>
+              <td>Checkout inspection</td>
+              <td><code>agent-runner.ts:166/264</code></td>
+              <td>只读校验：确认 Codex 真的能读工作区</td>
+              <td><code>codex sandbox --permission-profile :read-only -C &lt;dir&gt; -- git hash-object …</code></td>
+            </tr>
+            <tr>
+              <td>OpenClaw runner</td>
+              <td><code>src/openclaw-process.ts</code></td>
+              <td>替代 Codex 的执行后端</td>
+              <td>不 spawn <code>codex</code>；走 OpenClaw CLI</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <strong>注意：</strong>checkout inspection 是本报告里唯一一条“不是 <code class="inline">codex exec</code>”的 Codex 调用：
+        它执行的是 <code class="inline">codex sandbox --permission-profile :read-only … -- git hash-object</code>，
+        用文件指纹挑战证明沙箱确实能读到 checkout。
+      </div>
+    </section>
+
+    <section id="method">
+      <h2><span class="num">12</span>方法与证据</h2>
+      <div class="card">
+        <ul class="clean" style="margin:0">
+          <li><strong>对象：</strong><code class="inline">@openclaw/clawsweeper</code> v0.3.3，本地源码快照 <code class="inline">commit e7fd669</code>（2026-11-12），路径 <code class="inline">C:\Users\Administrator\AppData\Local\Temp\2\clawsweeper</code>。</li>
+          <li><strong>方法：</strong>静态阅读 + 全仓库检索 <code class="inline">spawn(</code>、<code class="inline">codex</code>、<code class="inline">runAgentProcess</code>、<code class="inline">runCodexProcess</code>、<code class="inline">spawnCodex</code>，逐层确认调用者与被调用者。未实际执行 Codex。</li>
+          <li><strong>覆盖：</strong><code class="inline">src/</code> 下 TypeScript 源码；测试文件与 prompt 文档仅用于交叉确认语义。</li>
+          <li><strong>行号：</strong>均对应当前快照；上游 HEAD 变动后可能偏移，定位请以函数名为准。</li>
+        </ul>
+      </div>
+      <div class="warn">
+        <strong>边界：</strong>本报告回答的是“代码在哪里、如何调用”，不评价审查策略本身；
+        prompt 内容、决策 schema 与标签策略属于另外的文档。
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    Clawsweeper × Codex 调用链源码报告 · 生成于 2026-11-20 · 基于 openclaw/clawsweeper e7fd669 静态审阅
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var sections = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+    if (!('IntersectionObserver' in window)) return;
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var idx = sections.indexOf(entry.target);
+        if (idx < 0) return;
+        links.forEach(function (a) { a.classList.remove('active'); });
+        links[idx].classList.add('active');
+      });
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+    sections.forEach(function (s) { if (s) observer.observe(s); });
+  })();
+</script>
+</body>
+</html>

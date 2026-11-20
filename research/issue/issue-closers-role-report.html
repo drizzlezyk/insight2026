@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>谁在关闭 openClaw 的 issue · 关闭人分析</title>
+<style>
+  :root{
+    color-scheme: light;
+    --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --track:#f0efec; --border:rgba(11,11,11,.10);
+    --bot:#2a78d6; --founder:#eb6834; --official:#1baf7a; --other:#eda100;
+    --accent:#0f766e; --neutral:#d9d7cf;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --track:#262624; --border:rgba(255,255,255,.10);
+      --bot:#3987e5; --founder:#d95926; --official:#199e70; --other:#c98500;
+      --accent:#35c2ad; --neutral:#3a3a37;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --track:#262624; --border:rgba(255,255,255,.10);
+    --bot:#3987e5; --founder:#d95926; --official:#199e70; --other:#c98500;
+    --accent:#35c2ad; --neutral:#3a3a37;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .page{max-width:1180px;margin:0 auto;padding:30px 28px 40px}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
+    border-bottom:1px solid var(--border);padding-bottom:18px}
+  .eyebrow{font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:600}
+  h1{font-size:32px;line-height:1.15;margin:8px 0 6px;letter-spacing:-.01em}
+  .sub{margin:0;color:var(--ink2);font-size:13px}
+  .theme{border:1px solid var(--border);background:var(--surface);color:var(--ink2);
+    width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1}
+  .theme:hover{background:var(--track)}
+  .theme:focus-visible{outline:2px solid var(--bot);outline-offset:2px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:15px 16px 13px}
+  .kpi .v{font-size:33px;font-weight:700;letter-spacing:-.02em;line-height:1}
+  .kpi .v small{font-size:18px;font-weight:600;letter-spacing:0}
+  .kpi .l{font-size:12px;color:var(--ink2);margin-top:8px}
+  .kpi .s{font-size:11px;color:var(--muted);margin-top:2px}
+  .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-top:22px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:17px 18px 13px}
+  .card-head h2{font-size:16px;margin:0}
+  .card-head p{font-size:12px;color:var(--muted);margin:4px 0 0}
+  .legend{display:flex;gap:13px;flex-wrap:wrap;margin:13px 0 8px;font-size:11.5px;color:var(--ink2)}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .bars{display:flex;flex-direction:column;gap:1px}
+  .row{display:grid;grid-template-columns:22px 152px 1fr 60px 52px;align-items:center;gap:10px;
+    padding:5px 4px;border-radius:6px}
+  .row:hover{background:var(--track)}
+  .rank{font-size:11px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+  .who b{font-size:12.5px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .who small{font-size:10.5px;color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .track{height:14px;background:var(--track);border-radius:0 4px 4px 0;overflow:hidden}
+  .fill{display:block;height:100%;border-radius:0 4px 4px 0}
+  .num{font-size:12px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  .pct{font-size:11.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2)}
+  .tableview{margin-top:10px;border-top:1px solid var(--grid);padding-top:7px;font-size:12px}
+  .tableview summary{cursor:pointer;color:var(--ink2);font-size:11.5px}
+  .tableview summary:hover{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;font-weight:600;color:var(--muted);font-size:10.5px;letter-spacing:.04em;
+    padding:6px 4px;border-bottom:1px solid var(--grid)}
+  td{padding:6px 4px;border-bottom:1px solid var(--grid);font-variant-numeric:tabular-nums}
+  td.r,th.r{text-align:right}
+  .seg{display:flex;gap:2px;height:10px;margin:14px 0 12px;border-radius:4px;overflow:hidden}
+  .seg i{display:block;height:100%}
+  .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .mini{display:inline-block;width:52px;height:6px;background:var(--track);border-radius:3px;
+    overflow:hidden;margin-right:6px;vertical-align:middle}
+  .mini i{display:block;height:100%;background:var(--accent);border-radius:3px}
+  .note{font-size:10.5px;color:var(--muted);margin:10px 0 0;line-height:1.55}
+  .findings{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
+  .find{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .find .k{font-size:27px;font-weight:700;line-height:1;letter-spacing:-.02em}
+  .find .k.sm{font-size:21px}
+  .find .t{font-size:12.5px;font-weight:600;margin-top:8px}
+  .find p{font-size:11px;color:var(--ink2);margin:6px 0 0;line-height:1.55}
+  .caveats{margin-top:14px;border:1px solid var(--border);border-left:3px solid var(--founder);
+    border-radius:8px;padding:13px 16px;background:var(--surface)}
+  .caveats h3{font-size:12px;margin:0 0 6px;letter-spacing:.04em;color:var(--ink2)}
+  .caveats ul{margin:0;padding-left:16px;font-size:11.5px;color:var(--ink2);line-height:1.65}
+  footer{margin-top:16px;border-top:1px solid var(--border);padding-top:10px;
+    font-size:10.5px;color:var(--muted);line-height:1.6}
+  .tip{position:fixed;z-index:20;max-width:270px;background:var(--ink);color:var(--surface);
+    font-size:11px;line-height:1.45;padding:7px 9px;border-radius:6px;pointer-events:none;
+    opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s}
+  .tip.on{opacity:1;transform:none}
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .grid{grid-template-columns:1fr}
+    .findings{grid-template-columns:repeat(2,1fr)}
+    .row{grid-template-columns:18px 112px 1fr 54px 46px;gap:8px}
+  }
+  @media (max-width:520px){
+    .findings{grid-template-columns:1fr}
+    .head{flex-direction:column}
+    h1{font-size:26px}
+    .page{padding:20px 16px 28px}
+  }
+  @media print{
+    .theme,.tip{display:none}
+    body{background:#fff}
+    .card,.kpi,.find,.caveats{break-inside:avoid}
+    .page{max-width:none;padding:0}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header class="head">
+    <div>
+      <div class="eyebrow">OPENCLAW · ISSUE GOVERNANCE</div>
+      <h1>谁在关闭 openClaw 的 issue</h1>
+      <p class="sub">窗口 2026-09-11 → 11-11 · 11,468 条 issue · 8,127 条已关闭 · 295 个关闭人</p>
+    </div>
+    <button id="theme" class="theme" aria-label="切换深浅色" title="切换深浅色">◐</button>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi"><div class="v">11,468</div><div class="l">窗口内 issue</div><div class="s">2026-09-11 → 11-11</div></div>
+    <div class="kpi"><div class="v">8,127</div><div class="l">已关闭</div><div class="s">关闭率 70.9%</div></div>
+    <div class="kpi"><div class="v">44.4<small>%</small></div><div class="l">由自动化账号关闭</div><div class="s">3,612 次 · 6 个账号</div></div>
+    <div class="kpi"><div class="v">92.9<small>%</small></div><div class="l">由前 10 个账号关闭</div><div class="s">295 个关闭人中的 10 个</div></div>
+  </section>
+
+  <section class="grid">
+
+    <article class="card">
+      <div class="card-head">
+        <h2>关闭人 Top 12</h2>
+        <p>按关闭数排序 · 颜色 = 社区角色 · 悬停看明细</p>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--bot)"></i>自动化</span>
+        <span><i style="background:var(--founder)"></i>创始人</span>
+        <span><i style="background:var(--official)"></i>官方维护者</span>
+        <span><i style="background:var(--other)"></i>外部人</span>
+      </div>
+
+      <div class="bars">
+        <div class="row" data-tip="steipete · 创始人 · 2,128 次关闭 · 26.2% · COMPLETED 85.6%">
+          <span class="rank">1</span>
+          <span class="who"><b>steipete</b><small>创始人 · Peter Steinberger</small></span>
+          <span class="track"><i class="fill" style="width:100%;background:var(--founder)"></i></span>
+          <span class="num">2,128</span><span class="pct">26.2%</span>
+        </div>
+        <div class="row" data-tip="clawsweeper · 自动化评审 · 2,070 次关闭 · 25.5% · COMPLETED 43.6%">
+          <span class="rank">2</span>
+          <span class="who"><b>clawsweeper</b><small>自动化 · 评审</small></span>
+          <span class="track"><i class="fill" style="width:97.3%;background:var(--bot)"></i></span>
+          <span class="num">2,070</span><span class="pct">25.5%</span>
+        </div>
+        <div class="row" data-tip="openclaw-barnacle · 自动化分诊 · 1,157 次关闭 · 14.2% · COMPLETED 0.0%">
+          <span class="rank">3</span>
+          <span class="who"><b>openclaw-barnacle</b><small>自动化 · 分诊</small></span>
+          <span class="track"><i class="fill" style="width:54.4%;background:var(--bot)"></i></span>
+          <span class="num">1,157</span><span class="pct">14.2%</span>
+        </div>
+        <div class="row" data-tip="obviyus · Foundation MTS · 902 次关闭 · 11.1% · COMPLETED 97.0%">
+          <span class="rank">4</span>
+          <span class="who"><b>obviyus</b><small>Foundation · MTS</small></span>
+          <span class="track"><i class="fill" style="width:42.4%;background:var(--official)"></i></span>
+          <span class="num">902</span><span class="pct">11.1%</span>
+        </div>
+        <div class="row" data-tip="shakkernerd · Foundation MTS · 415 次关闭 · 5.1% · COMPLETED 100%">
+          <span class="rank">5</span>
+          <span class="who"><b>shakkernerd</b><small>Foundation · MTS</small></span>
+          <span class="track"><i class="fill" style="width:19.5%;background:var(--official)"></i></span>
+          <span class="num">415</span><span class="pct">5.1%</span>
+        </div>
+        <div class="row" data-tip="roboclaw-bot · 自动化修复 · 382 次关闭 · 4.7% · COMPLETED 96.3%">
+          <span class="rank">6</span>
+          <span class="who"><b>roboclaw-bot</b><small>自动化 · 修复</small></span>
+          <span class="track"><i class="fill" style="width:18.0%;background:var(--bot)"></i></span>
+          <span class="num">382</span><span class="pct">4.7%</span>
+        </div>
+        <div class="row" data-tip="vincentkoc · Foundation 首席架构 · 206 次关闭 · 2.5% · COMPLETED 94.7%">
+          <span class="rank">7</span>
+          <span class="who"><b>vincentkoc</b><small>Foundation · 首席架构</small></span>
+          <span class="track"><i class="fill" style="width:9.7%;background:var(--official)"></i></span>
+          <span class="num">206</span><span class="pct">2.5%</span>
+        </div>
+        <div class="row" data-tip="RomneyDa · Foundation MTS · 120 次关闭 · 1.5% · COMPLETED 96.7%">
+          <span class="rank">8</span>
+          <span class="who"><b>RomneyDa</b><small>Foundation · MTS</small></span>
+          <span class="track"><i class="fill" style="width:5.6%;background:var(--official)"></i></span>
+          <span class="num">120</span><span class="pct">1.5%</span>
+        </div>
+        <div class="row" data-tip="vyctorbrzezowski · Foundation 设计工程 · 116 次关闭 · 1.4% · COMPLETED 100%">
+          <span class="rank">9</span>
+          <span class="who"><b>vyctorbrzezowski</b><small>Foundation · 设计工程</small></span>
+          <span class="track"><i class="fill" style="width:5.5%;background:var(--official)"></i></span>
+          <span class="num">116</span><span class="pct">1.4%</span>
+        </div>
+        <div class="row" data-tip="jalehman · Foundation MTS · 52 次关闭 · 0.6% · COMPLETED 98.1%">
+          <span class="rank">10</span>
+          <span class="who"><b>jalehman</b><small>Foundation · MTS</small></span>
+          <span class="track"><i class="fill" style="width:2.4%;background:var(--official)"></i></span>
+          <span class="num">52</span><span class="pct">0.6%</span>
+        </div>
+        <div class="row" data-tip="Patrick-Erichsen · Foundation MTS · 37 次关闭 · 0.5% · COMPLETED 100%">
+          <span class="rank">11</span>
+          <span class="who"><b>Patrick-Erichsen</b><small>Foundation · MTS</small></span>
+          <span class="track"><i class="fill" style="width:1.7%;background:var(--official)"></i></span>
+          <span class="num">37</span><span class="pct">0.5%</span>
+        </div>
+        <div class="row" data-tip="fuller-stack-dev · Foundation MTS · 31 次关闭 · 0.4% · COMPLETED 100%">
+          <span class="rank">12</span>
+          <span class="who"><b>fuller-stack-dev</b><small>Foundation · MTS</small></span>
+          <span class="track"><i class="fill" style="width:1.5%;background:var(--official)"></i></span>
+          <span class="num">31</span><span class="pct">0.4%</span>
+        </div>
+      </div>
+
+      <details class="tableview">
+        <summary>查看数据表（含长尾）</summary>
+        <table>
+          <thead><tr><th>#</th><th>关闭人</th><th>角色</th><th class="r">关闭数</th><th class="r">占比</th><th class="r">COMPLETED</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>steipete</td><td>创始人</td><td class="r">2,128</td><td class="r">26.2%</td><td class="r">85.6%</td></tr>
+            <tr><td>2</td><td>clawsweeper</td><td>自动化</td><td class="r">2,070</td><td class="r">25.5%</td><td class="r">43.6%</td></tr>
+            <tr><td>3</td><td>openclaw-barnacle</td><td>自动化</td><td class="r">1,157</td><td class="r">14.2%</td><td class="r">0.0%</td></tr>
+            <tr><td>4</td><td>obviyus</td><td>官方</td><td class="r">902</td><td class="r">11.1%</td><td class="r">97.0%</td></tr>
+            <tr><td>5</td><td>shakkernerd</td><td>官方</td><td class="r">415</td><td class="r">5.1%</td><td class="r">100%</td></tr>
+            <tr><td>6</td><td>roboclaw-bot</td><td>自动化</td><td class="r">382</td><td class="r">4.7%</td><td class="r">96.3%</td></tr>
+            <tr><td>7</td><td>vincentkoc</td><td>官方</td><td class="r">206</td><td class="r">2.5%</td><td class="r">94.7%</td></tr>
+            <tr><td>8</td><td>RomneyDa</td><td>官方</td><td class="r">120</td><td class="r">1.5%</td><td class="r">96.7%</td></tr>
+            <tr><td>9</td><td>vyctorbrzezowski</td><td>官方</td><td class="r">116</td><td class="r">1.4%</td><td class="r">100%</td></tr>
+            <tr><td>10</td><td>jalehman</td><td>官方</td><td class="r">52</td><td class="r">0.6%</td><td class="r">98.1%</td></tr>
+            <tr><td>11</td><td>Patrick-Erichsen</td><td>官方</td><td class="r">37</td><td class="r">0.5%</td><td class="r">100%</td></tr>
+            <tr><td>12</td><td>fuller-stack-dev</td><td>官方</td><td class="r">31</td><td class="r">0.4%</td><td class="r">100%</td></tr>
+            <tr><td>—</td><td>其余 283 人</td><td>外部人</td><td class="r">510</td><td class="r">6.3%</td><td class="r">65.7%</td></tr>
+          </tbody>
+        </table>
+      </details>
+    </article>
+
+    <article class="card">
+      <div class="card-head">
+        <h2>角色构成</h2>
+        <p>关闭数、占比与 COMPLETED 占比</p>
+      </div>
+
+      <div class="seg" role="img" aria-label="角色构成：自动化 44.4%，创始人 26.2%，官方维护者 24.5%，外部人 4.8%">
+        <i style="flex:44.4;background:var(--bot)"></i>
+        <i style="flex:26.2;background:var(--founder)"></i>
+        <i style="flex:24.5;background:var(--official)"></i>
+        <i style="flex:4.8;background:var(--other)"></i>
+      </div>
+
+      <table>
+        <thead><tr><th>角色</th><th class="r">人数</th><th class="r">关闭数</th><th class="r">占比</th><th>COMPLETED</th></tr></thead>
+        <tbody>
+          <tr><td><i class="sw" style="background:var(--bot)"></i>自动化</td><td class="r">6</td><td class="r">3,612</td><td class="r">44.4%</td><td><span class="mini"><i style="width:35.2%"></i></span>35.2%</td></tr>
+          <tr><td><i class="sw" style="background:var(--founder)"></i>创始人</td><td class="r">1</td><td class="r">2,128</td><td class="r">26.2%</td><td><span class="mini"><i style="width:85.6%"></i></span>85.6%</td></tr>
+          <tr><td><i class="sw" style="background:var(--official)"></i>官方维护者</td><td class="r">18</td><td class="r">1,992</td><td class="r">24.5%</td><td><span class="mini"><i style="width:97.0%"></i></span>97.0%</td></tr>
+          <tr><td><i class="sw" style="background:var(--other)"></i>外部人</td><td class="r">270</td><td class="r">394</td><td class="r">4.8%</td><td><span class="mini"><i style="width:60.2%"></i></span>60.2%</td></tr>
+        </tbody>
+      </table>
+      <p class="note">COMPLETED = stateReason；其余为 NOT_PLANNED / DUPLICATE。官方维护者 = Foundation 10 人 + Core Maintainers 8 人（在窗口内实际关闭过 issue 的）。自动化账号共 6 个：clawsweeper、openclaw-barnacle、roboclaw-bot 合计 3,609 次；另有 jarvis-stephens-bot、hddms-matt-bot、tideclaw-bot 各 1 次。</p>
+    </article>
+
+  </section>
+
+  <section class="findings">
+    <div class="find">
+      <div class="k">77%</div>
+      <div class="t">4 个账号完成 77% 的关闭</div>
+      <p>steipete、clawsweeper、openclaw-barnacle、obviyus；前 10 个账号占 92.9%。</p>
+    </div>
+    <div class="find">
+      <div class="k">100%</div>
+      <div class="t">外部人的关闭全部是自关</div>
+      <p>270 人、394 次，全部关的是自己开的 issue；没有一次替别人关。</p>
+    </div>
+    <div class="find">
+      <div class="k sm">0% · 43.6% · 96.3%</div>
+      <div class="t">机器人干三种活</div>
+      <p>Barnacle 纯清场、ClawSweeper 混合、RoboClaw 修完再关（COMPLETED 占比）。</p>
+    </div>
+    <div class="find">
+      <div class="k">97.0%</div>
+      <div class="t">Foundation 的关闭几乎都是 COMPLETED</div>
+      <p>人负责收口；创始人是 85.6%。</p>
+    </div>
+  </section>
+
+  <section class="caveats">
+    <h3>口径与限制</h3>
+    <ul>
+      <li>这里的 <b>COMPLETED</b> 是 GitHub 的 stateReason，<b>不等于「有合并 PR」</b>。它与附件 P12 的「已解决关闭 42.8%」、P1 的「completed 且带合并 PR 24.1%」不是同一口径。</li>
+      <li>外部人 100% 自关，部分受权限结构影响：没有 triage / write 权限的贡献者关不了别人的 issue。不能直接解读为「外部人不参与治理」。</li>
+      <li><b>openclaw-barnacle</b> 在 GitHub API 返回 404（可能是 GitHub App 或已改名），角色按行为（0% COMPLETED、纯分诊）归类为自动化。</li>
+      <li>窗口与附件 P12 不同：这里是 09-11 → 11-11、11,468 条；P12 是 09-13 → 11-13、11,147 条。两次快照，不要混用。</li>
+    </ul>
+  </section>
+
+  <footer>
+    数据：<code>issue/issue-closers-20260911-20261111.json</code>（GitHub GraphQL <code>CLOSED_EVENT</code>，取每条 issue 最后一次关闭事件的 actor）·
+    角色：openclaw.org/people（Foundation + Core Maintainers）与 GitHub 公开资料 ·
+    生成于 2026-11-19
+  </footer>
+
+</main>
+
+<div id="tip" class="tip" role="status" aria-live="polite"></div>
+
+<script>
+  // theme
+  (function(){
+    var root=document.documentElement, btn=document.getElementById('theme');
+    var saved=localStorage.getItem('viz-theme');
+    if(saved) root.dataset.theme=saved;
+    btn.addEventListener('click',function(){
+      var isDark = root.dataset.theme ? root.dataset.theme==='dark'
+        : matchMedia('(prefers-color-scheme: dark)').matches;
+      var next = isDark ? 'light' : 'dark';
+      root.dataset.theme=next; localStorage.setItem('viz-theme',next);
+    });
+  })();
+
+  // hover tooltip
+  (function(){
+    var tip=document.getElementById('tip');
+    document.querySelectorAll('[data-tip]').forEach(function(el){
+      el.addEventListener('mouseenter',function(){ tip.textContent=el.dataset.tip; tip.classList.add('on'); });
+      el.addEventListener('mousemove',function(e){
+        var x=Math.min(e.clientX+14, window.innerWidth-290);
+        var y=Math.min(e.clientY+14, window.innerHeight-70);
+        tip.style.left=x+'px'; tip.style.top=y+'px';
+      });
+      el.addEventListener('mouseleave',function(){ tip.classList.remove('on'); });
+    });
+  })();
+
+  // layout self-check
+  window.addEventListener('load',function(){
+    var out=[];
+    document.querySelectorAll('.row,.kpi,.card,.find,.caveats,.seg,table').forEach(function(el){
+      if(el.scrollWidth>el.clientWidth+2) out.push('WIDE:'+(el.className||el.tagName));
+    });
+    if(document.documentElement.scrollWidth>window.innerWidth+2) out.push('PAGE-HWRAP');
+    var pre=document.createElement('pre'); pre.id='check'; pre.style.display='none';
+    pre.textContent='CHECK:'+(out.join('|')||'OK');
+    document.body.appendChild(pre);
+  });
+</script>
+</body>
+</html>

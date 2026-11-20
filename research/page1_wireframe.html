@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>第一页线框 v1</title>
+<style>
+  html,body{margin:0;padding:0;background:#eceef1;}
+  body{font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+       color:#16191E;-webkit-font-smoothing:antialiased;}
+  .wrap{padding:28px 28px 60px;}
+  .cap{max-width:1280px;margin:0 auto 10px;font-size:12px;color:#6B7380;letter-spacing:.4px;}
+  .canvas{position:relative;width:1280px;height:720px;margin:0 auto;background:#fff;
+          box-shadow:0 8px 30px rgba(0,0,0,.12);overflow:hidden;}
+  .abs{position:absolute;}
+  .title{font-size:34px;font-weight:700;letter-spacing:.5px;line-height:1.1;color:#16191E;}
+  .subtitle{font-size:16px;color:#6B7380;}
+  .rule{background:#E2E6EA;height:1px;}
+  .qnum{color:#0F766E;font-weight:700;}
+  .sec{font-size:14px;font-weight:700;color:#16191E;}
+  .sec .muted{font-weight:400;color:#9AA1AC;font-size:12px;}
+  .flabel{font-size:12px;color:#16191E;}
+  .fcount{font-size:15px;font-weight:700;text-align:right;color:#16191E;}
+  .fdrop{font-size:11px;color:#6B7380;}
+  .fdrop.hot{color:#B45309;font-weight:700;}
+  .track{background:#EEF1F3;}
+  .bar{background:#0F766E;}
+  .bar.last{background:#6B7380;}
+  .plead{font-size:13px;font-weight:700;color:#16191E;}
+  .psub{font-size:11.5px;color:#6B7380;}
+  .blk{border-top:1px solid #EEF1F3;}
+  .benef{font-size:12px;color:#16191E;}
+  .benef .role{display:inline-block;width:86px;font-size:10.5px;color:#9AA1AC;letter-spacing:.3px;}
+  .big{font-size:21px;font-weight:700;color:#0F766E;text-align:right;line-height:1;}
+  .impl{background:#0F766E;color:#fff;}
+  .impl .h{font-size:13px;font-weight:700;letter-spacing:.3px;}
+  .impl .it{font-size:11.5px;color:#E6F2F1;line-height:1.5;}
+  .tlh{font-size:13px;color:#6B7380;}
+  .tlh b{color:#16191E;}
+  .node{width:15px;height:15px;border-radius:50%;}
+  .bot{background:#0F766E;}
+  .human{background:#B45309;}
+  .tll1{font-size:11px;color:#16191E;text-align:center;}
+  .tll2{font-size:9.5px;color:#9AA1AC;text-align:center;}
+  .fork{font-size:9.5px;color:#0F766E;line-height:1.55;}
+  .foot{font-size:10px;color:#9AA1AC;}
+  .tag{font-size:9px;color:#9AA1AC;letter-spacing:.6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cap">第一页线框 v1 · 1280×720 等比例 · 只改 slide 1 · 编号 = 领导六问 · 未做视觉精修</div>
+  <div class="canvas">
+
+    <!-- 标题 -->
+    <div class="abs title" style="left:34px;top:18px;width:1200px;">证据优先、模型判断、代码守门</div>
+    <div class="abs subtitle" style="left:36px;top:64px;width:1200px;">openClaw 社区 issue 治理实践 · 对我们基础设施的三点启示</div>
+    <div class="abs rule" style="left:34px;top:96px;width:1212px;"></div>
+
+    <!-- 左：漏斗 / 体积视图 -->
+    <div class="abs sec" style="left:38px;top:108px;">
+      <span class="qnum">①</span> 怎么管 <span class="muted">· 量在哪一关掉</span>
+    </div>
+
+    <!-- 第 0 行 -->
+    <div class="abs flabel" style="left:38px;top:150px;width:112px;">全部 issue</div>
+    <div class="abs track" style="left:152px;top:142px;width:252px;height:34px;"></div>
+    <div class="abs bar"    style="left:152px;top:142px;width:252px;height:34px;"></div>
+    <div class="abs fcount" style="left:408px;top:149px;width:56px;">11,468</div>
+
+    <!-- 第 1 行 -->
+    <div class="abs flabel" style="left:38px;top:212px;width:112px;">完成分流评级</div>
+    <div class="abs track" style="left:152px;top:204px;width:252px;height:34px;"></div>
+    <div class="abs bar"    style="left:152px;top:204px;width:209px;height:34px;"></div>
+    <div class="abs fcount" style="left:408px;top:211px;width:56px;">9,497</div>
+    <div class="abs fdrop"  style="left:470px;top:213px;width:154px;">−1,971 分流未过</div>
+
+    <!-- 第 2 行 -->
+    <div class="abs flabel" style="left:38px;top:274px;width:112px;">仍在流程中</div>
+    <div class="abs track" style="left:152px;top:266px;width:252px;height:34px;"></div>
+    <div class="abs bar"    style="left:152px;top:266px;width:173px;height:34px;"></div>
+    <div class="abs fcount" style="left:408px;top:273px;width:56px;">7,855</div>
+    <div class="abs fdrop"  style="left:470px;top:275px;width:154px;">−1,642 自动关闭</div>
+
+    <!-- 第 3 行（最大流失） -->
+    <div class="abs flabel" style="left:38px;top:336px;width:112px;">证据可复现</div>
+    <div class="abs track" style="left:152px;top:328px;width:252px;height:34px;"></div>
+    <div class="abs bar"    style="left:152px;top:328px;width:115px;height:34px;"></div>
+    <div class="abs fcount" style="left:408px;top:335px;width:56px;">5,221</div>
+    <div class="abs fdrop hot" style="left:470px;top:337px;width:154px;">▲ −2,634 最大流失</div>
+
+    <!-- 第 4 行 -->
+    <div class="abs flabel" style="left:38px;top:398px;width:112px;">已合并关闭</div>
+    <div class="abs track" style="left:152px;top:390px;width:252px;height:34px;"></div>
+    <div class="abs bar last" style="left:152px;top:390px;width:61px;height:34px;"></div>
+    <div class="abs fcount" style="left:408px;top:397px;width:56px;">2,769<br><span style="font-size:10px;font-weight:400;color:#9AA1AC;">24.1%</span></div>
+    <div class="abs fdrop"  style="left:470px;top:399px;width:154px;">−2,452 未合并</div>
+
+    <!-- 右：② 为什么 -->
+    <div class="abs sec" style="left:658px;top:108px;">
+      <span class="qnum">②</span> 为什么 <span class="muted">· 策略与理念</span>
+    </div>
+    <div class="abs" style="left:658px;top:136px;width:586px;">
+      <div class="plead">证据优先<span class="psub">　缺证据只补证，不判无效</span></div>
+    </div>
+    <div class="abs" style="left:658px;top:168px;width:586px;">
+      <div class="plead">模型判断、代码守门<span class="psub">　AI 不直接改状态</span></div>
+    </div>
+    <div class="abs" style="left:658px;top:200px;width:586px;">
+      <div class="plead">关闭即解释<span class="psub">　处置留痕、可复活</span></div>
+    </div>
+
+    <!-- 右：③④ 谁受益 -->
+    <div class="abs blk" style="left:658px;top:228px;width:586px;"></div>
+    <div class="abs sec" style="left:658px;top:238px;">
+      <span class="qnum">③④</span> 谁受益 <span class="muted">· 每条到达时都已带判断依据</span>
+    </div>
+    <div class="abs benef" style="left:658px;top:270px;width:430px;">
+      <span class="role">maintainer</span>到达时已带去向与证据，只判断不筛选
+    </div>
+    <div class="abs big" style="left:1090px;top:266px;width:154px;">98.5%</div>
+    <div class="abs benef" style="left:658px;top:308px;width:430px;">
+      <span class="role">contributor</span>每条都有回应、理由与下一步；可补证复活
+    </div>
+    <div class="abs big" style="left:1090px;top:304px;width:154px;">100%</div>
+    <div class="abs" style="left:1090px;top:329px;width:154px;text-align:right;font-size:9px;color:#9AA1AC;">设计保证</div>
+
+    <!-- 右：⑤ 怎么做 -->
+    <div class="abs blk" style="left:658px;top:344px;width:586px;"></div>
+    <div class="abs sec" style="left:658px;top:354px;">
+      <span class="qnum">⑤</span> 怎么做 <span class="muted">· 设计与实现</span>
+    </div>
+    <div class="abs psub" style="left:658px;top:382px;width:586px;font-size:12px;color:#16191E;">
+      五维标签 + 决策五门 + 执行四门；模型只读，代码是唯一写入口
+    </div>
+
+    <!-- 右：⑥ 启示 -->
+    <div class="abs impl" style="left:658px;top:408px;width:586px;height:86px;">
+      <div class="h" style="padding:10px 14px 0;"><span style="opacity:.75;">⑥</span> 所以 · 对我们基建的启示</div>
+      <div class="it" style="padding:5px 14px 0;">
+        分流先于评分：先定去向，再谈轻重<br>
+        关闭靠 schema 硬门：证据缺一不关<br>
+        模型只提议：边界交给确定性代码
+      </div>
+    </div>
+
+    <!-- 底部：6 步条 / 责任视图 -->
+    <div class="abs tlh" style="left:38px;top:512px;">
+      <b>同一流程</b> · 谁在做、多久、在哪分叉
+    </div>
+    <div class="abs" style="left:60px;top:548px;width:1160px;height:1px;background:#C9D0D6;"></div>
+
+    <!-- node 1 -->
+    <div class="abs node bot" style="left:112px;top:541px;"></div>
+    <div class="abs tll1" style="left:30px;top:562px;width:180px;">规则分流</div>
+    <div class="abs tll2" style="left:30px;top:577px;width:180px;">bot · 秒级</div>
+    <!-- node 2 -->
+    <div class="abs node bot" style="left:312px;top:541px;"></div>
+    <div class="abs tll1" style="left:230px;top:562px;width:180px;">Agent 复现 + 标签</div>
+    <div class="abs tll2" style="left:230px;top:577px;width:180px;">bot · ~3min</div>
+    <!-- node 3 -->
+    <div class="abs node bot" style="left:512px;top:541px;"></div>
+    <div class="abs tll1" style="left:430px;top:562px;width:180px;">证据判定</div>
+    <div class="abs tll2" style="left:430px;top:577px;width:180px;">bot · ~9min</div>
+    <!-- node 4 -->
+    <div class="abs node human" style="left:712px;top:541px;"></div>
+    <div class="abs tll1" style="left:630px;top:562px;width:180px;">维护者定夺</div>
+    <div class="abs tll2" style="left:630px;top:577px;width:180px;">人 · 小时–天</div>
+    <!-- node 5 -->
+    <div class="abs node human" style="left:912px;top:541px;"></div>
+    <div class="abs tll1" style="left:830px;top:562px;width:180px;">开 PR</div>
+    <div class="abs tll2" style="left:830px;top:577px;width:180px;">人 / bot</div>
+    <!-- node 6 -->
+    <div class="abs node human" style="left:1112px;top:541px;"></div>
+    <div class="abs tll1" style="left:1020px;top:562px;width:200px;">校验合并</div>
+    <div class="abs tll2" style="left:1020px;top:577px;width:200px;">人 99.2% · bot 0.8%</div>
+
+    <!-- 分叉 -->
+    <div class="abs fork" style="left:500px;top:594px;width:240px;">
+      ├ 3a 证据不足 → 补证据 / 带理由关闭<br>
+      └ 3b 证据齐 → 生成 fixPrompt
+    </div>
+
+    <!-- 脚注 -->
+    <div class="abs foot" style="left:38px;top:650px;width:1204px;">
+      口径：漏斗为现有第 1 页口径（窗口 2026-09-11–11-11，n=11,468，completed 且带合并 PR）· 待与附件 P12（11,147 / 09-13–11-13）对齐后替换
+    </div>
+
+  </div>
+</div>
+<script>
+window.addEventListener('load',()=>{
+  const c=document.querySelector('.canvas'), cr=c.getBoundingClientRect(), out=[];
+  document.querySelectorAll('.abs').forEach(el=>{
+    const r=el.getBoundingClientRect();
+    if(r.left<cr.left-0.5||r.top<cr.top-0.5||r.right>cr.right+0.5||r.bottom>cr.bottom+0.5)
+      out.push('OUT '+el.className+' :: '+el.textContent.trim().slice(0,24));
+    const ow=el.scrollWidth-el.clientWidth;
+    if(ow>2) out.push('WIDE '+el.className+' +'+ow+'px :: '+el.textContent.trim().slice(0,24));
+  });
+  const sel='.flabel,.fcount,.fdrop,.plead,.benef,.big,.tll1,.tll2,.fork,.foot,.sec,.tlh';
+  const els=[...document.querySelectorAll(sel)];
+  for(let i=0;i<els.length;i++)for(let j=i+1;j<els.length;j++){
+    const a=els[i].getBoundingClientRect(),b=els[j].getBoundingClientRect();
+    if(a.right>b.left+1&&b.right>a.left+1&&a.bottom>b.top+1&&b.bottom>a.top+1)
+      out.push('OVER '+els[i].className+'['+els[i].textContent.trim().slice(0,12)+'] x '+els[j].className+'['+els[j].textContent.trim().slice(0,12)+']');
+  }
+  const pre=document.createElement('pre'); pre.id='check'; pre.textContent=out.join('\n')||'OK'; document.body.appendChild(pre);
+});
+</script>
+</body>
+</html>

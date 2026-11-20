@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mantis：PR 上的 QA 证据 bot，也是自动化 PR 作者</title>
+<style>
+:root{
+  --ink:#16191E; --mute:#5F6B7A; --faint:#9AA1AC; --rule:#E2E6EA;
+  --teal:#0D9488; --teal-d:#0B5D56; --teal-soft:#E7F4F1;
+  --amber:#B45309; --amber-soft:#FDF3E7;
+  --blue:#2F6FEB; --blue-d:#174EA6; --blue-soft:#EEF4FF;
+  --violet:#6D5BD0; --violet-soft:#F1EEFF;
+  --bg:#fff; --panel:#FBFCFD;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.7 "Microsoft YaHei",system-ui,-apple-system,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:44px 30px 72px}
+.eyebrow{font-size:11.5px;letter-spacing:.14em;color:var(--blue-d);text-transform:uppercase;font-weight:600}
+h1{font-size:32px;line-height:1.24;margin:10px 0 8px;letter-spacing:-.015em}
+.lede{color:var(--mute);font-size:15px;margin:0 0 6px;max-width:900px}
+.meta{color:var(--faint);font-size:12px;margin-bottom:24px}
+.rule{height:1px;background:var(--rule);margin:26px 0}
+.card{border:1px solid var(--rule);border-radius:12px;padding:24px 24px 18px;margin:22px 0;background:var(--bg)}
+h2{font-size:18px;margin:0 0 6px;letter-spacing:-.01em}
+h3{font-size:14px;margin:0 0 4px}
+.secdesc{color:var(--mute);font-size:12.5px;margin:0 0 16px;max-width:900px}
+.small{color:var(--faint);font-size:11.5px}
+code{background:#F4F5F5;border-radius:4px;padding:1px 5px;font-size:11.5px;font-family:"Consolas","SFMono-Regular",monospace}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 6px}
+.kpi{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;background:var(--panel)}
+.kpi .n{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.kpi .l{color:var(--mute);font-size:12px;margin-top:2px}
+.kpi .s{color:var(--faint);font-size:10.5px}
+
+.identities{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+.ident{border:1px solid var(--rule);border-radius:11px;padding:16px 18px;background:var(--panel);position:relative}
+.ident:before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:2px}
+.ident.a:before{background:var(--teal)}
+.ident.b:before{background:var(--blue)}
+.ident h3{font-size:14px;margin:0 0 4px}
+.ident .tagline{font-size:11px;color:var(--faint);margin:0 0 8px}
+.ident p{color:var(--mute);font-size:12.5px;margin:0}
+
+.callout{border-radius:11px;padding:16px 18px;margin:16px 0;font-size:12.8px;line-height:1.75}
+.callout.q{background:var(--teal-soft);border:1px solid #CDE7E1}
+.callout.w{background:var(--amber-soft);border:1px solid #F0D9B8}
+.callout.b{background:var(--blue-soft);border:1px solid #D3E0FA}
+.callout b{color:var(--ink)}
+.callout p:last-child{margin-bottom:0}
+
+.flow{display:flex;align-items:stretch;gap:4px;margin:14px 0 6px}
+.fl{flex:1;border:1px solid var(--rule);border-radius:9px;padding:11px 10px;background:var(--panel);font-size:10.5px;line-height:1.45}
+.fl .n{font-size:9px;letter-spacing:.1em;color:var(--blue-d);font-weight:700;margin-bottom:3px}
+.fl b{display:block;font-size:11.5px;margin-bottom:2px}
+.fl span{color:var(--mute)}
+.arrow{display:flex;align-items:center;color:var(--faint);font-size:15px}
+@media(max-width:900px){.flow{display:block}.arrow{display:none}.fl{margin:6px 0}}
+
+.quote{background:var(--blue-soft);border-left:3px solid var(--blue);border-radius:0 9px 9px 0;padding:12px 15px;font-size:12.5px;color:var(--mute);margin:12px 0}
+.quote code{font-size:12px}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 4px;padding:0;list-style:none}
+.chips li{margin:0;font-family:"Consolas",monospace;font-size:10.8px;color:var(--blue-d);background:var(--blue-soft);border:1px solid #D3E0FA;border-radius:999px;padding:3px 10px}
+
+.comment{border:1px solid var(--rule);border-radius:12px;background:var(--bg);overflow:hidden;margin:14px 0 8px;box-shadow:0 1px 2px rgba(22,25,30,.04)}
+.c-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--rule)}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.c-head b{font-size:12.5px}
+.c-head .bot{font-size:9.5px;color:var(--blue-d);background:var(--blue-soft);border-radius:999px;padding:1px 7px}
+.c-head .when{margin-left:auto;color:var(--faint);font-size:10.5px}
+.c-body{padding:14px 16px 10px}
+.c-body h4{font-size:14px;margin:0 0 6px}
+.c-body p{font-size:12px;color:var(--mute);margin:0 0 8px}
+.c-meta{font-size:11px;color:var(--mute);line-height:1.8;margin:0 0 10px;padding:0;list-style:none}
+.c-meta code{font-size:10.5px}
+.badge{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:1px}
+.badge.pass{background:var(--teal-soft);color:var(--teal-d);border:1px solid #CDE7E1}
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 8px}
+.shot{border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--panel)}
+.shot .img{height:118px;display:flex;align-items:center;justify-content:center;font-family:"Consolas",monospace;font-size:10px;color:var(--faint);background:
+  repeating-linear-gradient(135deg,#F5F7F8 0,#F5F7F8 8px,#EEF1F3 8px,#EEF1F3 16px);border-bottom:1px solid var(--rule)}
+.shot .cap{padding:6px 9px;font-size:10.5px;color:var(--mute)}
+.shot .cap b{color:var(--ink);font-weight:600}
+.c-links{display:flex;flex-wrap:wrap;gap:12px;font-size:10.8px;color:var(--mute);border-top:1px solid #EEF0F2;padding-top:8px}
+.c-links span{white-space:nowrap}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:600;color:var(--faint);font-size:10.5px;padding:0 8px 8px;border-bottom:1px solid var(--rule);vertical-align:bottom}
+td{padding:8px;border-bottom:1px solid #F2F4F5;vertical-align:top}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.lab{font-weight:600}
+
+.lessons{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+.lesson{border:1px solid var(--rule);border-radius:10px;padding:14px 15px;background:var(--panel);position:relative}
+.lesson:before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:2px}
+.lesson.g:before{background:var(--teal)}
+.lesson.b:before{background:var(--blue)}
+.lesson.a:before{background:var(--amber)}
+.lesson h3{font-size:12.5px;margin:0 0 5px}
+.lesson p{font-size:11.5px;color:var(--mute);margin:0}
+.lesson .sn{font-family:"Consolas",monospace;font-size:10px;color:var(--faint);display:block;margin-bottom:4px}
+
+.src{columns:2;column-gap:26px;font-size:11.5px;color:var(--mute);margin:8px 0 0;padding:0;list-style:none}
+.src li{break-inside:avoid;margin:0 0 7px;line-height:1.55}
+.src code{font-size:10.5px}
+footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--rule);color:var(--faint);font-size:11px;line-height:1.7}
+
+@media(max-width:900px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .identities,.shots,.lessons{grid-template-columns:1fr}
+  .src{columns:1}
+  .wrap{padding:28px 18px 56px}
+  h1{font-size:26px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">OPENCLAW × MANTIS · PR QA &amp; AUTOMATION</div>
+  <h1>Mantis：PR 上的 QA 证据 bot，<br>也是自动化 PR 作者</h1>
+  <p class="lede">它不评审 PR。维护者在 PR 评论里 <code>@openclaw-mantis</code>，它跑 Discord / Slack / Web UI 场景，把 baseline/candidate 截图贴回 PR；同时它自己开 routine PR，并在 checks 通过后自动合并。</p>
+  <p class="meta">repo openclaw/openclaw · snapshot 2026-11-20 · 1,181 authored PRs · 617 merged（2026-09-13 ~ 11-13）· 612/617 merged_by mantis</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">1,181</div><div class="l">Mantis 作者的 PR</div><div class="s">author:app/openclaw-mantis</div></div>
+    <div class="kpi"><div class="n">617</div><div class="l">两个月内 merged</div><div class="s">2026-09-13 ~ 11-13</div></div>
+    <div class="kpi"><div class="n">612/617</div><div class="l">merged_by 是 mantis</div><div class="s">routine PR 自动合并 lane</div></div>
+    <div class="kpi"><div class="n">85%</div><div class="l">最近 100 个是 locale refresh</div><div class="s">85 locale + 14 i18n + 1 CI</div></div>
+  </div>
+
+  <section class="card">
+    <h2>一、先定位：它不是 PR review bot</h2>
+    <p class="secdesc">Mantis 在 PR 上有两重身份，但都不做“评审别人代码、决定 merge/close”这件事。</p>
+    <div class="identities">
+      <div class="ident a">
+        <h3>① 在 PR 上：QA / evidence bot</h3>
+        <p class="tagline">被 @ 才动；产出是评论里的证据</p>
+        <p>维护者在 PR 评论里发 <code>@openclaw-mantis</code> + 请求模式，它跑可复现的 QA 场景，把 baseline vs candidate 的截图、视频链接和运行信息贴回 PR。触发必须是 <b>PR 评论</b>；普通 issue 评论会直接失败。</p>
+      </div>
+      <div class="ident b">
+        <h3>② 在 PR 外：自动化 PR 作者</h3>
+        <p class="tagline">自己开 PR，自己合并 routine 变更</p>
+        <p>它持续生成 locale / i18n / CI timing 这类维护 PR，通过可评审的 automation branch 发布，不绕过 protected-branch checks；例行变更在 checks 通过后自动合并。</p>
+      </div>
+    </div>
+    <div class="callout b"><b>它不做什么：</b>不 review 别人的 PR，不判断代码质量，不决定 close/merge 语义。ClawSweeper 负责评审/关闭；Mantis 负责 QA 证据和 routine PR。它“针对 PR”，但不是“PR 评审 bot”。</div>
+  </section>
+
+  <section class="card">
+    <h2>二、PR QA 的触发与回路</h2>
+    <p class="secdesc">核心是 <code>mantis-resolve-request.yml</code>：从 PR 评论里解析请求，跑场景，再把 evidence 挂回同一个 PR。</p>
+    <div class="flow">
+      <div class="fl"><div class="n">STEP 01</div><b>PR 评论 @</b><span><code>@openclaw-mantis</code> + request pattern</span></div>
+      <div class="arrow">→</div>
+      <div class="fl"><div class="n">STEP 02</div><b>解析 refs</b><span>resolver 取 PR / baseline / candidate</span></div>
+      <div class="arrow">→</div>
+      <div class="fl"><div class="n">STEP 03</div><b>跑场景</b><span>Discord / Slack / Web UI / Telegram</span></div>
+      <div class="arrow">→</div>
+      <div class="fl"><div class="n">STEP 04</div><b>上传产物</b><span>R2 + GitHub Actions artifact</span></div>
+      <div class="arrow">→</div>
+      <div class="fl"><div class="n">STEP 05</div><b>写 PR 评论</b><span>inline 截图 + 视频/原始文件链接</span></div>
+      <div class="arrow">→</div>
+      <div class="fl"><div class="n">STEP 06</div><b>清 👀</b><span>clear-reaction，表示已处理</span></div>
+    </div>
+    <div class="quote"><code>mantis-resolve-request.yml</code>：<b>“Mantis issue_comment trigger requires a pull request comment.”</b> 这是它“只针对 PR”的最直接证据。</div>
+    <div>
+      <h3 style="margin-top:12px">可跑的场景</h3>
+      <ul class="chips">
+        <li>discord-status-reactions-tool-only</li>
+        <li>discord-thread-reply-filepath-attachment</li>
+        <li>slack-desktop-smoke</li>
+        <li>web-ui-chat-proof</li>
+        <li>telegram-bot-e2e-proof</li>
+      </ul>
+      <p class="small">触发时加 👀 reaction；结束后由 <code>mantis-clear-reaction.yml</code> 清掉。请求者看到的“结果”是 PR 评论，不是 issue 回复。</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>三、评论里到底贴了什么</h2>
+    <p class="secdesc">不是“贴一张本地截图”。它先把产物传到 R2（<code>https://artifacts.openclaw.ai/...</code>），再用 HTML 表格把 public URL 内嵌进评论；视频只给链接。</p>
+
+    <div class="comment">
+      <div class="c-head">
+        <div class="avatar">M</div>
+        <b>openclaw-mantis[bot]</b>
+        <span class="bot">bot</span>
+        <span class="when">commented on this PR</span>
+      </div>
+      <div class="c-body">
+        <h4>Discord status reactions — QA evidence <span class="badge pass">Overall: pass</span></h4>
+        <p>Summary: Mantis captured QA evidence for this scenario.</p>
+        <ul class="c-meta">
+          <li>Scenario: <code>discord-status-reactions-tool-only</code> · Trigger: <code>issue_comment</code></li>
+          <li>Run: <code>actions/runs/…</code> · Artifact: <code>actions/artifacts/…</code></li>
+          <li>Baseline: <code>pass</code> at <code>&lt;sha&gt;</code> · Candidate (PR merged onto main): <code>pass</code> at <code>&lt;sha&gt;</code></li>
+        </ul>
+        <div class="shots">
+          <div class="shot"><div class="img">baseline screenshot · inline &lt;img&gt;</div><div class="cap"><b>Baseline</b> · timeline.png</div></div>
+          <div class="shot"><div class="img">candidate screenshot · inline &lt;img&gt;</div><div class="cap"><b>Candidate</b> · timeline.png</div></div>
+        </div>
+        <div class="c-links">
+          <span>▶ Motion-trimmed clips</span>
+          <span>▶ Full videos</span>
+          <span>↗ Raw QA files (index.json)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="identities" style="margin-top:14px">
+      <div class="ident a"><h3>截图：直接 inline</h3><p><code>renderPairTable()</code> 生成 50/50 的 baseline vs candidate 表格，图片用 <code>&lt;img src="https://artifacts.openclaw.ai/..."&gt;</code>；额外的 inline artifact 用单图表格。</p></div>
+      <div class="ident b"><h3>视频：给链接</h3><p><code>renderLinkList()</code> 只输出 Motion-trimmed clips / Full videos 的链接；GitHub 评论不内嵌 MP4，真正的“证据”是截图 + 可点开的视频。</p></div>
+    </div>
+
+    <div class="callout w"><b>通知的细节：</b>评论由 <code>openclaw-mantis[bot]</code> 发在 PR 上，模板里有 <code>Trigger: issue_comment</code>，但<b>没有显式 @请求者</b>；通知来自 PR 评论本身。它用 marker（如 <code>&lt;!-- mantis-discord-status-reactions --&gt;</code>）做 upsert：已有评论就 PATCH，没有才新建。好处是不刷屏；代价是 PATCH 旧评论不一定像新评论那样再次触发通知——需要明确提醒时，要加 @mention 或发新评论。</div>
+  </section>
+
+  <section class="card">
+    <h2>四、另一重身份：自动化 PR 作者</h2>
+    <p class="secdesc">Mantis 的 PR 绝大多数是 routine maintenance；它们仍然走标准 PR 标签和 checks，不直接 push。</p>
+    <table>
+      <thead><tr><th>PR</th><th>类型</th><th>状态</th><th>标签 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="lab"><a href="https://github.com/openclaw/openclaw/pull/147498">#147498</a></td><td><code>chore(ui): refresh control ui locales</code></td><td>merged<br><span class="small">2026-09-13</span></td><td><code>app: web-ui</code> · <code>size: M</code> · <code>P3</code> · <code>status: 👀 ready for maintainer look</code></td></tr>
+        <tr><td class="lab"><a href="https://github.com/openclaw/openclaw/pull/198212">#198212</a></td><td><code>ci: refresh measured test timings</code></td><td>open<br><span class="small">2026-11-13</span></td><td><code>size: XL</code> · <code>P3</code>；刷新 CI shard 权重</td></tr>
+        <tr><td class="lab">最近 100 个</td><td>85 locale / 14 i18n / 1 CI</td><td>99 closed · 1 open</td><td>locale refresh 是绝对主力；一天多个</td></tr>
+      </tbody>
+    </table>
+    <div class="callout q" style="margin-top:14px"><b>自动合并 lane：</b>617 个 merged PR 里，<b>612 个的 <code>merged_by</code> 是 <code>openclaw-mantis</code></b>；节奏约 <b>42–85 个/周</b>。这说明 routine PR 走的是“开 PR → 跑 checks → 自动合并”，而不是直接推 main；PR body 也明确写了 “without bypassing protected-branch checks”。</div>
+  </section>
+
+  <section class="card">
+    <h2>五、对 vllm-ascend 的启示</h2>
+    <p class="secdesc">Mantis 值得借的是“PR 上的可复现证据 + bot PR 的独立 lane”；不值得借的是无批量的 routine PR 噪音。</p>
+    <div class="lessons">
+      <div class="lesson g"><span class="sn">BORROW 01</span><h3>QA evidence 挂回 PR</h3><p>把可复现的 baseline/candidate 证据贴回 PR，维护者不用自己跑；失败也发，Overall 标 <code>fail</code> / <code>blocked</code>。</p></div>
+      <div class="lesson b"><span class="sn">BORROW 02</span><h3>bot PR 仍走 PR 门</h3><p>automation PR 也要过 checks、带 size / risk / status 标签；不做直推，保留可回滚和可审计。</p></div>
+      <div class="lesson a"><span class="sn">AVOID 03</span><h3>routine PR 噪音</h3><p>locale refresh 一天多个会稀释 review 队列；应该 batch/coalesce，或给 automation lane 明确的 auto-merge 范围和配额。</p></div>
+    </div>
+    <div class="callout b" style="margin-top:14px"><b>一句话：</b>Mantis 证明了“QA 证据可以产品化”，也暴露了“bot PR 需要独立车道”。对 vllm-ascend：先把 PR 的 evidence 和 label/ready 门做出来，再谈 bot 自动化；不要把 bot PR 和人类 PR 混在同一个 review 队列里。</div>
+  </section>
+
+  <section class="card">
+    <h2>六、证据与口径</h2>
+    <ul class="src">
+      <li><a href="https://github.com/openclaw/openclaw/blob/main/.github/workflows/mantis-resolve-request.yml"><code>mantis-resolve-request.yml</code></a> — PR 评论触发；<code>request-pattern</code> / <code>pr_number</code> / reaction；非 PR 评论直接失败。</li>
+      <li><a href="https://github.com/openclaw/openclaw/blob/main/.github/workflows/mantis-clear-reaction.yml"><code>mantis-clear-reaction.yml</code></a> — 清除命令评论上的 👀 reaction。</li>
+      <li><a href="https://github.com/openclaw/openclaw/blob/main/.github/workflows/mantis-scenario.yml"><code>mantis-scenario.yml</code></a> — 四个 QA scenario 的 dispatcher。</li>
+      <li><a href="https://github.com/openclaw/openclaw/blob/main/.github/workflows/mantis-discord-status-reactions.yml"><code>mantis-discord-status-reactions.yml</code></a> — baseline/candidate、artifact、inline 评论的完整示例。</li>
+      <li><a href="https://github.com/openclaw/openclaw/blob/main/.github/workflows/mantis-discord-thread-attachment.yml"><code>mantis-discord-thread-attachment.yml</code></a> · <a href="https://github.com/openclaw/openclaw/blob/main/.github/workflows/mantis-slack-desktop-smoke.yml"><code>slack-desktop-smoke</code></a> · <a href="https://github.com/openclaw/openclaw/blob/main/.github/workflows/mantis-web-ui-chat-proof.yml"><code>web-ui-chat-proof</code></a> · <a href="https://github.com/openclaw/openclaw/blob/main/.github/workflows/mantis-telegram-bot-e2e-proof.yml"><code>telegram-bot-e2e-proof</code></a>。</li>
+      <li><a href="https://github.com/openclaw/openclaw/blob/main/scripts/mantis/publish-pr-evidence.mjs"><code>scripts/mantis/publish-pr-evidence.mjs</code></a> — <code>renderEvidenceComment()</code> + <code>upsertPrComment()</code>；R2 上传、marker PATCH/POST。</li>
+      <li>示例 PR：<a href="https://github.com/openclaw/openclaw/pull/147498">#147498</a>（locale refresh，merged）、<a href="https://github.com/openclaw/openclaw/pull/198212">#198212</a>（CI timing，open）。</li>
+      <li>查询：<code>repo:openclaw/openclaw is:pr author:app/openclaw-mantis</code>；<code>merged-prs-20260913-20261113.json</code> 中 617 条 mantis merged；612 条 <code>merged_by</code> 为 mantis。</li>
+    </ul>
+    <p class="small" style="margin-top:12px">口径：1,181 为 search total；617 为两个月 merged 数据集；612/617 来自 <code>mergedBy</code>；85/14/1 为最近 100 个 PR 的标题分类；42–85/周为 merged 周分布。页面只描述 PR-facing 行为，不覆盖 Mantis 的全部内部用途。</p>
+  </section>
+
+  <footer>Mantis · PR QA &amp; automation · snapshot 2026-11-20 · 数据来自公开 GitHub workflow / script / PR 元数据；示例中的截图位置为示意，不是实际截图。</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,6 @@
+total=4082 merged=3216 merge_rate=78.8% open=521
+title_prefix=[('fix', 2947), ('improve', 458), ('feat', 319), ('refactor', 113), ('chore', 98), ('docs', 70), ('test', 55), ('revert', 2)]
+sample titles:
+  fix(wear): show chat replies after Voice input
+  fix(plugins): recover channels after pending service cleanup settles
+  feat(android): keep chat calls visible while sharing photos

@@ -1,0 +1,38 @@
+type=list len=4082
+keys=['number', 'title', 'url', 'body', 'state', 'createdAt', 'mergedAt', 'labels']
+---
+number: 151224
+title: fix(wear): show chat replies after Voice input
+createdAt: 2026-09-17T23:02:59Z
+mergedAt: 2026-09-17T23:56:56Z
+state: closed
+body: ## What Problem This Solves  Fixes: replies and chat failures stay off-screen when a connected Wear OS user submits Type or Dictate from Voice without an active Live Talk.  ## User Impact  Accepted ordinary input now ope
+---
+number: 151216
+title: fix(plugins): recover channels after pending service cleanup settles
+createdAt: 2026-09-17T22:52:49Z
+mergedAt: 2026-09-18T02:27:17Z
+state: closed
+body: Related: #150953  ## What Problem This Solves  Fixes channels remaining unavailable after plugin replacement times out observing service cleanup that subsequently finishes successfully.  ## User Impact  Affected channels
+---
+number: 151079
+title: feat(android): keep chat calls visible while sharing photos
+createdAt: 2026-09-17T19:12:37Z
+mergedAt: None
+state: open
+body: Related: #151078, #150178  ## What Problem This Solves  Android users need a dedicated conversation page without changing their active call or original chat. The previous inline card did not provide that view, and the fi
+---
+number: 151057
+title: fix(ui): resolve named-project PR links to the correct repository
+createdAt: 2026-09-17T18:30:48Z
+mergedAt: 2026-09-19T12:04:20Z
+state: closed
+body: Closes #151047  ## What Problem This Solves  Fixes: assistant-chat PR references can link to the checkout repository instead of the named project, and bold/italic formatting can change a PR into an issue link.  ## User I
+---
+number: 150915
+title: fix(channels): isolate Mattermost sends and retain capture owner proof
+createdAt: 2026-09-17T13:21:08Z
+mergedAt: 2026-09-29T00:04:38Z
+state: closed
+body: ## What Problem This Solves  Fixes Mattermost first-send stalls when the outbound runtime also loads inbound monitoring.  ## User Impact  Mattermost outbound sends no longer load the inbound monitor; account startup stil
+authors=[('?', 4082)]
